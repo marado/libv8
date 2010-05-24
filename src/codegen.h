@@ -28,7 +28,6 @@
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
 
-#include "ast.h"
 #include "code-stubs.h"
 #include "runtime.h"
 #include "type-info.h"
@@ -126,6 +125,7 @@ namespace internal {
   F(RegExpConstructResult, 3, 1)                                             \
   F(GetFromCache, 2, 1)                                                      \
   F(NumberToString, 1, 1)                                                    \
+  F(SwapElements, 3, 1)                                                      \
   F(MathPow, 2, 1)                                                           \
   F(MathSin, 1, 1)                                                           \
   F(MathCos, 1, 1)                                                           \

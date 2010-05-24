@@ -238,7 +238,15 @@ function LocalTime(time) {
   return time + DaylightSavingsOffset(time) + local_time_offset;
 }
 
+
+var ltcache = {
+  key: null, 
+  val: null
+};
+
 function LocalTimeNoCheck(time) {
+  var ltc = ltcache;
+  if (%_ObjectEquals(time, ltc.key)) return ltc.val;
   if (time < -MAX_TIME_MS || time > MAX_TIME_MS) {
     return $NaN;
   }
@@ -252,7 +260,8 @@ function LocalTimeNoCheck(time) {
   } else {
     var dst_offset = DaylightSavingsOffset(time);
   }
-  return time + local_time_offset + dst_offset;
+  ltc.key = time;
+  return (ltc.val = time + local_time_offset + dst_offset);
 }
 
 
@@ -620,7 +629,7 @@ function DatePrintString(time) {
 // -------------------------------------------------------------------
 
 // Reused output buffer. Used when parsing date strings.
-var parse_buffer = $Array(7);
+var parse_buffer = $Array(8);
 
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
@@ -628,13 +637,13 @@ function DateParse(string) {
   if (IS_NULL(arr)) return $NaN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);
-  var time = MakeTime(arr[3], arr[4], arr[5], 0);
+  var time = MakeTime(arr[3], arr[4], arr[5], arr[6]);
   var date = MakeDate(day, time);
 
-  if (IS_NULL(arr[6])) {
+  if (IS_NULL(arr[7])) {
     return TimeClip(UTC(date));
   } else {
-    return TimeClip(date - arr[6] * 1000);
+    return TimeClip(date - arr[7] * 1000);
   }
 }
 
