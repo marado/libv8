@@ -1,3 +1,16 @@
+libv8 (2.2.18-2) unstable; urgency=low
+
+  * Update this version in case current chromium 6 uses it.
+  * Standards-Version 3.9.0
+  * Build for armv4 instead of armv5, fix ARMV5 detection.
+    Backported from libv8-2.2.24-2
+  * Include v8-profiler.h in libv8-dev.
+    Backported from libv8-2.2.24-2
+  * Replace arch: mips with mipsel, because only little endian is supported.
+    Backported from libv8-2.2.24-3
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 24 Jul 2010 19:25:39 +0200
+
 libv8 (2.2.18-1) unstable; urgency=low
 
   * New upstream release, followed the procedure of README.source to update. 
