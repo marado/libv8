@@ -1,3 +1,11 @@
+libv8 (2.2.24-6) unstable; urgency=low
+
+  * CVE-2010-3412 (Closes: #597856)
+    Race condition in the console implementation in Google Chrome before
+    6.0.472.59 has unspecified impact and attack vectors.
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 24 Sep 2010 11:44:57 +0200
+
 libv8 (2.2.24-5) unstable; urgency=low
 
   * Standards-Version 3.9.1. Nothing had to be changed to comply.
