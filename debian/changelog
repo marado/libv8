@@ -1,3 +1,9 @@
+libv8 (2.2.24-8) unstable; urgency=low
+
+  * Correct short description for libv8-dbg. (Closes: #601855) 
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 30 Oct 2010 14:35:20 +0200
+
 libv8 (2.2.24-7) unstable; urgency=low
 
   * Fix FTBFS on armel with -Wno-psabi. For more info :
