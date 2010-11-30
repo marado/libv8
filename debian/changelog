@@ -1,6 +1,7 @@
 libv8 (2.2.24-8) unstable; urgency=low
 
-  * Correct short description for libv8-dbg. (Closes: #601855) 
+  * Update v8 to patch version 2.2.24.28.
+  * Correct short description for libv8-dbg. (Closes: #601855)
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 30 Oct 2010 14:35:20 +0200
 

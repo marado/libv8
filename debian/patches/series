@@ -1,5 +1,4 @@
 issue3037008_6001.diff
-issue3338001_1_2.diff
 0001-enable_soname.patch
 0002-armel-build.patch
 0003-platform-detection-x86_64-and-mips.patch

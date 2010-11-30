@@ -1,11 +1,9 @@
 Patch from upstream
 http://codereview.chromium.org/3037008
 
-Index: a/src/handles.cc
-===================================================================
---- a/src/handles.cc	(revision 5094)
-+++ a/src/handles.cc	(working copy)
-@@ -664,8 +664,12 @@
+--- a/src/handles.cc
++++ b/src/handles.cc
+@@ -672,8 +672,12 @@
      // therefore it does not make sense to cache the property names
      // for arguments objects.  Arguments objects will always have
      // elements.
@@ -18,10 +16,8 @@ Index: a/src/handles.cc
           !current->IsAccessCheckNeeded() &&
           !current->HasNamedInterceptor() &&
           !current->HasIndexedInterceptor());
-Index: a/test/mjsunit/for-in-special-cases.js
-===================================================================
---- a/test/mjsunit/for-in-special-cases.js	(revision 5094)
-+++ a/test/mjsunit/for-in-special-cases.js	(working copy)
+--- a/test/mjsunit/for-in-special-cases.js
++++ b/test/mjsunit/for-in-special-cases.js
 @@ -62,3 +62,60 @@
  assertEquals(10, i);
  assertEquals(10, j);
