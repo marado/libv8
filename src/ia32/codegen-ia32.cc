@@ -6406,6 +6406,27 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
 }
 
 
+  void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
+  // typeof(arg) == function).
+  // It includes undetectable objects (as opposed to IsObject).
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ test(value.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(equal);
+
+  // Check that this is an object.
+  frame_->Spill(value.reg());
+  __ CmpObjectType(value.reg(), FIRST_JS_OBJECT_TYPE, value.reg());
+  value.Unuse();
+  destination()->Split(above_equal);
+}
+
+
 void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (%_ClassOf(arg) === 'Function')
@@ -11635,6 +11656,8 @@ static int NegativeComparisonResult(Condition cc) {
 
 
 void CompareStub::Generate(MacroAssembler* masm) {
+  ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
+
   Label check_unequal_objects, done;
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
@@ -12528,8 +12551,10 @@ int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value. To avoid duplicate
   // stubs the never NaN NaN condition is only taken into account if the
   // condition is equals.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 13));
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 12));
+  ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
   return ConditionField::encode(static_cast<unsigned>(cc_))
+         | RegisterField::encode(false)   // lhs_ and rhs_ are not used
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
          | IncludeNumberCompareField::encode(include_number_compare_);
@@ -12539,6 +12564,8 @@ int CompareStub::MinorKey() {
 // Unfortunately you have to run without snapshots to see most of these
 // names in the profile since most compare stubs end up in the snapshot.
 const char* CompareStub::GetName() {
+  ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
+
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
   name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
