@@ -1368,11 +1368,14 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           overwrite_mode);
 
     Label do_op;
+    // Left operand must be unchanged in left->reg() for deferred code.
+    // Left operand is in answer.reg(), possibly converted to int32, for
+    // inline code.
+    __ movq(answer.reg(), left->reg());
     if (right_type_info.IsSmi()) {
       if (FLAG_debug_code) {
         __ AbortIfNotSmi(right->reg());
       }
-      __ movq(answer.reg(), left->reg());
       // If left is not known to be a smi, check if it is.
       // If left is not known to be a number, and it isn't a smi, check if
       // it is a HeapNumber.
@@ -1389,7 +1392,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                      FieldOperand(answer.reg(), HeapNumber::kValueOffset));
         // Branch if we might have overflowed.
         // (False negative for Smi::kMinValue)
-        __ cmpq(answer.reg(), Immediate(0x80000000));
+        __ cmpl(answer.reg(), Immediate(0x80000000));
         deferred->Branch(equal);
         // TODO(lrn): Inline shifts on int32 here instead of first smi-tagging.
         __ Integer32ToSmi(answer.reg(), answer.reg());
@@ -1408,18 +1411,18 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     // Perform the operation.
     switch (op) {
       case Token::SAR:
-        __ SmiShiftArithmeticRight(answer.reg(), left->reg(), rcx);
+        __ SmiShiftArithmeticRight(answer.reg(), answer.reg(), rcx);
         break;
       case Token::SHR: {
         __ SmiShiftLogicalRight(answer.reg(),
-                              left->reg(),
-                              rcx,
-                              deferred->entry_label());
+                                answer.reg(),
+                                rcx,
+                                deferred->entry_label());
         break;
       }
       case Token::SHL: {
         __ SmiShiftLeft(answer.reg(),
-                        left->reg(),
+                        answer.reg(),
                         rcx);
         break;
       }
@@ -3428,49 +3431,56 @@ void CodeGenerator::GenerateFastSmiLoop(ForStatement* node) {
     CodeForStatementPosition(node);
     Slot* loop_var_slot = loop_var->slot();
     if (loop_var_slot->type() == Slot::LOCAL) {
-      frame_->PushLocalAt(loop_var_slot->index());
+      frame_->TakeLocalAt(loop_var_slot->index());
     } else {
       ASSERT(loop_var_slot->type() == Slot::PARAMETER);
-      frame_->PushParameterAt(loop_var_slot->index());
+      frame_->TakeParameterAt(loop_var_slot->index());
     }
     Result loop_var_result = frame_->Pop();
     if (!loop_var_result.is_register()) {
       loop_var_result.ToRegister();
     }
-
+    Register loop_var_reg = loop_var_result.reg();
+    frame_->Spill(loop_var_reg);
     if (increments) {
-      __ SmiAddConstant(loop_var_result.reg(),
-                        loop_var_result.reg(),
+      __ SmiAddConstant(loop_var_reg,
+                        loop_var_reg,
                         Smi::FromInt(1));
     } else {
-      __ SmiSubConstant(loop_var_result.reg(),
-                        loop_var_result.reg(),
+      __ SmiSubConstant(loop_var_reg,
+                        loop_var_reg,
                         Smi::FromInt(1));
     }
 
-    {
-      __ SmiCompare(loop_var_result.reg(), limit_value);
-      Condition condition;
-      switch (compare_op) {
-        case Token::LT:
-          condition = less;
-          break;
-        case Token::LTE:
-          condition = less_equal;
-          break;
-        case Token::GT:
-          condition = greater;
-          break;
-        case Token::GTE:
-          condition = greater_equal;
-          break;
-        default:
-          condition = never;
-          UNREACHABLE();
-      }
-      loop.Branch(condition);
+    frame_->Push(&loop_var_result);
+    if (loop_var_slot->type() == Slot::LOCAL) {
+      frame_->StoreToLocalAt(loop_var_slot->index());
+    } else {
+      ASSERT(loop_var_slot->type() == Slot::PARAMETER);
+      frame_->StoreToParameterAt(loop_var_slot->index());
     }
-    loop_var_result.Unuse();
+    frame_->Drop();
+
+    __ SmiCompare(loop_var_reg, limit_value);
+    Condition condition;
+    switch (compare_op) {
+      case Token::LT:
+        condition = less;
+        break;
+      case Token::LTE:
+        condition = less_equal;
+        break;
+      case Token::GT:
+        condition = greater;
+        break;
+      case Token::GTE:
+        condition = greater_equal;
+        break;
+      default:
+        condition = never;
+        UNREACHABLE();
+    }
+    loop.Branch(condition);
   }
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
@@ -5670,6 +5680,25 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
   obj.Unuse();
   destination()->Split(below_equal);
+}
+
+
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
+  // typeof(arg) == function).
+  // It includes undetectable objects (as opposed to IsObject).
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // Check that this is an object.
+  __ CmpObjectType(value.reg(), FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(above_equal);
 }
 
 
@@ -9399,17 +9428,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     // to make sure that we switch between 0 and -0.
     // Also enter it if the value of the smi is Smi::kMinValue.
     __ SmiNeg(rax, rax, &done);
-
-    // Either zero or Smi::kMinValue, neither of which become a smi when
-    // negated.
-    if (negative_zero_ == kStrictNegativeZero) {
-      __ SmiCompare(rax, Smi::FromInt(0));
-      __ j(not_equal, &slow);
-      __ Move(rax, Factory::minus_zero_value());
-      __ jmp(&done);
-    } else  {
-      __ jmp(&slow);
-    }
+    __ jmp(&slow);
 
     // Try floating point case.
     __ bind(&try_float);
@@ -10094,6 +10113,8 @@ static int NegativeComparisonResult(Condition cc) {
 
 
 void CompareStub::Generate(MacroAssembler* masm) {
+  ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
+
   Label check_unequal_objects, done;
   // The compare stub returns a positive, negative, or zero 64-bit integer
   // value in rax, corresponding to result of comparing the two inputs.
@@ -10942,8 +10963,10 @@ int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value. To avoid duplicate
   // stubs the never NaN NaN condition is only taken into account if the
   // condition is equals.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 13));
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 12));
+  ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
   return ConditionField::encode(static_cast<unsigned>(cc_))
+         | RegisterField::encode(false)    // lhs_ and rhs_ are not used
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
          | IncludeNumberCompareField::encode(include_number_compare_);
@@ -10953,6 +10976,8 @@ int CompareStub::MinorKey() {
 // Unfortunately you have to run without snapshots to see most of these
 // names in the profile since most compare stubs end up in the snapshot.
 const char* CompareStub::GetName() {
+  ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
+
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
   name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);

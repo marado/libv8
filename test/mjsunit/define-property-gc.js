@@ -25,42 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function Hash() {
-  for (var i = 0; i < 100; i++) {
-    this['a' + i] = i;
-  }
+// Tests the handling of GC issues in the defineProperty method.
+// Flags: --max-new-space-size=262144
 
-  delete this.a50;  // Ensure it's a normal object.
-}
-
-Hash.prototype.m = function() {
-  return 1;
-};
-
-var h = new Hash();
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h.m = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h.m;
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
+function Regular() {
+  this[0] = 0;
+  this[1] = 1;
 }
 
 
-var nonsymbol = 'wwwww '.split(' ')[0];
-Hash.prototype.wwwww = Hash.prototype.m;
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h[nonsymbol] = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h[nonsymbol];
+function foo() {
+  var descElementNonWritable = { value: 'foofoo', writable: false };
+  for (var i = 0; i < 1000; i++) {
+    var regular = new Regular();
+    Object.defineProperty(regular, '1', descElementNonWritable);
   }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
 }
+
+foo();

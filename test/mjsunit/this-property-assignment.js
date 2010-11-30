@@ -25,42 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function Hash() {
-  for (var i = 0; i < 100; i++) {
-    this['a' + i] = i;
-  }
+// Tests the handling of multiple assignments to the same property in a 
+// constructor that only has simple this property assignments.
 
-  delete this.a50;  // Ensure it's a normal object.
+function Node() {
+  this.a = 1;
+  this.a = 2;
+  this.a = 3;
 }
 
-Hash.prototype.m = function() {
-  return 1;
-};
+var n1 = new Node();
+assertEquals(3, n1.a);
 
-var h = new Hash();
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h.m = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h.m;
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
-}
-
-
-var nonsymbol = 'wwwww '.split(' ')[0];
-Hash.prototype.wwwww = Hash.prototype.m;
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h[nonsymbol] = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h[nonsymbol];
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
-}
+var n2 = new Node();
+assertEquals(3, n2.a);

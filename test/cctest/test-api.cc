@@ -3006,7 +3006,7 @@ THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
 static v8::Handle<Value> IdentityIndexedPropertyGetter(
     uint32_t index,
     const AccessorInfo& info) {
-  return v8::Integer::New(index);
+  return v8::Integer::NewFromUnsigned(index);
 }
 
 
@@ -3110,6 +3110,45 @@ THREADED_TEST(IndexedInterceptorWithDifferentIndices) {
 }
 
 
+THREADED_TEST(IndexedInterceptorWithNegativeIndices) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var expected = i;"
+      "    var key = i;"
+      "    if (i == 25) {"
+      "       key = -1;"
+      "       expected = undefined;"
+      "    }"
+      "    if (i == 50) {"
+      "       /* probe minimal Smi number on 32-bit platforms */"
+      "       key = -(1 << 30);"
+      "       expected = undefined;"
+      "    }"
+      "    if (i == 75) {"
+      "       /* probe minimal Smi number on 64-bit platforms */"
+      "       key = 1 << 31;"
+      "       expected = undefined;"
+      "    }"
+      "    var v = obj[key];"
+      "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
 THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -3123,11 +3162,12 @@ THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
       "try {"
       "  for (var i = 0; i < 100; i++) {"
       "    var expected = i;"
+      "    var key = i;"
       "    if (i == 50) {"
-      "       i = 'foobar';"
+      "       key = 'foobar';"
       "       expected = undefined;"
       "    }"
-      "    var v = obj[i];"
+      "    var v = obj[key];"
       "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
       "  }"
       "  'PASSED'"
@@ -11183,4 +11223,73 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
+}
+
+
+TEST(StringCheckMultipleContexts) {
+  const char* code =
+      "(function() { return \"a\".charAt(0); })()";
+
+  {
+    // Run the code twice in the first context to initialize the call IC.
+    v8::HandleScope scope;
+    LocalContext context1;
+    ExpectString(code, "a");
+    ExpectString(code, "a");
+  }
+
+  {
+    // Change the String.prototype in the second context and check
+    // that the right function gets called.
+    v8::HandleScope scope;
+    LocalContext context2;
+    CompileRun("String.prototype.charAt = function() { return \"not a\"; }");
+    ExpectString(code, "not a");
+  }
+}
+
+
+TEST(NumberCheckMultipleContexts) {
+  const char* code =
+      "(function() { return (42).toString(); })()";
+
+  {
+    // Run the code twice in the first context to initialize the call IC.
+    v8::HandleScope scope;
+    LocalContext context1;
+    ExpectString(code, "42");
+    ExpectString(code, "42");
+  }
+
+  {
+    // Change the Number.prototype in the second context and check
+    // that the right function gets called.
+    v8::HandleScope scope;
+    LocalContext context2;
+    CompileRun("Number.prototype.toString = function() { return \"not 42\"; }");
+    ExpectString(code, "not 42");
+  }
+}
+
+
+TEST(BooleanCheckMultipleContexts) {
+  const char* code =
+      "(function() { return true.toString(); })()";
+
+  {
+    // Run the code twice in the first context to initialize the call IC.
+    v8::HandleScope scope;
+    LocalContext context1;
+    ExpectString(code, "true");
+    ExpectString(code, "true");
+  }
+
+  {
+    // Change the Boolean.prototype in the second context and check
+    // that the right function gets called.
+    v8::HandleScope scope;
+    LocalContext context2;
+    CompileRun("Boolean.prototype.toString = function() { return \"\"; }");
+    ExpectString(code, "");
+  }
 }

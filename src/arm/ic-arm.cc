@@ -1226,7 +1226,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- r1     : receiver
   // -----------------------------------
   Label miss;
-  Label index_out_of_range;
 
   Register receiver = r1;
   Register index = r0;
@@ -1241,17 +1240,13 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
                                           result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
-                                          &index_out_of_range,
+                                          &miss,  // When index out of range.
                                           STRING_INDEX_IS_ARRAY_INDEX);
   char_at_generator.GenerateFast(masm);
   __ Ret();
 
   ICRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm, call_helper);
-
-  __ bind(&index_out_of_range);
-  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-  __ Ret();
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -1396,9 +1391,12 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
     __ bind(&box_int);
     // Allocate a HeapNumber for the result and perform int-to-double
-    // conversion. Use r0 for result as key is not needed any more.
+    // conversion.  Don't touch r0 or r1 as they are needed if allocation
+    // fails.
     __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(r0, r3, r4, r6, &slow);
+    __ AllocateHeapNumber(r5, r3, r4, r6, &slow);
+    // Now we can use r0 for the result as key is not needed any more.
+    __ mov(r0, r5);
 
     if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
@@ -1571,8 +1569,9 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Check that the receiver isn't a smi.
   __ BranchOnSmi(r1, &slow);
 
-  // Check that the key is a smi.
-  __ BranchOnNotSmi(r0, &slow);
+  // Check that the key is an array index, that is Uint32.
+  __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
+  __ b(ne, &slow);
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));

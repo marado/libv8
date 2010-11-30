@@ -25,42 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function Hash() {
-  for (var i = 0; i < 100; i++) {
-    this['a' + i] = i;
-  }
+// 842 describes a scenario where Object.prototype or Array.prototype is
+// changed (a property is added) after which freeze and seal would fail
+// since that property would be listed when doing a "for (var key in names)"
 
-  delete this.a50;  // Ensure it's a normal object.
-}
+Array.prototype.myfunc = function() {}
 
-Hash.prototype.m = function() {
-  return 1;
-};
+var obj = { name: "n1" };
 
-var h = new Hash();
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h.m = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h.m;
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
-}
-
-
-var nonsymbol = 'wwwww '.split(' ')[0];
-Hash.prototype.wwwww = Hash.prototype.m;
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h[nonsymbol] = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h[nonsymbol];
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
+try {
+  obj = Object.freeze(obj);
+} catch (e) {
+  assertUnreachable();
 }

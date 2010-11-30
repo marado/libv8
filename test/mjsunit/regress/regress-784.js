@@ -25,42 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function Hash() {
-  for (var i = 0; i < 100; i++) {
-    this['a' + i] = i;
-  }
+// Test that CallApplyLazy, generating optimized code for apply calls of the
+// form x.apply(y, arguments), does not leave an extra copy of the result
+// on the stack.
 
-  delete this.a50;  // Ensure it's a normal object.
-}
+// See http://code.google.com/p/v8/issues/detail?id=784
 
-Hash.prototype.m = function() {
-  return 1;
+A = {x:{y:function(i){return i;}}};
+B = function(x){return 17;};
+
+foo = function () {
+  A.x.y(B.apply(this, arguments));
 };
 
-var h = new Hash();
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h.m = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h.m;
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
-}
-
-
-var nonsymbol = 'wwwww '.split(' ')[0];
-Hash.prototype.wwwww = Hash.prototype.m;
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h[nonsymbol] = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h[nonsymbol];
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
-}
+foo();
+foo("Hello", "There");

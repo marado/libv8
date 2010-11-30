@@ -25,42 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function Hash() {
-  for (var i = 0; i < 100; i++) {
-    this['a' + i] = i;
-  }
+// Flags: --max-new-space-size=262144
 
-  delete this.a50;  // Ensure it's a normal object.
+// Check for GC bug constructing exceptions.
+var v = [1, 2, 3, 4]
+
+Object.preventExtensions(v);
+
+function foo() {
+  var re = /2147483647/;  // Equal to 0x7fffffff.
+  for  (var i = 0; i < 10000; i++) {
+    var ok = false;
+    try {
+      var j = 1;
+      // Allocate some heap numbers in order to randomize the behaviour of the
+      // garbage collector.  93 is chosen to be a prime number to avoid the
+      // allocation settling into a too neat pattern.
+      for (var j = 0; j < i % 93; j++) {
+        j *= 1.123567;  // An arbitrary floating point number.
+      }
+      v[0x7fffffff] = 0;  // Trigger exception.
+      assertTrue(false);
+      return j;  // Make sure that future optimizations don't eliminate j.
+    } catch(e) {
+      ok = true;
+      assertTrue(re.test(e));
+    }
+    assertTrue(ok);
+  }
 }
 
-Hash.prototype.m = function() {
-  return 1;
-};
-
-var h = new Hash();
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h.m = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h.m;
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
-}
-
-
-var nonsymbol = 'wwwww '.split(' ')[0];
-Hash.prototype.wwwww = Hash.prototype.m;
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h[nonsymbol] = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h[nonsymbol];
-  }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
-}
+foo();
