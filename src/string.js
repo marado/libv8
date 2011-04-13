@@ -87,7 +87,7 @@ function StringConcat() {
   if (len === 1) {
     return this_as_string + %_Arguments(0);
   }
-  var parts = new $Array(len + 1);
+  var parts = new InternalArray(len + 1);
   parts[0] = this_as_string;
   for (var i = 0; i < len; i++) {
     var part = %_Arguments(i);
@@ -103,17 +103,14 @@ function StringConcat() {
 // ECMA-262 section 15.5.4.7
 function StringIndexOf(pattern /* position */) {  // length == 1
   var subject = TO_STRING_INLINE(this);
-  var pattern = TO_STRING_INLINE(pattern);
-  var subject_len = subject.length;
-  var pattern_len = pattern.length;
+  pattern = TO_STRING_INLINE(pattern);
   var index = 0;
   if (%_ArgumentsLength() > 1) {
-    var arg1 = %_Arguments(1);  // position
-    index = TO_INTEGER(arg1);
+    index = %_Arguments(1);  // position
+    index = TO_INTEGER(index);
+    if (index < 0) index = 0;
+    if (index > subject.length) index = subject.length;
   }
-  if (index < 0) index = 0;
-  if (index > subject_len) index = subject_len;
-  if (pattern_len + index > subject_len) return -1;
   return %StringIndexOf(subject, pattern, index);
 }
 
@@ -360,7 +357,7 @@ function addCaptureString(builder, matchInfo, index) {
 // TODO(lrn): This array will survive indefinitely if replace is never
 // called again. However, it will be empty, since the contents are cleared
 // in the finally block.
-var reusableReplaceArray = $Array(16);
+var reusableReplaceArray = new InternalArray(16);
 
 // Helper function for replacing regular expressions with the result of a
 // function application in String.prototype.replace.
@@ -373,7 +370,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // of another replace) or we have failed to set the reusable array
     // back due to an exception in a replacement function. Create a new
     // array to use in the future, or until the original is written back.
-    resultArray = $Array(16);
+    resultArray = new InternalArray(16);
   }
   var res = %RegExpExecMultiple(regexp,
                                 subject,
@@ -389,7 +386,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
   var i = 0;
   if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
     var match_start = 0;
-    var override = [null, 0, subject];
+    var override = new InternalArray(null, 0, subject);
     var receiver = %GetGlobalReceiver();
     while (i < len) {
       var elem = res[i];
@@ -405,8 +402,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         lastMatchInfoOverride = override;
         var func_result =
             %_CallFunction(receiver, elem, match_start, subject, replace);
-        func_result = TO_STRING_INLINE(func_result); 
-        res[i] = func_result;
+        res[i] = TO_STRING_INLINE(func_result);
         match_start += elem.length;
       }
       i++;
@@ -419,8 +415,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         // Use the apply argument as backing for global RegExp properties.
         lastMatchInfoOverride = elem;
         var func_result = replace.apply(null, elem);
-        func_result = TO_STRING_INLINE(func_result); 
-        res[i] = func_result;
+        res[i] = TO_STRING_INLINE(func_result);
       }
       i++;
     }
@@ -452,7 +447,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     replacement =
         %_CallFunction(%GetGlobalReceiver(), s, index, subject, replace);
   } else {
-    var parameters = $Array(m + 2);
+    var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {
       parameters[j] = CaptureString(subject, matchInfo, j);
     }
@@ -725,7 +720,7 @@ function StringTrimRight() {
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
-var static_charcode_array = new $Array(4);
+var static_charcode_array = new InternalArray(4);
 
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
@@ -830,7 +825,7 @@ function ReplaceResultBuilder(str) {
   if (%_ArgumentsLength() > 1) {
     this.elements = %_Arguments(1);
   } else {
-    this.elements = new $Array();
+    this.elements = new InternalArray();
   }
   this.special_string = str;
 }

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -120,9 +120,9 @@ class TypeInfo {
   }
 
 
-  // Integer32 is an integer that can be represented as either a signed
-  // 32-bit integer or as an unsigned 32-bit integer. It has to be
-  // in the range [-2^31, 2^32 - 1]. We also have to check for negative 0
+  // Integer32 is an integer that can be represented as a signed
+  // 32-bit integer. It has to be
+  // in the range [-2^31, 2^31 - 1]. We also have to check for negative 0
   // as it is not an Integer32.
   static inline bool IsInt32Double(double value) {
     const DoubleRepresentation minus_zero(-0.0);
@@ -239,15 +239,18 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
   bool LoadIsMonomorphic(Property* expr);
-  bool StoreIsMonomorphic(Assignment* expr);
+  bool StoreIsMonomorphic(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
-  Handle<Map> StoreMonomorphicReceiverType(Assignment* expr);
+  Handle<Map> StoreMonomorphicReceiverType(Expression* expr);
 
   ZoneMapList* LoadReceiverTypes(Property* expr, Handle<String> name);
   ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
   ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
+
+  ExternalArrayType GetKeyedLoadExternalArrayType(Property* expr);
+  ExternalArrayType GetKeyedStoreExternalArrayType(Expression* expr);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
@@ -260,11 +263,11 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo SwitchType(CaseClause* clause);
 
  private:
-  void Initialize(Handle<Code> code);
-
   ZoneMapList* CollectReceiverTypes(int position,
                                     Handle<String> name,
                                     Code::Flags flags);
+
+  void SetInfo(int position, Object* target);
 
   void PopulateMap(Handle<Code> code);
 
@@ -272,8 +275,12 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                         List<int>* code_positions,
                         List<int>* source_positions);
 
+  // Returns an element from the backing store. Returns undefined if
+  // there is no information.
+  Handle<Object> GetInfo(int pos);
+
   Handle<Context> global_context_;
-  Handle<JSObject> map_;
+  Handle<NumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

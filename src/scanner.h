@@ -134,19 +134,27 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
 
 class V8JavaScriptScanner : public JavaScriptScanner {
  public:
-  V8JavaScriptScanner();
+  explicit V8JavaScriptScanner(ScannerConstants* scanner_constants)
+      : JavaScriptScanner(scanner_constants) {}
+
   void Initialize(UC16CharacterStream* source);
 };
 
 
 class JsonScanner : public Scanner {
  public:
-  JsonScanner();
+  explicit JsonScanner(ScannerConstants* scanner_constants);
 
   void Initialize(UC16CharacterStream* source);
 
   // Returns the next token.
   Token::Value Next();
+
+  // Returns the value of a number token.
+  double number() {
+    return number_;
+  }
+
 
  protected:
   // Skip past JSON whitespace (only space, tab, newline and carrige-return).
@@ -178,6 +186,9 @@ class JsonScanner : public Scanner {
   // are the only valid JSON identifiers (productions JSONBooleanLiteral,
   // JSONNullLiteral).
   Token::Value ScanJsonIdentifier(const char* text, Token::Value token);
+
+  // Holds the value of a scanned number token.
+  double number_;
 };
 
 } }  // namespace v8::internal

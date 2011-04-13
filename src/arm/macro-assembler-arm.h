@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declaration.
-class PostCallGenerator;
+class CallWrapper;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -43,6 +43,12 @@ class PostCallGenerator;
 static inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
+
+
+static inline Operand SmiUntagOperand(Register object) {
+  return Operand(object, ASR, kSmiTagSize);
+}
+
 
 
 // Give alias names to registers
@@ -84,14 +90,21 @@ enum ObjectToDoubleFlags {
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
-  MacroAssembler(void* buffer, int size);
+  // The isolate parameter can be NULL if the macro assembler should
+  // not use isolate-dependent functionality. In this case, it's the
+  // responsibility of the caller to never invoke such function on the
+  // macro assembler.
+  MacroAssembler(Isolate* isolate, void* buffer, int size);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
   void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
+  int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret(Condition cond = al);
 
@@ -115,6 +128,15 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
+  // The scratch register is not used for ARMv7.
+  // scratch can be the same register as src (in which case it is trashed), but
+  // not the same as dst.
+  void Bfi(Register dst,
+           Register src,
+           Register scratch,
+           int lsb,
+           int width,
+           Condition cond = al);
   void Bfc(Register dst, int lsb, int width, Condition cond = al);
   void Usat(Register dst, int satpos, const Operand& src,
             Condition cond = al);
@@ -228,15 +250,30 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Pop two registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Condition cond = al) {
+    ASSERT(!src1.is(src2));
+    if (src1.code() > src2.code()) {
+      ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+    } else {
+      ldr(src2, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
+    }
+  }
+
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
   void PushSafepointRegistersAndDoubles();
   void PopSafepointRegistersAndDoubles();
-  void StoreToSafepointRegisterSlot(Register reg);
-  static int SafepointRegisterStackIndex(int reg_code);
-  static MemOperand SafepointRegisterSlot(Register reg);
+  // Store value in register src in the safepoint stack slot for
+  // register dst.
+  void StoreToSafepointRegisterSlot(Register src, Register dst);
+  void StoreToSafepointRegistersAndDoublesSlot(Register src, Register dst);
+  // Load the value of the src register from its safepoint stack slot
+  // into register dst.
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // Load two consecutive registers with two consecutive memory locations.
   void Ldrd(Register dst1,
@@ -313,7 +350,7 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  CallWrapper* call_wrapper = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
@@ -326,7 +363,7 @@ class MacroAssembler: public Assembler {
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
@@ -487,6 +524,14 @@ class MacroAssembler: public Assembler {
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
+  // Copies a number of bytes from src to dst. All registers are clobbered. On
+  // exit src and dst will point to the place just after where the last byte was
+  // read or written and length will be zero.
+  void CopyBytes(Register src,
+                 Register dst,
+                 Register length,
+                 Register scratch);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -539,6 +584,11 @@ class MacroAssembler: public Assembler {
                 bool is_heap_object);
 
 
+  // Compare the object in a register to a value from the root list.
+  // Uses the ip register as scratch.
+  void CompareRoot(Register obj, Heap::RootListIndex index);
+
+
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
   // Returns a condition that will be enabled if the object was a string.
@@ -564,6 +614,7 @@ class MacroAssembler: public Assembler {
 
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+  void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
 
   // Uses VFP instructions to Convert a Smi to a double.
   void IntegerToDoubleConversionWithVFP3(Register inReg,
@@ -593,12 +644,48 @@ class MacroAssembler: public Assembler {
 
   // Convert the HeapNumber pointed to by source to a 32bits signed integer
   // dest. If the HeapNumber does not fit into a 32bits signed integer branch
-  // to not_int32 label.
+  // to not_int32 label. If VFP3 is available double_scratch is used but not
+  // scratch2.
   void ConvertToInt32(Register source,
                       Register dest,
                       Register scratch,
                       Register scratch2,
+                      DwVfpRegister double_scratch,
                       Label *not_int32);
+
+  // Truncates a double using a specific rounding mode.
+  // Clears the z flag (ne condition) if an overflow occurs.
+  // If exact_conversion is true, the z flag is also cleared if the conversion
+  // was inexact, ie. if the double value could not be converted exactly
+  // to a 32bit integer.
+  void EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                       SwVfpRegister result,
+                       DwVfpRegister double_input,
+                       Register scratch1,
+                       Register scratch2,
+                       CheckForInexactConversion check
+                           = kDontCheckForInexactConversion);
+
+  // Helper for EmitECMATruncate.
+  // This will truncate a floating-point value outside of the singed 32bit
+  // integer range to a 32bit signed integer.
+  // Expects the double value loaded in input_high and input_low.
+  // Exits with the answer in 'result'.
+  // Note that this code does not work for values in the 32bit range!
+  void EmitOutOfInt32RangeTruncate(Register result,
+                                   Register input_high,
+                                   Register input_low,
+                                   Register scratch);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer and all other registers clobbered.
+  void EmitECMATruncate(Register result,
+                        DwVfpRegister double_input,
+                        SwVfpRegister single_scratch,
+                        Register scratch,
+                        Register scratch2,
+                        Register scratch3);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
@@ -625,7 +712,7 @@ class MacroAssembler: public Assembler {
                                                Condition cond = al);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -669,13 +756,15 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, int num_arguments);
+  void CallCFunction(Register function, Register scratch, int num_arguments);
+
+  void GetCFunctionDoubleResult(const DoubleRegister dst);
 
   // Calls an API function. Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions. Restores context.
   // stack_space - space to be unwound on exit (includes the call js
   // arguments space and the additional space allocated for the fast call).
-  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function,
+  MaybeObject* TryCallApiFunctionAndReturn(ExternalReference function,
                                            int stack_space);
 
   // Jump to a runtime routine.
@@ -687,7 +776,7 @@ class MacroAssembler: public Assembler {
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeJSFlags flags,
-                     PostCallGenerator* post_call_generator = NULL);
+                     CallWrapper* call_wrapper = NULL);
 
   // Store the code object for the given builtin in the target register and
   // setup the function in r1.
@@ -696,7 +785,10 @@ class MacroAssembler: public Assembler {
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
 
-  Handle<Object> CodeObject() { return code_object_; }
+  Handle<Object> CodeObject() {
+    ASSERT(!code_object_.is_null());
+    return code_object_;
+  }
 
 
   // ---------------------------------------------------------------------------
@@ -732,6 +824,27 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
   // ---------------------------------------------------------------------------
+  // Number utilities
+
+  // Check whether the value of reg is a power of two and not zero. If not
+  // control continues at the label not_power_of_two. If reg is a power of two
+  // the register scratch contains the value of (reg - 1) when control falls
+  // through.
+  void JumpIfNotPowerOfTwoOrZero(Register reg,
+                                 Register scratch,
+                                 Label* not_power_of_two_or_zero);
+  // Check whether the value of reg is a power of two and not zero.
+  // Control falls through if it is, with scratch containing the mask
+  // value (reg - 1).
+  // Otherwise control jumps to the 'zero_and_neg' label if the value of reg is
+  // zero or negative, or jumps to the 'not_power_of_two' label if the value is
+  // strictly positive but not a power of two.
+  void JumpIfNotPowerOfTwoOrZeroAndNeg(Register reg,
+                                       Register scratch,
+                                       Label* zero_and_neg,
+                                       Label* not_power_of_two);
+
+  // ---------------------------------------------------------------------------
   // Smi utilities
 
   void SmiTag(Register reg, SBit s = LeaveCC) {
@@ -751,11 +864,11 @@ class MacroAssembler: public Assembler {
     mov(reg, scratch);
   }
 
-  void SmiUntag(Register reg) {
-    mov(reg, Operand(reg, ASR, kSmiTagSize));
+  void SmiUntag(Register reg, SBit s = LeaveCC) {
+    mov(reg, Operand(reg, ASR, kSmiTagSize), s);
   }
-  void SmiUntag(Register dst, Register src) {
-    mov(dst, Operand(src, ASR, kSmiTagSize));
+  void SmiUntag(Register dst, Register src, SBit s = LeaveCC) {
+    mov(dst, Operand(src, ASR, kSmiTagSize), s);
   }
 
   // Jump the register contains a smi.
@@ -779,6 +892,11 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is a string. Used in debug code.
   void AbortIfNotString(Register object);
+
+  // Abort execution if argument is not the root value with the given index.
+  void AbortIfNotRootValue(Register src,
+                           Heap::RootListIndex root_value_index,
+                           const char* message);
 
   // ---------------------------------------------------------------------------
   // HeapNumber utilities
@@ -833,7 +951,13 @@ class MacroAssembler: public Assembler {
 
 
  private:
+  void CallCFunctionHelper(Register function,
+                           ExternalReference function_reference,
+                           Register scratch,
+                           int num_arguments);
+
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Helper functions for generating invokes.
@@ -843,7 +967,7 @@ class MacroAssembler: public Assembler {
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -855,10 +979,19 @@ class MacroAssembler: public Assembler {
                            Register scratch1,
                            Register scratch2);
 
+  // Compute memory operands for safepoint stack slots.
+  static int SafepointRegisterStackIndex(int reg_code);
+  MemOperand SafepointRegisterSlot(Register reg);
+  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 
@@ -877,10 +1010,14 @@ class CodePatcher {
   MacroAssembler* masm() { return &masm_; }
 
   // Emit an instruction directly.
-  void Emit(Instr x);
+  void Emit(Instr instr);
 
   // Emit an address directly.
   void Emit(Address addr);
+
+  // Emit the condition part of an instruction leaving the rest of the current
+  // instruction unchanged.
+  void EmitCondition(Condition cond);
 
  private:
   byte* address_;  // The address of the code being patched.
@@ -894,11 +1031,15 @@ class CodePatcher {
 // Helper class for generating code or data associated with the code
 // right after a call instruction. As an example this can be used to
 // generate safepoint data after calls for crankshaft.
-class PostCallGenerator {
+class CallWrapper {
  public:
-  PostCallGenerator() { }
-  virtual ~PostCallGenerator() { }
-  virtual void Generate() = 0;
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() = 0;
 };
 
 

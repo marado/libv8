@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
@@ -213,12 +213,6 @@ void BreakableStatementChecker::VisitThrow(Throw* expr) {
 }
 
 
-void BreakableStatementChecker::VisitIncrementOperation(
-    IncrementOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void BreakableStatementChecker::VisitProperty(Property* expr) {
   // Property load is breakable.
   is_breakable_ = true;
@@ -275,17 +269,18 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 #define __ ACCESS_MASM(masm())
 
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
+  Isolate* isolate = info->isolate();
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
-    Counters::total_full_codegen_source_size.Increment(len);
+    isolate->counters()->total_full_codegen_source_size()->Increment(len);
   }
   if (FLAG_trace_codegen) {
     PrintF("Full Compiler - ");
   }
   CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
-  MacroAssembler masm(NULL, kInitialBufferSize);
+  MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize);
 #ifdef ENABLE_GDB_JIT_INTERFACE
   masm.positions_recorder()->StartGDBJITLineInfoRecording();
 #endif
@@ -293,7 +288,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
+    ASSERT(!isolate->has_pending_exception());
     return false;
   }
   unsigned table_offset = cgen.EmitStackCheckTable();
@@ -343,7 +338,8 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   if (!info_->HasDeoptimizationSupport()) return;
   int length = bailout_entries_.length();
   Handle<DeoptimizationOutputData> data =
-      Factory::NewDeoptimizationOutputData(length, TENURED);
+      isolate()->factory()->
+      NewDeoptimizationOutputData(length, TENURED);
   for (int i = 0; i < length; i++) {
     data->SetAstId(i, Smi::FromInt(bailout_entries_[i].id));
     data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
@@ -545,7 +541,8 @@ void FullCodeGenerator::VisitDeclarations(
   // Compute array of global variable and function declarations.
   // Do nothing in case of no declared global functions or variables.
   if (globals > 0) {
-    Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+    Handle<FixedArray> array =
+        isolate()->factory()->NewFixedArray(2 * globals, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
@@ -596,7 +593,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!Debugger::IsDebuggerActive()) {
+    if (!isolate()->debugger()->IsDebuggerActive()) {
       CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
     } else {
       // Check if the statement will be breakable without adding a debug break
@@ -624,7 +621,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
   if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!Debugger::IsDebuggerActive()) {
+    if (!isolate()->debugger()->IsDebuggerActive()) {
       CodeGenerator::RecordPositions(masm_, pos);
     } else {
       // Check if the expression will be breakable without adding a debug break
@@ -694,7 +691,7 @@ FullCodeGenerator::InlineFunctionGenerator
 void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
   Handle<String> name = node->name();
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
   ASSERT(function != NULL);
   ASSERT(function->intrinsic_type == Runtime::INLINE);
   InlineFunctionGenerator generator =
@@ -1351,11 +1348,6 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   VisitForStackValue(expr->exception());
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
-}
-
-
-void FullCodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
-  UNREACHABLE();
 }
 
 

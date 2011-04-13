@@ -149,7 +149,9 @@ class Scope: public ZoneObject {
   void AddParameter(Variable* var);
 
   // Create a new unresolved variable.
-  virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with);
+  virtual VariableProxy* NewUnresolved(Handle<String> name,
+                                       bool inside_with,
+                                       int position = RelocInfo::kNoPosition);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
@@ -196,6 +198,10 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { scope_calls_eval_ = true; }
 
+  // Enable strict mode for the scope (unless disabled by a global flag).
+  void EnableStrictMode() {
+    strict_mode_ = FLAG_strict_mode;
+  }
 
   // ---------------------------------------------------------------------------
   // Predicates.
@@ -204,6 +210,7 @@ class Scope: public ZoneObject {
   bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
+  bool is_strict_mode() const { return strict_mode_; }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
@@ -223,7 +230,7 @@ class Scope: public ZoneObject {
   // A new variable proxy corresponding to the (function) receiver.
   VariableProxy* receiver() const {
     VariableProxy* proxy =
-        new VariableProxy(Factory::this_symbol(), true, false);
+        new VariableProxy(FACTORY->this_symbol(), true, false);
     proxy->BindTo(receiver_);
     return proxy;
   }
@@ -358,6 +365,7 @@ class Scope: public ZoneObject {
   bool scope_inside_with_;  // this scope is inside a 'with' of some outer scope
   bool scope_contains_with_;  // this scope contains a 'with' statement
   bool scope_calls_eval_;  // this scope contains an 'eval' call
+  bool strict_mode_;  // this scope is a strict mode scope
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
@@ -451,7 +459,9 @@ class DummyScope : public Scope {
 
   virtual Variable* Lookup(Handle<String> name)  { return NULL; }
 
-  virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with) {
+  virtual VariableProxy* NewUnresolved(Handle<String> name,
+                                       bool inside_with,
+                                       int position = RelocInfo::kNoPosition) {
     return NULL;
   }
 

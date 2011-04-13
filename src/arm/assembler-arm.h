@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -284,6 +284,7 @@ const SwVfpRegister s29 = { 29 };
 const SwVfpRegister s30 = { 30 };
 const SwVfpRegister s31 = { 31 };
 
+const DwVfpRegister no_dreg = { -1 };
 const DwVfpRegister d0  = {  0 };
 const DwVfpRegister d1  = {  1 };
 const DwVfpRegister d2  = {  2 };
@@ -387,9 +388,12 @@ class Operand BASE_EMBEDDED {
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
-  // Return true of this operand fits in one instruction so that no
-  // 2-instruction solution with a load into the ip register is necessary.
-  bool is_single_instruction() const;
+  // Return true if this operand fits in one instruction so that no
+  // 2-instruction solution with a load into the ip register is necessary. If
+  // the instruction this operand is used for is a MOV or MVN instruction the
+  // actual instruction to use is required for this calculation. For other
+  // instructions instr is ignored.
+  bool is_single_instruction(Instr instr = 0) const;
   bool must_use_constant_pool() const;
 
   inline int32_t immediate() const {
@@ -439,13 +443,17 @@ class MemOperand BASE_EMBEDDED {
       offset_ = offset;
   }
 
-  uint32_t offset() {
+  uint32_t offset() const {
       ASSERT(rm_.is(no_reg));
       return offset_;
   }
 
   Register rn() const { return rn_; }
   Register rm() const { return rm_; }
+
+  bool OffsetIsUint12Encodable() const {
+    return offset_ >= 0 ? is_uint12(offset_) : is_uint12(-offset_);
+  }
 
  private:
   Register rn_;  // base
@@ -464,32 +472,54 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe(bool portable);
+  static void Probe();
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
+    ASSERT(initialized_);
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
+#ifdef DEBUG
   // Check whether a feature is currently enabled.
   static bool IsEnabled(CpuFeature f) {
-    return (enabled_ & (1u << f)) != 0;
+    ASSERT(initialized_);
+    Isolate* isolate = Isolate::UncheckedCurrent();
+    if (isolate == NULL) {
+      // When no isolate is available, work as if we're running in
+      // release mode.
+      return IsSupported(f);
+    }
+    unsigned enabled = static_cast<unsigned>(isolate->enabled_cpu_features());
+    return (enabled & (1u << f)) != 0;
   }
+#endif
 
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
     explicit Scope(CpuFeature f) {
+      unsigned mask = 1u << f;
       ASSERT(CpuFeatures::IsSupported(f));
       ASSERT(!Serializer::enabled() ||
-             (found_by_runtime_probing_ & (1u << f)) == 0);
-      old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= 1u << f;
+             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
+      isolate_ = Isolate::UncheckedCurrent();
+      old_enabled_ = 0;
+      if (isolate_ != NULL) {
+        old_enabled_ = static_cast<unsigned>(isolate_->enabled_cpu_features());
+        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
+      }
     }
-    ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
+    ~Scope() {
+      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
+      if (isolate_ != NULL) {
+        isolate_->set_enabled_cpu_features(old_enabled_);
+      }
+    }
    private:
+    Isolate* isolate_;
     unsigned old_enabled_;
 #else
    public:
@@ -497,10 +527,40 @@ class CpuFeatures : public AllStatic {
 #endif
   };
 
+  class TryForceFeatureScope BASE_EMBEDDED {
+   public:
+    explicit TryForceFeatureScope(CpuFeature f)
+        : old_supported_(CpuFeatures::supported_) {
+      if (CanForce()) {
+        CpuFeatures::supported_ |= (1u << f);
+      }
+    }
+
+    ~TryForceFeatureScope() {
+      if (CanForce()) {
+        CpuFeatures::supported_ = old_supported_;
+      }
+    }
+
+   private:
+    static bool CanForce() {
+      // It's only safe to temporarily force support of CPU features
+      // when there's only a single isolate, which is guaranteed when
+      // the serializer is enabled.
+      return Serializer::enabled();
+    }
+
+    const unsigned old_supported_;
+  };
+
  private:
+#ifdef DEBUG
+  static bool initialized_;
+#endif
   static unsigned supported_;
-  static unsigned enabled_;
   static unsigned found_by_runtime_probing_;
+
+  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 
@@ -528,7 +588,7 @@ extern const Instr kAndBicFlip;
 
 
 
-class Assembler : public Malloced {
+class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -543,8 +603,11 @@ class Assembler : public Malloced {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -729,6 +792,7 @@ class Assembler : public Malloced {
   void cmp(Register src1, Register src2, Condition cond = al) {
     cmp(src1, Operand(src2), cond);
   }
+  void cmp_raw_immediate(Register src1, int raw_immediate, Condition cond = al);
 
   void cmn(Register src1, const Operand& src2, Condition cond = al);
 
@@ -883,16 +947,6 @@ class Assembler : public Malloced {
   void ldc2(Coprocessor coproc, CRegister crd, Register base, int option,
             LFlag l = Short);  // v5 and above
 
-  void stc(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-           LFlag l = Short, Condition cond = al);
-  void stc(Coprocessor coproc, CRegister crd, Register base, int option,
-           LFlag l = Short, Condition cond = al);
-
-  void stc2(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-            LFlag l = Short);  // v5 and above
-  void stc2(Coprocessor coproc, CRegister crd, Register base, int option,
-            LFlag l = Short);  // v5 and above
-
   // Support for VFP.
   // All these APIs support S0 to S31 and D0 to D15.
   // Currently these APIs do not support extended D registers, i.e, D16 to D31.
@@ -901,23 +955,59 @@ class Assembler : public Malloced {
 
   void vldr(const DwVfpRegister dst,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vldr(const DwVfpRegister dst,
+            const MemOperand& src,
             const Condition cond = al);
 
   void vldr(const SwVfpRegister dst,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vldr(const SwVfpRegister dst,
+            const MemOperand& src,
             const Condition cond = al);
 
   void vstr(const DwVfpRegister src,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vstr(const DwVfpRegister src,
+            const MemOperand& dst,
             const Condition cond = al);
 
   void vstr(const SwVfpRegister src,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
             const Condition cond = al);
+  void vstr(const SwVfpRegister src,
+            const MemOperand& dst,
+            const Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
 
   void vmov(const DwVfpRegister dst,
             double imm,
@@ -942,39 +1032,41 @@ class Assembler : public Malloced {
   void vmov(const Register dst,
             const SwVfpRegister src,
             const Condition cond = al);
-  enum ConversionMode {
-    FPSCRRounding = 0,
-    RoundToZero = 1
-  };
   void vcvt_f64_s32(const DwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f32_s32(const SwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f64_u32(const DwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_s32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_u32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f64_f32(const DwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
 
+  void vneg(const DwVfpRegister dst,
+            const DwVfpRegister src,
+            const Condition cond = al);
+  void vabs(const DwVfpRegister dst,
+            const DwVfpRegister src,
+            const Condition cond = al);
   void vadd(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
@@ -1100,6 +1192,7 @@ class Assembler : public Malloced {
   static void instr_at_put(byte* pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
+  static Condition GetCondition(Instr instr);
   static bool IsBranch(Instr instr);
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
@@ -1110,6 +1203,8 @@ class Assembler : public Malloced {
   static bool IsAddRegisterImmediate(Instr instr);
   static Instr SetAddRegisterImmediateOffset(Instr instr, int offset);
   static Register GetRd(Instr instr);
+  static Register GetRn(Instr instr);
+  static Register GetRm(Instr instr);
   static bool IsPush(Instr instr);
   static bool IsPop(Instr instr);
   static bool IsStrRegFpOffset(Instr instr);
@@ -1117,12 +1212,19 @@ class Assembler : public Malloced {
   static bool IsStrRegFpNegOffset(Instr instr);
   static bool IsLdrRegFpNegOffset(Instr instr);
   static bool IsLdrPcImmediateOffset(Instr instr);
+  static bool IsTstImmediate(Instr instr);
+  static bool IsCmpRegister(Instr instr);
+  static bool IsCmpImmediate(Instr instr);
+  static Register GetCmpImmediateRegister(Instr instr);
+  static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
 
   // Check if is time to emit a constant pool for pending reloc info entries
   void CheckConstPool(bool force_emit, bool require_jump);
 
  protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
+
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions
@@ -1251,6 +1353,7 @@ class Assembler : public Malloced {
 
   PositionsRecorder positions_recorder_;
   bool allow_peephole_optimization_;
+  bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

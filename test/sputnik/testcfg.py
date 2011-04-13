@@ -81,14 +81,15 @@ class SputnikTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root):
     super(SputnikTestConfiguration, self).__init__(context, root)
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     # Import the sputnik test runner script as a module
     testroot = join(self.root, 'sputniktests')
     modroot = join(testroot, 'tools')
     sys.path.append(modroot)
     import sputnik
     globals()['sputnik'] = sputnik
-    test_suite = sputnik.TestSuite(testroot)
+    # Do not run strict mode tests yet. TODO(mmaly)
+    test_suite = sputnik.TestSuite(testroot, False)
     test_suite.Validate()
     tests = test_suite.EnumerateTests([])
     result = []

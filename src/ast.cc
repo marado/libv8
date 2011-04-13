@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,21 +28,21 @@
 #include "v8.h"
 
 #include "ast.h"
-#include "jump-target-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
+#include "type-info.h"
 
 namespace v8 {
 namespace internal {
 
-unsigned AstNode::current_id_ = 0;
-unsigned AstNode::count_ = 0;
-VariableProxySentinel VariableProxySentinel::this_proxy_(true);
-VariableProxySentinel VariableProxySentinel::identifier_proxy_(false);
-ValidLeftHandSideSentinel ValidLeftHandSideSentinel::instance_;
-Property Property::this_property_(VariableProxySentinel::this_proxy(), NULL, 0);
-Call Call::sentinel_(NULL, NULL, 0);
+AstSentinels::AstSentinels()
+    : this_proxy_(true),
+      identifier_proxy_(false),
+      valid_left_hand_side_sentinel_(),
+      this_property_(&this_proxy_, NULL, 0),
+      call_sentinel_(NULL, NULL, 0) {
+}
 
 
 // ----------------------------------------------------------------------------
@@ -77,20 +77,23 @@ VariableProxy::VariableProxy(Variable* var)
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       inside_with_(false),
-      is_trivial_(false) {
+      is_trivial_(false),
+      position_(RelocInfo::kNoPosition) {
   BindTo(var);
 }
 
 
 VariableProxy::VariableProxy(Handle<String> name,
                              bool is_this,
-                             bool inside_with)
+                             bool inside_with,
+                             int position)
   : name_(name),
     var_(NULL),
     is_this_(is_this),
     inside_with_(inside_with),
-    is_trivial_(false) {
-  // names must be canonicalized for fast equality checks
+    is_trivial_(false),
+    position_(position) {
+  // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());
 }
 
@@ -170,7 +173,7 @@ ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   key_ = key;
   value_ = value;
   Object* k = *key->handle();
-  if (k->IsSymbol() && Heap::Proto_symbol()->Equals(String::cast(k))) {
+  if (k->IsSymbol() && HEAP->Proto_symbol()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -215,17 +218,28 @@ bool IsEqualString(void* first, void* second) {
   return (*h1)->Equals(*h2);
 }
 
-bool IsEqualSmi(void* first, void* second) {
-  ASSERT((*reinterpret_cast<Smi**>(first))->IsSmi());
-  ASSERT((*reinterpret_cast<Smi**>(second))->IsSmi());
-  Handle<Smi> h1(reinterpret_cast<Smi**>(first));
-  Handle<Smi> h2(reinterpret_cast<Smi**>(second));
-  return (*h1)->value() == (*h2)->value();
+
+bool IsEqualNumber(void* first, void* second) {
+  ASSERT((*reinterpret_cast<Object**>(first))->IsNumber());
+  ASSERT((*reinterpret_cast<Object**>(second))->IsNumber());
+
+  Handle<Object> h1(reinterpret_cast<Object**>(first));
+  Handle<Object> h2(reinterpret_cast<Object**>(second));
+  if (h1->IsSmi()) {
+    return h2->IsSmi() && *h1 == *h2;
+  }
+  if (h2->IsSmi()) return false;
+  Handle<HeapNumber> n1 = Handle<HeapNumber>::cast(h1);
+  Handle<HeapNumber> n2 = Handle<HeapNumber>::cast(h2);
+  ASSERT(isfinite(n1->value()));
+  ASSERT(isfinite(n2->value()));
+  return n1->value() == n2->value();
 }
+
 
 void ObjectLiteral::CalculateEmitStore() {
   HashMap properties(&IsEqualString);
-  HashMap elements(&IsEqualSmi);
+  HashMap elements(&IsEqualNumber);
   for (int i = this->properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = this->properties()->at(i);
     Literal* literal = property->key();
@@ -238,23 +252,20 @@ void ObjectLiteral::CalculateEmitStore() {
     uint32_t hash;
     HashMap* table;
     void* key;
-    uint32_t index;
-    Smi* smi_key_location;
+    Factory* factory = Isolate::Current()->factory();
     if (handle->IsSymbol()) {
       Handle<String> name(String::cast(*handle));
-      if (name->AsArrayIndex(&index)) {
-        smi_key_location = Smi::FromInt(index);
-        key = &smi_key_location;
-        hash = index;
+      if (name->AsArrayIndex(&hash)) {
+        Handle<Object> key_handle = factory->NewNumberFromUint(hash);
+        key = key_handle.location();
         table = &elements;
       } else {
         key = name.location();
         hash = name->Hash();
         table = &properties;
       }
-    } else if (handle->ToArrayIndex(&index)) {
+    } else if (handle->ToArrayIndex(&hash)) {
       key = handle.location();
-      hash = index;
       table = &elements;
     } else {
       ASSERT(handle->IsNumber());
@@ -262,7 +273,7 @@ void ObjectLiteral::CalculateEmitStore() {
       char arr[100];
       Vector<char> buffer(arr, ARRAY_SIZE(arr));
       const char* str = DoubleToCString(num, buffer);
-      Handle<String> name = Factory::NewStringFromAscii(CStrVector(str));
+      Handle<String> name = factory->NewStringFromAscii(CStrVector(str));
       key = name.location();
       hash = name->Hash();
       table = &properties;
@@ -280,86 +291,13 @@ void ObjectLiteral::CalculateEmitStore() {
 }
 
 
-void TargetCollector::AddTarget(BreakTarget* target) {
+void TargetCollector::AddTarget(Label* target) {
   // Add the label to the collector, but discard duplicates.
   int length = targets_->length();
   for (int i = 0; i < length; i++) {
     if (targets_->at(i) == target) return;
   }
   targets_->Add(target);
-}
-
-
-bool Expression::GuaranteedSmiResult() {
-  BinaryOperation* node = AsBinaryOperation();
-  if (node == NULL) return false;
-  Token::Value op = node->op();
-  switch (op) {
-    case Token::COMMA:
-    case Token::OR:
-    case Token::AND:
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-    case Token::BIT_XOR:
-    case Token::SHL:
-      return false;
-      break;
-    case Token::BIT_OR:
-    case Token::BIT_AND: {
-      Literal* left = node->left()->AsLiteral();
-      Literal* right = node->right()->AsLiteral();
-      if (left != NULL && left->handle()->IsSmi()) {
-        int value = Smi::cast(*left->handle())->value();
-        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
-          // Result of bitwise or is always a negative Smi.
-          return true;
-        }
-        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
-          // Result of bitwise and is always a positive Smi.
-          return true;
-        }
-      }
-      if (right != NULL && right->handle()->IsSmi()) {
-        int value = Smi::cast(*right->handle())->value();
-        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
-          // Result of bitwise or is always a negative Smi.
-          return true;
-        }
-        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
-          // Result of bitwise and is always a positive Smi.
-          return true;
-        }
-      }
-      return false;
-      break;
-    }
-    case Token::SAR:
-    case Token::SHR: {
-      Literal* right = node->right()->AsLiteral();
-       if (right != NULL && right->handle()->IsSmi()) {
-        int value = Smi::cast(*right->handle())->value();
-        if ((value & 0x1F) > 1 ||
-            (op == Token::SAR && (value & 0x1F) == 1)) {
-          return true;
-        }
-       }
-       return false;
-       break;
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
-  return false;
-}
-
-
-void Expression::CopyAnalysisResultsFrom(Expression* other) {
-  bitfields_ = other->bitfields_;
-  type_ = other->type_;
 }
 
 
@@ -405,7 +343,6 @@ BinaryOperation::BinaryOperation(Assignment* assignment) {
   left_ = assignment->target();
   right_ = assignment->value();
   pos_ = assignment->position();
-  CopyAnalysisResultsFrom(assignment);
 }
 
 
@@ -519,12 +456,12 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
   is_monomorphic_ = oracle->LoadIsMonomorphic(this);
   if (key()->IsPropertyName()) {
-    if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
+    if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
       is_array_length_ = true;
-    } else if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_StringLength)) {
+    } else if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_StringLength)) {
       is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
-                                     Builtins::LoadIC_FunctionPrototype)) {
+                                     Builtins::kLoadIC_FunctionPrototype)) {
       is_function_prototype_ = true;
     } else {
       Literal* lit_key = key()->AsLiteral();
@@ -533,8 +470,13 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
       ZoneMapList* types = oracle->LoadReceiverTypes(this, name);
       receiver_types_ = types;
     }
+  } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
+    is_string_access_ = true;
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      set_external_array_type(oracle->GetKeyedLoadExternalArrayType(this));
+    }
   }
 }
 
@@ -552,6 +494,21 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
+    }
+  }
+}
+
+
+void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  if (is_monomorphic_) {
+    // Record receiver type for monomorphic keyed loads.
+    monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
+    }
   }
 }
 
@@ -606,24 +563,21 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
 
 
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               Handle<String> name) {
+                               LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<JSGlobalPropertyCell>::null();
-  LookupResult lookup;
-  global->Lookup(*name, &lookup);
-  if (lookup.IsProperty() &&
-      lookup.type() == NORMAL &&
-      lookup.holder() == *global) {
-    cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(&lookup));
-    if (cell_->value()->IsJSFunction()) {
-      Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
-      // If the function is in new space we assume it's more likely to
-      // change and thus prefer the general IC code.
-      if (!Heap::InNewSpace(*candidate) &&
-          CanCallWithoutIC(candidate, arguments()->length())) {
-        target_ = candidate;
-        return true;
-      }
+  ASSERT(lookup->IsProperty() &&
+         lookup->type() == NORMAL &&
+         lookup->holder() == *global);
+  cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));
+  if (cell_->value()->IsJSFunction()) {
+    Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
+    // If the function is in new space we assume it's more likely to
+    // change and thus prefer the general IC code.
+    if (!HEAP->InNewSpace(*candidate) &&
+        CanCallWithoutIC(candidate, arguments()->length())) {
+      target_ = candidate;
+      return true;
     }
   }
   return false;
@@ -684,7 +638,7 @@ void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 bool AstVisitor::CheckStackOverflow() {
   if (stack_overflow_) return true;
-  StackLimitCheck check;
+  StackLimitCheck check(isolate_);
   if (!check.HasOverflowed()) return false;
   return (stack_overflow_ = true);
 }
@@ -1055,6 +1009,8 @@ CaseClause::CaseClause(Expression* label,
     : label_(label),
       statements_(statements),
       position_(pos),
-      compare_type_(NONE) {}
+      compare_type_(NONE),
+      entry_id_(AstNode::GetNextId()) {
+}
 
 } }  // namespace v8::internal

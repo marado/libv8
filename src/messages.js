@@ -38,10 +38,6 @@ var COMPILATION_TYPE_HOST = 0;
 var COMPILATION_TYPE_EVAL = 1;
 var COMPILATION_TYPE_JSON = 2;
 
-// Lazily initialized.
-var kVowelSounds = 0;
-var kCapitalVowelSounds = 0;
-
 // Matches Messages::kNoLineNumberInfo from v8.h
 var kNoLineNumberInfo = 0;
 
@@ -52,8 +48,7 @@ var kAddMessageAccessorsMarker = { };
 
 var kMessages = 0;
 
-var kReplacementMarkers =
-    [ "%0", "%1", "%2", "%3" ]
+var kReplacementMarkers = [ "%0", "%1", "%2", "%3" ];
 
 function FormatString(format, message) {
   var args = %MessageGetArguments(message);
@@ -152,6 +147,7 @@ function FormatMessage(message) {
       unexpected_token_number:      ["Unexpected number"],
       unexpected_token_string:      ["Unexpected string"],
       unexpected_token_identifier:  ["Unexpected identifier"],
+      unexpected_strict_reserved:   ["Unexpected strict mode reserved word"],
       unexpected_eos:               ["Unexpected end of input"],
       malformed_regexp:             ["Invalid regular expression: /", "%0", "/: ", "%1"],
       unterminated_regexp:          ["Invalid regular expression: missing /"],
@@ -194,6 +190,7 @@ function FormatMessage(message) {
       property_desc_object:         ["Property description must be an object: ", "%0"],
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
       define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
+      non_extensible_proto:         ["%0", " is not extensible"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],
@@ -224,9 +221,21 @@ function FormatMessage(message) {
       strict_duplicate_property:    ["Duplicate data property in object literal not allowed in strict mode"],
       accessor_data_property:       ["Object literal may not have data and accessor property with the same name"],
       accessor_get_set:             ["Object literal may not have multiple get/set accessors with the same name"],
-      strict_lhs_eval_assignment:   ["Assignment to eval or arguments is not allowed in strict mode"],
+      strict_lhs_assignment:        ["Assignment to eval or arguments is not allowed in strict mode"],
       strict_lhs_postfix:           ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
       strict_lhs_prefix:            ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
+      strict_reserved_word:         ["Use of future reserved word in strict mode"],
+      strict_delete:                ["Delete of an unqualified identifier in strict mode."],
+      strict_delete_property:       ["Cannot delete property '", "%0", "' of ", "%1"],
+      strict_const:                 ["Use of const in strict mode."],
+      strict_function:              ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
+      strict_read_only_property:    ["Cannot assign to read only property '", "%0", "' of ", "%1"],
+      strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
+      strict_arguments_callee:      ["Cannot access property 'callee' of strict mode arguments"],
+      strict_arguments_caller:      ["Cannot access property 'caller' of strict mode arguments"],
+      strict_function_caller:       ["Cannot access property 'caller' of a strict mode function"],
+      strict_function_arguments:    ["Cannot access property 'arguments' of a strict mode function"],
+      strict_caller:                ["Illegal access to a strict mode caller function."],
     };
   }
   var message_type = %MessageGetType(message);
@@ -320,6 +329,7 @@ Script.prototype.lineFromPosition = function(position) {
       return i;
     }
   }
+
   return -1;
 }
 
@@ -487,10 +497,24 @@ Script.prototype.nameOrSourceURL = function() {
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
   // avoid matches against sources that invoke evals with sourceURL.
-  var sourceUrlPattern =
-    /\/\/@[\040\t]sourceURL=[\040\t]*([^\s'"]*)[\040\t]*$/m;
-  var match = sourceUrlPattern.exec(this.source);
-  return match ? match[1] : this.name;
+  // A better solution would be to detect these special comments in
+  // the scanner/parser.
+  var source = ToString(this.source);
+  var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
+  if (sourceUrlPos > 4) {
+    var sourceUrlPattern =
+        /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
+    // Don't reuse lastMatchInfo here, so we create a new array with room
+    // for four captures (array with length one longer than the index
+    // of the fourth capture, where the numbering is zero-based).
+    var matchInfo = new InternalArray(CAPTURE(3) + 1);
+    var match =
+        %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
+    if (match) {
+      return SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+    }
+  }
+  return this.name;
 }
 
 
@@ -1059,9 +1083,9 @@ function errorToString() {
   }
 }
 
-%FunctionSetName(errorToString, 'toString');
-%SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
+
+InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
-// Top::StackOverflow().
+// Isolate::StackOverflow().
 const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);
