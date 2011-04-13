@@ -58,6 +58,8 @@ Files: LICENSE
  src/arm/lithium-arm.h
  src/arm/lithium-codegen-arm.cc
  src/arm/lithium-codegen-arm.h
+ src/arm/lithium-gap-resolver-arm.cc
+ src/arm/lithium-gap-resolver-arm.h
  src/arm/macro-assembler-arm.cc
  src/arm/macro-assembler-arm.h
  src/arm/regexp-macro-assembler-arm.cc
@@ -248,6 +250,7 @@ Files: LICENSE
  src/jump-target.h
  src/list-inl.h
  src/list.h
+ src/lithium-allocator-inl.h
  src/lithium-allocator.cc
  src/lithium-allocator.h
  src/lithium.cc
@@ -307,10 +310,9 @@ Files: LICENSE
  src/objects-visiting.h
  src/objects.cc
  src/objects.h
- src/oprofile-agent.cc
- src/oprofile-agent.h
  src/parser.cc
  src/parser.h
+ src/platform-cygwin.cc
  src/platform-freebsd.cc
  src/platform-linux.cc
  src/platform-macos.cc
@@ -664,6 +666,7 @@ Files: LICENSE
  test/mjsunit/compiler/regress-gap.js
  test/mjsunit/compiler/regress-gvn.js
  test/mjsunit/compiler/regress-intoverflow.js
+ test/mjsunit/compiler/regress-loadfield.js
  test/mjsunit/compiler/regress-loop-deopt.js
  test/mjsunit/compiler/regress-max.js
  test/mjsunit/compiler/regress-or.js
@@ -671,6 +674,7 @@ Files: LICENSE
  test/mjsunit/compiler/regress-serialized-slots.js
  test/mjsunit/compiler/regress-stacktrace-methods.js
  test/mjsunit/compiler/regress-stacktrace.js
+ test/mjsunit/compiler/regress-valueof.js
  test/mjsunit/compiler/safepoint.js
  test/mjsunit/compiler/short-circuit.js
  test/mjsunit/compiler/simple-bailouts.js
@@ -818,6 +822,7 @@ Files: LICENSE
  test/mjsunit/if-in-undefined.js
  test/mjsunit/in.js
  test/mjsunit/indexed-accessors.js
+ test/mjsunit/indexed-value-properties.js
  test/mjsunit/instanceof.js
  test/mjsunit/int32-ops.js
  test/mjsunit/integer-to-string.js
@@ -885,6 +890,7 @@ Files: LICENSE
  test/mjsunit/object-prevent-extensions.js
  test/mjsunit/object-seal.js
  test/mjsunit/object-toprimitive.js
+ test/mjsunit/override-eval-with-non-function.js
  test/mjsunit/override-read-only-property.js
  test/mjsunit/parse-int-float.js
  test/mjsunit/property-load-across-eval.js
@@ -926,13 +932,14 @@ Files: LICENSE
  test/mjsunit/regress/regress-1102760.js
  test/mjsunit/regress/regress-1103.js
  test/mjsunit/regress/regress-1104.js
- test/mjsunit/regress/regress-1105.js
+ test/mjsunit/regress/regress-1106.js
  test/mjsunit/regress/regress-1107.js
  test/mjsunit/regress/regress-1110.js
  test/mjsunit/regress/regress-1110164.js
  test/mjsunit/regress/regress-1112.js
  test/mjsunit/regress/regress-1112051.js
  test/mjsunit/regress/regress-1114040.js
+ test/mjsunit/regress/regress-1117.js
  test/mjsunit/regress/regress-1118.js
  test/mjsunit/regress/regress-1119.js
  test/mjsunit/regress/regress-1120.js
@@ -940,32 +947,51 @@ Files: LICENSE
  test/mjsunit/regress/regress-1122.js
  test/mjsunit/regress/regress-1125.js
  test/mjsunit/regress/regress-1126.js
+ test/mjsunit/regress/regress-1129.js
+ test/mjsunit/regress/regress-1130.js
+ test/mjsunit/regress/regress-1131.js
+ test/mjsunit/regress/regress-1132.js
  test/mjsunit/regress/regress-1134697.js
  test/mjsunit/regress/regress-114.js
+ test/mjsunit/regress/regress-1145.js
  test/mjsunit/regress/regress-1146.js
+ test/mjsunit/regress/regress-1149.js
+ test/mjsunit/regress/regress-1150.js
+ test/mjsunit/regress/regress-1151.js
  test/mjsunit/regress/regress-1156.js
  test/mjsunit/regress/regress-116.js
+ test/mjsunit/regress/regress-1160.js
  test/mjsunit/regress/regress-1166.js
  test/mjsunit/regress/regress-1167.js
+ test/mjsunit/regress/regress-1170.js
  test/mjsunit/regress/regress-1170187.js
+ test/mjsunit/regress/regress-1172-bis.js
+ test/mjsunit/regress/regress-1172.js
  test/mjsunit/regress/regress-1173979.js
+ test/mjsunit/regress/regress-1174.js
  test/mjsunit/regress/regress-1175390.js
+ test/mjsunit/regress/regress-1176.js
  test/mjsunit/regress/regress-1177518.js
  test/mjsunit/regress/regress-1177809.js
  test/mjsunit/regress/regress-1178598.js
+ test/mjsunit/regress/regress-1181.js
  test/mjsunit/regress/regress-1182832.js
+ test/mjsunit/regress/regress-1184.js
  test/mjsunit/regress/regress-1187524.js
  test/mjsunit/regress/regress-1199401.js
  test/mjsunit/regress/regress-1199637.js
  test/mjsunit/regress/regress-1200351.js
  test/mjsunit/regress/regress-1201933.js
  test/mjsunit/regress/regress-1203459.js
+ test/mjsunit/regress/regress-1207.js
  test/mjsunit/regress/regress-1207276.js
+ test/mjsunit/regress/regress-1209.js
  test/mjsunit/regress/regress-1210.js
+ test/mjsunit/regress/regress-1213.js
  test/mjsunit/regress/regress-1213516.js
  test/mjsunit/regress/regress-1213575.js
  test/mjsunit/regress/regress-1215653.js
- test/mjsunit/regress/regress-1237.js
+ test/mjsunit/regress/regress-1218.js
  test/mjsunit/regress/regress-124.js
  test/mjsunit/regress/regress-1254366.js
  test/mjsunit/regress/regress-1327557.js
@@ -1097,6 +1123,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-760-1.js
  test/mjsunit/regress/regress-760-2.js
  test/mjsunit/regress/regress-780423.js
+ test/mjsunit/regress/regress-78270.js
  test/mjsunit/regress/regress-784.js
  test/mjsunit/regress/regress-798.js
  test/mjsunit/regress/regress-799761.js
@@ -1141,7 +1168,10 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-3867.js
  test/mjsunit/regress/regress-crbug-39160.js
  test/mjsunit/regress/regress-crbug-40931.js
+ test/mjsunit/regress/regress-crbug-72736.js
  test/mjsunit/regress/regress-create-exception.js
+ test/mjsunit/regress/regress-deopt-gc.js
+ test/mjsunit/regress/regress-lazy-deopt-reloc.js
  test/mjsunit/regress/regress-push-args-twice.js
  test/mjsunit/regress/regress-r3391.js
  test/mjsunit/regress/regress-r4998.js
@@ -1164,6 +1194,7 @@ Files: LICENSE
  test/mjsunit/str-to-num.js
  test/mjsunit/stress-array-push.js
  test/mjsunit/strict-equals.js
+ test/mjsunit/strict-mode-eval.js
  test/mjsunit/strict-mode.js
  test/mjsunit/string-add.js
  test/mjsunit/string-case.js
@@ -1236,10 +1267,11 @@ Files: LICENSE
  tools/codemap.js
  tools/consarray.js
  tools/csvparser.js
+ tools/disasm.py
  tools/gc-nvp-trace-processor.py
+ tools/grokdump.py
  tools/gyp/v8.gyp
  tools/jsmin.py
- tools/linux-tick-processor.py
  tools/ll_prof.py
  tools/logreader.js
  tools/oom_dump/SConstruct
@@ -1249,14 +1281,11 @@ Files: LICENSE
  tools/profile_view.js
  tools/run-valgrind.py
  tools/splaytree.js
- tools/splaytree.py
  tools/stats-viewer.py
  tools/test.py
  tools/tickprocessor-driver.js
  tools/tickprocessor.js
- tools/tickprocessor.py
  tools/utils.py
- tools/windows-tick-processor.py
 Copyright: 2006-2008, the V8 project authors.
  2006-2009, the V8 project authors.
  2006-2010, the V8 project authors.
@@ -1291,7 +1320,6 @@ Files: AUTHORS
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
- debian/patches/0001-enable_soname.patch
  debian/patches/0002-armel-build.patch
  debian/patches/0003-add-the-install-target.patch
  debian/patches/0004-gcc-opt-level-2.patch
@@ -1312,14 +1340,6 @@ Files: AUTHORS
  tools/mac-nm
  tools/mac-tick-processor
  tools/oom_dump/README
- tools/oprofile/annotate
- tools/oprofile/common
- tools/oprofile/dump
- tools/oprofile/report
- tools/oprofile/reset
- tools/oprofile/run
- tools/oprofile/shutdown
- tools/oprofile/start
  tools/v8.xcodeproj/project.pbxproj
  tools/visual_studio/README.txt
  tools/visual_studio/arm.vsprops
@@ -1401,6 +1421,7 @@ Copyright: 1994-2006, Sun Microsystems Inc
  2006-2008, the V8 project authors.
  2006-2009, the V8 project authors.
  2010, the V8 project authors.
+ 2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS "AS
  OWNER OR
 License: BSD (2 clause)
@@ -1434,6 +1455,7 @@ Files: src/arm/codegen-arm.cc
  src/ia32/codegen-ia32.cc
  src/x64/codegen-x64.cc
 Copyright: 2010, the V8 project authors.
+ 2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
  they are all shadowed
 License: BSD (3 clause)
