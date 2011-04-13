@@ -689,11 +689,23 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\lithium.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\lithium.h"
+        >
+      </File>
+       <File
         RelativePath="..\..\src\lithium-allocator.cc"
         >
       </File>
       <File
         RelativePath="..\..\src\lithium-allocator.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\lithium-allocator-inl.h"
         >
       </File>
       <File
@@ -710,6 +722,14 @@
       </File>
       <File
         RelativePath="..\..\src\ia32\lithium-codegen-ia32.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\ia32\lithium-gap-resolver-ia32.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\ia32\lithium-gap-resolver-ia32.h"
         >
       </File>
       <File
@@ -761,7 +781,7 @@
         >
       </File>
       <File
-        RelativePath="..\..\src\memory.h"
+        RelativePath="..\..\src\v8memory.h"
         >
       </File>
       <File
@@ -814,14 +834,6 @@
         >
       </File>
       <File
-        RelativePath="..\..\src\oprofile-agent.cc"
-        >
-      </File>
-      <File
-        RelativePath="..\..\src\oprofile-agent.h"
-        >
-      </File>
-      <File
         RelativePath="..\..\src\parser.cc"
         >
       </File>
@@ -855,6 +867,14 @@
       </File>
       <File
         RelativePath="..\..\src\profile-generator-inl.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\platform-tls-win32.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\platform-tls.h"
         >
       </File>
       <File
@@ -1011,6 +1031,10 @@
       </File>
       <File
         RelativePath="..\..\src\shell.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\small-pointer-list.h"
         >
       </File>
       <File

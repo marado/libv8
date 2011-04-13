@@ -42,38 +42,17 @@ class TranslationIterator;
 class DeoptimizingCodeListNode;
 
 
-class ValueDescription BASE_EMBEDDED {
+class HeapNumberMaterializationDescriptor BASE_EMBEDDED {
  public:
-  explicit ValueDescription(int index) : stack_index_(index) { }
-  int stack_index() const { return stack_index_; }
+  HeapNumberMaterializationDescriptor(Address slot_address, double val)
+      : slot_address_(slot_address), val_(val) { }
+
+  Address slot_address() const { return slot_address_; }
+  double value() const { return val_; }
 
  private:
-  // Offset relative to the top of the stack.
-  int stack_index_;
-};
-
-
-class ValueDescriptionInteger32: public ValueDescription {
- public:
-  ValueDescriptionInteger32(int index, int32_t value)
-      : ValueDescription(index), int32_value_(value) { }
-  int32_t int32_value() const { return int32_value_; }
-
- private:
-  // Raw value.
-  int32_t int32_value_;
-};
-
-
-class ValueDescriptionDouble: public ValueDescription {
- public:
-  ValueDescriptionDouble(int index, double value)
-      : ValueDescription(index), double_value_(value) { }
-  double double_value() const { return double_value_; }
-
- private:
-  // Raw value.
-  double double_value_;
+  Address slot_address_;
+  double val_;
 };
 
 
@@ -93,6 +72,31 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 };
 
 
+class Deoptimizer;
+
+
+class DeoptimizerData {
+ public:
+  DeoptimizerData();
+  ~DeoptimizerData();
+
+ private:
+  LargeObjectChunk* eager_deoptimization_entry_code_;
+  LargeObjectChunk* lazy_deoptimization_entry_code_;
+  Deoptimizer* current_;
+
+  // List of deoptimized code which still have references from active stack
+  // frames. These code objects are needed by the deoptimizer when deoptimizing
+  // a frame for which the code object for the function function has been
+  // changed from the code present when deoptimizing was done.
+  DeoptimizingCodeListNode* deoptimizing_code_list_;
+
+  friend class Deoptimizer;
+
+  DISALLOW_COPY_AND_ASSIGN(DeoptimizerData);
+};
+
+
 class Deoptimizer : public Malloced {
  public:
   enum BailoutType {
@@ -107,8 +111,9 @@ class Deoptimizer : public Malloced {
                           BailoutType type,
                           unsigned bailout_id,
                           Address from,
-                          int fp_to_sp_delta);
-  static Deoptimizer* Grab();
+                          int fp_to_sp_delta,
+                          Isolate* isolate);
+  static Deoptimizer* Grab(Isolate* isolate);
 
   // Makes sure that there is enough room in the relocation
   // information of a code object to perform lazy deoptimization
@@ -144,15 +149,27 @@ class Deoptimizer : public Malloced {
                                   Code* check_code,
                                   Code* replacement_code);
 
+  // Patch stack guard check at instruction before pc_after in
+  // the unoptimized code to unconditionally call replacement_code.
+  static void PatchStackCheckCodeAt(Address pc_after,
+                                    Code* check_code,
+                                    Code* replacement_code);
+
   // Change all patched stack guard checks in the unoptimized code
   // back to a normal stack guard check.
   static void RevertStackCheckCode(Code* unoptimized_code,
                                    Code* check_code,
                                    Code* replacement_code);
 
+  // Change all patched stack guard checks in the unoptimized code
+  // back to a normal stack guard check.
+  static void RevertStackCheckCodeAt(Address pc_after,
+                                     Code* check_code,
+                                     Code* replacement_code);
+
   ~Deoptimizer();
 
-  void InsertHeapNumberValues(int index, JavaScriptFrame* frame);
+  void MaterializeHeapNumbers();
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -162,9 +179,6 @@ class Deoptimizer : public Malloced {
                            unsigned node_id,
                            SharedFunctionInfo* shared);
 
-  static void Setup();
-  static void TearDown();
-
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
   static int output_count_offset() {
@@ -172,7 +186,7 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
-  static int GetDeoptimizedCodeCount();
+  static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
 
@@ -213,7 +227,8 @@ class Deoptimizer : public Malloced {
  private:
   static const int kNumberOfEntries = 4096;
 
-  Deoptimizer(JSFunction* function,
+  Deoptimizer(Isolate* isolate,
+              JSFunction* function,
               BailoutType type,
               unsigned bailout_id,
               Address from,
@@ -241,13 +256,7 @@ class Deoptimizer : public Malloced {
 
   Object* ComputeLiteral(int index) const;
 
-  void InsertHeapNumberValue(JavaScriptFrame* frame,
-                             int stack_index,
-                             double val,
-                             int extra_slot_count);
-
-  void AddInteger32Value(int frame_index, int slot_index, int32_t value);
-  void AddDoubleValue(int frame_index, int slot_index, double value);
+  void AddDoubleValue(intptr_t slot_address, double value);
 
   static LargeObjectChunk* CreateCode(BailoutType type);
   static void GenerateDeoptimizationEntries(
@@ -259,16 +268,7 @@ class Deoptimizer : public Malloced {
   static Code* FindDeoptimizingCodeFromAddress(Address addr);
   static void RemoveDeoptimizingCode(Code* code);
 
-  static LargeObjectChunk* eager_deoptimization_entry_code_;
-  static LargeObjectChunk* lazy_deoptimization_entry_code_;
-  static Deoptimizer* current_;
-
-  // List of deoptimized code which still have references from active stack
-  // frames. These code objects are needed by the deoptimizer when deoptimizing
-  // a frame for which the code object for the function function has been
-  // changed from the code present when deoptimizing was done.
-  static DeoptimizingCodeListNode* deoptimizing_code_list_;
-
+  Isolate* isolate_;
   JSFunction* function_;
   Code* optimized_code_;
   unsigned bailout_id_;
@@ -283,8 +283,7 @@ class Deoptimizer : public Malloced {
   // Array of output frame descriptions.
   FrameDescription** output_;
 
-  List<ValueDescriptionInteger32>* integer32_values_;
-  List<ValueDescriptionDouble>* double_values_;
+  List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
 
   static int table_entry_size_;
 
@@ -299,7 +298,9 @@ class FrameDescription {
                    JSFunction* function);
 
   void* operator new(size_t size, uint32_t frame_size) {
-    return malloc(size + frame_size);
+    // Subtracts kPointerSize, as the member frame_content_ already supplies
+    // the first element of the area to store the frame.
+    return malloc(size + frame_size - kPointerSize);
   }
 
   void operator delete(void* description) {
@@ -383,7 +384,7 @@ class FrameDescription {
   }
 
   static int frame_content_offset() {
-    return sizeof(FrameDescription);
+    return OFFSET_OF(FrameDescription, frame_content_);
   }
 
  private:
@@ -401,6 +402,10 @@ class FrameDescription {
   // Continuation is the PC where the execution continues after
   // deoptimizing.
   intptr_t continuation_;
+
+  // This must be at the end of the object as the object is allocated larger
+  // than it's definition indicate to extend this array.
+  intptr_t frame_content_[1];
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {
     ASSERT(offset < frame_size_);
@@ -516,6 +521,78 @@ class DeoptimizingCodeListNode : public Malloced {
 
   // Next pointer for linked list.
   DeoptimizingCodeListNode* next_;
+};
+
+
+class SlotRef BASE_EMBEDDED {
+ public:
+  enum SlotRepresentation {
+    UNKNOWN,
+    TAGGED,
+    INT32,
+    DOUBLE,
+    LITERAL
+  };
+
+  SlotRef()
+      : addr_(NULL), representation_(UNKNOWN) { }
+
+  SlotRef(Address addr, SlotRepresentation representation)
+      : addr_(addr), representation_(representation) { }
+
+  explicit SlotRef(Object* literal)
+      : literal_(literal), representation_(LITERAL) { }
+
+  Handle<Object> GetValue() {
+    switch (representation_) {
+      case TAGGED:
+        return Handle<Object>(Memory::Object_at(addr_));
+
+      case INT32: {
+        int value = Memory::int32_at(addr_);
+        if (Smi::IsValid(value)) {
+          return Handle<Object>(Smi::FromInt(value));
+        } else {
+          return Isolate::Current()->factory()->NewNumberFromInt(value);
+        }
+      }
+
+      case DOUBLE: {
+        double value = Memory::double_at(addr_);
+        return Isolate::Current()->factory()->NewNumber(value);
+      }
+
+      case LITERAL:
+        return literal_;
+
+      default:
+        UNREACHABLE();
+        return Handle<Object>::null();
+    }
+  }
+
+  static void ComputeSlotMappingForArguments(JavaScriptFrame* frame,
+                                             int inlined_frame_index,
+                                             Vector<SlotRef>* args_slots);
+
+ private:
+  Address addr_;
+  Handle<Object> literal_;
+  SlotRepresentation representation_;
+
+  static Address SlotAddress(JavaScriptFrame* frame, int slot_index) {
+    if (slot_index >= 0) {
+      const int offset = JavaScriptFrameConstants::kLocal0Offset;
+      return frame->fp() + offset - (slot_index * kPointerSize);
+    } else {
+      const int offset = JavaScriptFrameConstants::kLastParameterOffset;
+      return frame->fp() + offset - ((slot_index + 1) * kPointerSize);
+    }
+  }
+
+  static SlotRef ComputeSlotForNextArgument(TranslationIterator* iterator,
+                                            DeoptimizationInputData* data,
+                                            JavaScriptFrame* frame);
 };
 
 

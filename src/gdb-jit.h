@@ -55,7 +55,8 @@ namespace internal {
   V(STUB)                                       \
   V(BUILTIN)                                    \
   V(SCRIPT)                                     \
-  V(EVAL)
+  V(EVAL)                                       \
+  V(FUNCTION)
 
 class GDBJITLineInfo : public Malloced {
  public:
@@ -109,6 +110,7 @@ class GDBJITInterface: public AllStatic {
 
   static void AddCode(const char* name,
                       Code* code,
+                      CodeTag tag,
                       Script* script = NULL);
 
   static void AddCode(Handle<String> name,
@@ -124,6 +126,9 @@ class GDBJITInterface: public AllStatic {
   static void RemoveCode(Code* code);
 
   static void RegisterDetailedLineInfo(Code* code, GDBJITLineInfo* line_info);
+
+ private:
+  static Mutex* mutex_;
 };
 
 #define GDBJIT(action) GDBJITInterface::action

@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <string>
 
+#include "break-iterator.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
 
@@ -39,8 +40,9 @@ namespace internal {
 I18NExtension* I18NExtension::extension_ = NULL;
 
 // TODO(cira): maybe move JS code to a .js file and generata cc files from it?
+// TODO(cira): Remove v8 prefix from v8Locale once we have stable API.
 const char* const I18NExtension::kSource =
-  "Locale = function(optLocale) {"
+  "v8Locale = function(optLocale) {"
   "  native function NativeJSLocale();"
   "  var properties = NativeJSLocale(optLocale);"
   "  this.locale = properties.locale;"
@@ -48,44 +50,61 @@ const char* const I18NExtension::kSource =
   "  this.script = properties.script;"
   "  this.region = properties.region;"
   "};"
-  "Locale.availableLocales = function() {"
+  "v8Locale.availableLocales = function() {"
   "  native function NativeJSAvailableLocales();"
   "  return NativeJSAvailableLocales();"
   "};"
-  "Locale.prototype.maximizedLocale = function() {"
+  "v8Locale.prototype.maximizedLocale = function() {"
   "  native function NativeJSMaximizedLocale();"
-  "  return new Locale(NativeJSMaximizedLocale(this.locale));"
+  "  return new v8Locale(NativeJSMaximizedLocale(this.locale));"
   "};"
-  "Locale.prototype.minimizedLocale = function() {"
+  "v8Locale.prototype.minimizedLocale = function() {"
   "  native function NativeJSMinimizedLocale();"
-  "  return new Locale(NativeJSMinimizedLocale(this.locale));"
+  "  return new v8Locale(NativeJSMinimizedLocale(this.locale));"
   "};"
-  "Locale.prototype.displayLocale_ = function(displayLocale) {"
+  "v8Locale.prototype.displayLocale_ = function(displayLocale) {"
   "  var result = this.locale;"
   "  if (displayLocale !== undefined) {"
   "    result = displayLocale.locale;"
   "  }"
   "  return result;"
   "};"
-  "Locale.prototype.displayLanguage = function(optDisplayLocale) {"
+  "v8Locale.prototype.displayLanguage = function(optDisplayLocale) {"
   "  var displayLocale = this.displayLocale_(optDisplayLocale);"
   "  native function NativeJSDisplayLanguage();"
   "  return NativeJSDisplayLanguage(this.locale, displayLocale);"
   "};"
-  "Locale.prototype.displayScript = function(optDisplayLocale) {"
+  "v8Locale.prototype.displayScript = function(optDisplayLocale) {"
   "  var displayLocale = this.displayLocale_(optDisplayLocale);"
   "  native function NativeJSDisplayScript();"
   "  return NativeJSDisplayScript(this.locale, displayLocale);"
   "};"
-  "Locale.prototype.displayRegion = function(optDisplayLocale) {"
+  "v8Locale.prototype.displayRegion = function(optDisplayLocale) {"
   "  var displayLocale = this.displayLocale_(optDisplayLocale);"
   "  native function NativeJSDisplayRegion();"
   "  return NativeJSDisplayRegion(this.locale, displayLocale);"
   "};"
-  "Locale.prototype.displayName = function(optDisplayLocale) {"
+  "v8Locale.prototype.displayName = function(optDisplayLocale) {"
   "  var displayLocale = this.displayLocale_(optDisplayLocale);"
   "  native function NativeJSDisplayName();"
   "  return NativeJSDisplayName(this.locale, displayLocale);"
+  "};"
+  "v8Locale.v8BreakIterator = function(locale, type) {"
+  "  native function NativeJSBreakIterator();"
+  "  var iterator = NativeJSBreakIterator(locale, type);"
+  "  iterator.type = type;"
+  "  return iterator;"
+  "};"
+  "v8Locale.v8BreakIterator.BreakType = {"
+  "  'unknown': -1,"
+  "  'none': 0,"
+  "  'number': 100,"
+  "  'word': 200,"
+  "  'kana': 300,"
+  "  'ideo': 400"
+  "};"
+  "v8Locale.prototype.v8CreateBreakIterator = function(type) {"
+  "  return new v8Locale.v8BreakIterator(this.locale, type);"
   "};";
 
 v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
@@ -106,6 +125,8 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(JSDisplayRegion);
   } else if (name->Equals(v8::String::New("NativeJSDisplayName"))) {
     return v8::FunctionTemplate::New(JSDisplayName);
+  } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
+    return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
   }
 
   return v8::Handle<v8::FunctionTemplate>();
@@ -146,7 +167,7 @@ v8::Handle<v8::Value> I18NExtension::JSAvailableLocales(
   v8::Local<v8::Array> all_locales = v8::Array::New();
 
   int count = 0;
-  const Locale* icu_locales = icu::Locale::getAvailableLocales(count);
+  const icu::Locale* icu_locales = icu::Locale::getAvailableLocales(count);
   for (int i = 0; i < count; ++i) {
     all_locales->Set(i, v8::String::New(icu_locales[i].getName()));
   }
@@ -209,7 +230,7 @@ static v8::Handle<v8::Value> GetDisplayItem(const v8::Arguments& args,
   icu::Locale icu_locale(base_locale.c_str());
   icu::Locale display_locale =
       icu::Locale(*v8::String::Utf8Value(args[1]->ToString()));
-  UnicodeString result;
+  icu::UnicodeString result;
   if (item == "language") {
     icu_locale.getDisplayLanguage(display_locale, result);
   } else if (item == "script") {

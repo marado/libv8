@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,11 +72,11 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Setup V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SETUP() \
-  InitializeVM(); \
-  v8::HandleScope scope; \
+#define SETUP()                                           \
+  InitializeVM();                                         \
+  v8::HandleScope scope;                                  \
   byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
-  Assembler assm(buffer, 4*1024); \
+  Assembler assm(Isolate::Current(), buffer, 4*1024);     \
   bool failure = false;
 
 
@@ -435,6 +435,16 @@ TEST(Vfp) {
     COMPARE(vmov(s31, r10),
             "ee0faa90       vmov s31, r10");
 
+    COMPARE(vabs(d0, d1),
+            "eeb00bc1       vabs d0, d1");
+    COMPARE(vabs(d3, d4, mi),
+            "4eb03bc4       vabsmi d3, d4");
+
+    COMPARE(vneg(d0, d1),
+            "eeb10b41       vneg d0, d1");
+    COMPARE(vneg(d3, d4, mi),
+            "4eb13b44       vnegmi d3, d4");
+
     COMPARE(vadd(d0, d1, d2),
             "ee310b02       vadd.f64 d0, d1, d2");
     COMPARE(vadd(d3, d4, d5, mi),
@@ -512,6 +522,23 @@ TEST(Vfp) {
             "aef1aa10       vmrsge r10, FPSCR");
     COMPARE(vmrs(pc),
             "eef1fa10       vmrs APSR, FPSCR");
+
+    COMPARE(vstm(ia, r0, d1, d3),
+            "ec801b06       vstmia r0, {d1-d3}");
+    COMPARE(vldm(ia, r1, d2, d5),
+            "ec912b08       vldmia r1, {d2-d5}");
+    COMPARE(vstm(ia, r2, d0, d15),
+            "ec820b20       vstmia r2, {d0-d15}");
+    COMPARE(vldm(ia, r3, d0, d15),
+            "ec930b20       vldmia r3, {d0-d15}");
+    COMPARE(vstm(ia, r4, s1, s3),
+            "ecc40a03       vstmia r4, {s1-s3}");
+    COMPARE(vldm(ia, r5, s2, s5),
+            "ec951a04       vldmia r5, {s2-s5}");
+    COMPARE(vstm(ia, r6, s0, s31),
+            "ec860a20       vstmia r6, {s0-s31}");
+    COMPARE(vldm(ia, r7, s0, s31),
+            "ec970a20       vldmia r7, {s0-s31}");
   }
 
   VERIFY_RUN();

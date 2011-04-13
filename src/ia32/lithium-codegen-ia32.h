@@ -56,17 +56,22 @@ class LCodeGen BASE_EMBEDDED {
         deoptimizations_(4),
         deoptimization_literals_(8),
         inlined_function_count_(0),
-        scope_(chunk->graph()->info()->scope()),
+        scope_(info->scope()),
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
         deoptimization_reloc_size(),
-        resolver_(this) {
+        resolver_(this),
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
+  CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const { return info_->isolate(); }
+  Factory* factory() const { return isolate()->factory(); }
+  Heap* heap() const { return isolate()->heap(); }
 
   // Support for converting LOperands to assembler types.
   Operand ToOperand(LOperand* op) const;
@@ -94,6 +99,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
+  void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                         Label* map_check);
 
@@ -122,6 +128,10 @@ class LCodeGen BASE_EMBEDDED {
   bool is_generating() const { return status_ == GENERATING; }
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
+
+  int strict_mode_flag() const {
+    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
+  }
 
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
@@ -155,18 +165,43 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateRelocPadding();
   bool GenerateSafepointTable();
 
+  enum ContextMode {
+    RESTORE_CONTEXT,
+    CONTEXT_ADJUSTED
+  };
+
+  enum SafepointMode {
+    RECORD_SIMPLE_SAFEPOINT,
+    RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
+  };
+
   void CallCode(Handle<Code> code,
                 RelocInfo::Mode mode,
-                LInstruction* instr);
-  void CallRuntime(Runtime::Function* function,
-                   int num_arguments,
-                   LInstruction* instr);
+                LInstruction* instr,
+                ContextMode context_mode);
+
+  void CallCodeGeneric(Handle<Code> code,
+                       RelocInfo::Mode mode,
+                       LInstruction* instr,
+                       ContextMode context_mode,
+                       SafepointMode safepoint_mode);
+
+  void CallRuntime(const Runtime::Function* fun,
+                   int argc,
+                   LInstruction* instr,
+                   ContextMode context_mode);
+
   void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
-                   LInstruction* instr) {
-    Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, num_arguments, instr);
+                   int argc,
+                   LInstruction* instr,
+                   ContextMode context_mode) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, argc, instr, context_mode);
   }
+
+  void CallRuntimeFromDeferred(Runtime::FunctionId id,
+                               int argc,
+                               LInstruction* instr);
 
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
@@ -176,7 +211,9 @@ class LCodeGen BASE_EMBEDDED {
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
-  void RegisterLazyDeoptimization(LInstruction* instr);
+  void RegisterLazyDeoptimization(LInstruction* instr,
+                                  SafepointMode safepoint_mode);
+
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
 
@@ -209,6 +246,7 @@ class LCodeGen BASE_EMBEDDED {
                        int arguments,
                        int deoptimization_index);
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
+  void RecordSafepoint(int deoptimization_index);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     int deoptimization_index);
@@ -234,6 +272,15 @@ class LCodeGen BASE_EMBEDDED {
                          Register temp2,
                          Label* is_not_object,
                          Label* is_object);
+
+  // Emits optimized code for %_IsConstructCall().
+  // Caller should branch on equal condition.
+  void EmitIsConstructCall(Register temp);
+
+  void EmitLoadField(Register result,
+                     Register object,
+                     Handle<Map> type,
+                     Handle<String> name);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;
@@ -264,6 +311,27 @@ class LCodeGen BASE_EMBEDDED {
 
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;
+
+  Safepoint::Kind expected_safepoint_kind_;
+
+  class PushSafepointRegistersScope BASE_EMBEDDED {
+   public:
+    explicit PushSafepointRegistersScope(LCodeGen* codegen)
+        : codegen_(codegen) {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      codegen_->masm_->PushSafepointRegisters();
+      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
+    }
+
+    ~PushSafepointRegistersScope() {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      codegen_->masm_->PopSafepointRegisters();
+      codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
+    }
+
+   private:
+    LCodeGen* codegen_;
+  };
 
   friend class LDeferredCode;
   friend class LEnvironment;

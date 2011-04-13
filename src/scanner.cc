@@ -328,8 +328,6 @@ void Scanner::LiteralScope::Complete() {
 // ----------------------------------------------------------------------------
 // V8JavaScriptScanner
 
-V8JavaScriptScanner::V8JavaScriptScanner() : JavaScriptScanner() { }
-
 
 void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
   source_ = source;
@@ -347,7 +345,8 @@ void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
 // ----------------------------------------------------------------------------
 // JsonScanner
 
-JsonScanner::JsonScanner() : Scanner() { }
+JsonScanner::JsonScanner(ScannerConstants* scanner_constants)
+    : Scanner(scanner_constants) { }
 
 
 void JsonScanner::Initialize(UC16CharacterStream* source) {
@@ -519,17 +518,30 @@ Token::Value JsonScanner::ScanJsonString() {
 
 Token::Value JsonScanner::ScanJsonNumber() {
   LiteralScope literal(this);
-  if (c0_ == '-') AddLiteralCharAdvance();
+  bool negative = false;
+
+  if (c0_ == '-') {
+    AddLiteralCharAdvance();
+    negative = true;
+  }
   if (c0_ == '0') {
     AddLiteralCharAdvance();
     // Prefix zero is only allowed if it's the only digit before
     // a decimal point or exponent.
     if ('0' <= c0_ && c0_ <= '9') return Token::ILLEGAL;
   } else {
+    int i = 0;
+    int digits = 0;
     if (c0_ < '1' || c0_ > '9') return Token::ILLEGAL;
     do {
+      i = i * 10 + c0_ - '0';
+      digits++;
       AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
+    if (c0_ != '.' && c0_ != 'e' && c0_ != 'E' && digits < 10) {
+      number_ = (negative ? -i : i);
+      return Token::NUMBER;
+    }
   }
   if (c0_ == '.') {
     AddLiteralCharAdvance();
@@ -547,6 +559,10 @@ Token::Value JsonScanner::ScanJsonNumber() {
     } while (c0_ >= '0' && c0_ <= '9');
   }
   literal.Complete();
+  ASSERT_NOT_NULL(next_.literal_chars);
+  number_ = StringToDouble(next_.literal_chars->ascii_literal(),
+                           NO_FLAGS,  // Hex, octal or trailing junk.
+                           OS::nan_value());
   return Token::NUMBER;
 }
 
@@ -559,11 +575,10 @@ Token::Value JsonScanner::ScanJsonIdentifier(const char* text,
     Advance();
     text++;
   }
-  if (ScannerConstants::kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
+  if (scanner_constants_->IsIdentifierPart(c0_)) return Token::ILLEGAL;
   literal.Complete();
   return token;
 }
-
 
 
 } }  // namespace v8::internal

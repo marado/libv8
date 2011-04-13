@@ -92,7 +92,7 @@ function GlobalIsFinite(number) {
 
 // ECMA-262 - 15.1.2.2
 function GlobalParseInt(string, radix) {
-  if (IS_UNDEFINED(radix)) {
+  if (IS_UNDEFINED(radix) || radix === 10 || radix === 0) {
     // Some people use parseInt instead of Math.floor.  This
     // optimization makes parseInt on a Smi 12 times faster (60ns
     // vs 800ns).  The following optimization makes parseInt on a
@@ -105,7 +105,7 @@ function GlobalParseInt(string, radix) {
       // Truncate number.
       return string | 0;
     }
-    radix = 0;
+    if (IS_UNDEFINED(radix)) radix = 0;
   } else {
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36)))
@@ -143,7 +143,7 @@ function GlobalEval(x) {
   var f = %CompileString(x);
   if (!IS_FUNCTION(f)) return f;
 
-  return f.call(this);
+  return %_CallFunction(this, f);
 }
 
 
@@ -152,7 +152,7 @@ function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
     var f = %CompileString(ToString(expr));
-    f.call(%GlobalReceiver(global));
+    %_CallFunction(%GlobalReceiver(global), f);
   }
   return null;
 }
@@ -251,7 +251,11 @@ function ObjectDefineGetter(name, fun) {
   if (!IS_FUNCTION(fun)) {
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), GETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setGet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, false);
 }
 
 
@@ -271,7 +275,11 @@ function ObjectDefineSetter(name, fun) {
     throw new $TypeError(
         'Object.prototype.__defineSetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), SETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setSet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, false);
 }
 
 
@@ -394,6 +402,10 @@ function PropertyDescriptor() {
   this.hasSetter_ = false;
 }
 
+PropertyDescriptor.prototype.__proto__ = null;
+PropertyDescriptor.prototype.toString = function() {
+  return "[object PropertyDescriptor]";
+};
 
 PropertyDescriptor.prototype.setValue = function(value) {
   this.value_ = value;
@@ -495,7 +507,7 @@ PropertyDescriptor.prototype.hasSetter = function() {
 // property descriptor. For a description of the array layout please
 // see the runtime.cc file.
 function ConvertDescriptorArrayToDescriptor(desc_array) {
-  if (desc_array == false) {
+  if (desc_array === false) {
     throw 'Internal error: invalid desc_array';
   }
 
@@ -544,7 +556,7 @@ function GetOwnProperty(obj, p) {
   var props = %GetOwnProperty(ToObject(obj), ToString(p));
 
   // A false value here means that access checks failed.
-  if (props == false) return void 0;
+  if (props === false) return void 0;
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -554,15 +566,20 @@ function GetOwnProperty(obj, p) {
 function DefineOwnProperty(obj, p, desc, should_throw) {
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
-  if (current_or_access == false) return void 0;
+  if (current_or_access === false) return void 0;
 
   var current = ConvertDescriptorArrayToDescriptor(current_or_access);
   var extensible = %IsExtensible(ToObject(obj));
 
   // Error handling according to spec.
   // Step 3
-  if (IS_UNDEFINED(current) && !extensible)
-    throw MakeTypeError("define_disallowed", ["defineProperty"]);
+  if (IS_UNDEFINED(current) && !extensible) {
+    if (should_throw) {
+      throw MakeTypeError("define_disallowed", ["defineProperty"]);
+    } else {
+      return;
+    }
+  }
 
   if (!IS_UNDEFINED(current)) {
     // Step 5 and 6
@@ -586,29 +603,57 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
       // Step 7
       if (desc.isConfigurable() ||
           (desc.hasEnumerable() &&
-           desc.isEnumerable() != current.isEnumerable()))
-        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+           desc.isEnumerable() != current.isEnumerable())) {
+        if (should_throw) {
+          throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+        } else {
+          return;
+        }
+      }
       // Step 8
       if (!IsGenericDescriptor(desc)) {
         // Step 9a
-        if (IsDataDescriptor(current) != IsDataDescriptor(desc))
-          throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+        if (IsDataDescriptor(current) != IsDataDescriptor(desc)) {
+          if (should_throw) {
+            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          } else {
+            return;
+          }
+        }
         // Step 10a
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
-          if (!current.isWritable() && desc.isWritable())
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          if (!current.isWritable() && desc.isWritable()) {
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
+          }
           if (!current.isWritable() && desc.hasValue() &&
               !SameValue(desc.getValue(), current.getValue())) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
           }
         }
         // Step 11
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
-          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())){
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())) {
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
           }
-          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet()))
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
+          }
         }
       }
     }
@@ -1153,33 +1198,49 @@ function FunctionBind(this_arg) { // Length is 1.
   }
   // this_arg is not an argument that should be bound.
   var argc_bound = (%_ArgumentsLength() || 1) - 1;
-  if (argc_bound > 0) {
-    var bound_args = new $Array(argc_bound);
+  var fn = this;
+  if (argc_bound == 0) {
+    var result = function() {
+      if (%_IsConstructCall()) {
+        // %NewObjectFromBound implicitly uses arguments passed to this
+        // function. We do not pass the arguments object explicitly to avoid
+        // materializing it and guarantee that this function will be optimized.
+        return %NewObjectFromBound(fn, null);
+      }
+
+      return fn.apply(this_arg, arguments);
+    };
+  } else {
+    var bound_args = new InternalArray(argc_bound);
     for(var i = 0; i < argc_bound; i++) {
       bound_args[i] = %_Arguments(i+1);
     }
+
+    var result = function() {
+      // If this is a construct call we use a special runtime method
+      // to generate the actual object using the bound function.
+      if (%_IsConstructCall()) {
+        // %NewObjectFromBound implicitly uses arguments passed to this
+        // function. We do not pass the arguments object explicitly to avoid
+        // materializing it and guarantee that this function will be optimized.
+        return %NewObjectFromBound(fn, bound_args);
+      }
+
+      // Combine the args we got from the bind call with the args
+      // given as argument to the invocation.
+      var argc = %_ArgumentsLength();
+      var args = new InternalArray(argc + argc_bound);
+      // Add bound arguments.
+      for (var i = 0; i < argc_bound; i++) {
+        args[i] = bound_args[i];
+      }
+      // Add arguments from call.
+      for (var i = 0; i < argc; i++) {
+        args[argc_bound + i] = %_Arguments(i);
+      }
+      return fn.apply(this_arg, args);
+    };
   }
-  var fn = this;
-  var result = function() {
-    // Combine the args we got from the bind call with the args
-    // given as argument to the invocation.
-    var argc = %_ArgumentsLength();
-    var args = new $Array(argc + argc_bound);
-    // Add bound arguments.
-    for (var i = 0; i < argc_bound; i++) {
-      args[i] = bound_args[i];
-    }
-    // Add arguments from call.
-    for (var i = 0; i < argc; i++) {
-      args[argc_bound + i] = %_Arguments(i);
-    }
-    // If this is a construct call we use a special runtime method
-    // to generate the actual object using the bound function.
-    if (%_IsConstructCall()) {
-      return %NewObjectFromBound(fn, args);
-    }
-    return fn.apply(this_arg, args);
-  };
 
   // We already have caller and arguments properties on functions,
   // which are non-configurable. It therefore makes no sence to
@@ -1200,7 +1261,7 @@ function NewFunction(arg1) {  // length == 1
   var n = %_ArgumentsLength();
   var p = '';
   if (n > 1) {
-    p = new $Array(n - 1);
+    p = new InternalArray(n - 1);
     for (var i = 0; i < n - 1; i++) p[i] = %_Arguments(i);
     p = Join(p, n - 1, ',', NonStringToString);
     // If the formal parameters string include ) - an illegal
