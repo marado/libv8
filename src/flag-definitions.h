@@ -162,7 +162,8 @@ DEFINE_bool(enable_rdtsc, true,
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, true,
-            "enable use of VFP3 instructions if available (ARM only)")
+            "enable use of VFP3 instructions if available - this implies "
+            "enabling ARMv7 instructions (ARM only)")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
 DEFINE_bool(enable_fpu, true,
@@ -218,6 +219,8 @@ DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
+DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
 // data-flow.cc
 DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")

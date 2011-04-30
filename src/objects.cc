@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1279,6 +1279,22 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
+static bool IsIdentifier(UnicodeCache* cache,
+                         unibrow::CharacterStream* buffer) {
+  // Checks whether the buffer contains an identifier (no escape).
+  if (!buffer->has_more()) return false;
+  if (!cache->IsIdentifierStart(buffer->GetNext())) {
+    return false;
+  }
+  while (buffer->has_more()) {
+    if (!cache->IsIdentifierPart(buffer->GetNext())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 MaybeObject* JSObject::AddFastProperty(String* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
@@ -1288,7 +1304,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // hidden symbols) and is not a real identifier.
   Isolate* isolate = GetHeap()->isolate();
   StringInputBuffer buffer(name);
-  if (!isolate->scanner_constants()->IsIdentifier(&buffer)
+  if (!IsIdentifier(isolate->unicode_cache(), &buffer)
       && name != isolate->heap()->hidden_symbol()) {
     Object* obj;
     { MaybeObject* maybe_obj =
@@ -5423,8 +5439,8 @@ bool String::MarkAsUndetectable() {
 bool String::IsEqualTo(Vector<const char> str) {
   Isolate* isolate = GetIsolate();
   int slen = length();
-  Access<ScannerConstants::Utf8Decoder>
-      decoder(isolate->scanner_constants()->utf8_decoder());
+  Access<UnicodeCache::Utf8Decoder>
+      decoder(isolate->unicode_cache()->utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {
@@ -6858,6 +6874,49 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
 }
 
 
+Object* Map::GetPrototypeTransition(Object* prototype) {
+  FixedArray* cache = prototype_transitions();
+  int capacity = cache->length();
+  if (capacity == 0) return NULL;
+  int finger = Smi::cast(cache->get(0))->value();
+  for (int i = 1; i < finger; i += 2) {
+    if (cache->get(i) == prototype) return cache->get(i + 1);
+  }
+  return NULL;
+}
+
+
+MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
+  // Don't cache prototype transition if this map is shared.
+  if (is_shared() || !FLAG_cache_prototype_transitions) return this;
+
+  FixedArray* cache = prototype_transitions();
+
+  int capacity = cache->length();
+
+  int finger = (capacity == 0) ? 1 : Smi::cast(cache->get(0))->value();
+
+  if (finger >= capacity) {
+    if (capacity > kMaxCachedPrototypeTransitions) return this;
+
+    FixedArray* new_cache;
+    { MaybeObject* maybe_cache = heap()->AllocateFixedArray(finger * 2 + 1);
+      if (!maybe_cache->To<FixedArray>(&new_cache)) return maybe_cache;
+    }
+
+    for (int i = 1; i < capacity; i++) new_cache->set(i, cache->get(i));
+    cache = new_cache;
+    set_prototype_transitions(cache);
+  }
+
+  cache->set(finger, prototype);
+  cache->set(finger + 1, map);
+  cache->set(0, Smi::FromInt(finger + 2));
+
+  return cache;
+}
+
+
 MaybeObject* JSObject::SetPrototype(Object* value,
                                     bool skip_hidden_prototypes) {
   Heap* heap = GetHeap();
@@ -6908,11 +6967,25 @@ MaybeObject* JSObject::SetPrototype(Object* value,
   }
 
   // Set the new prototype of the object.
-  Object* new_map;
-  { MaybeObject* maybe_new_map = real_receiver->map()->CopyDropTransitions();
-    if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+  Map* map = real_receiver->map();
+
+  // Nothing to do if prototype is already set.
+  if (map->prototype() == value) return value;
+
+  Object* new_map = map->GetPrototypeTransition(value);
+  if (new_map == NULL) {
+    { MaybeObject* maybe_new_map = map->CopyDropTransitions();
+      if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+    }
+
+    { MaybeObject* maybe_new_cache =
+          map->PutPrototypeTransition(value, Map::cast(new_map));
+      if (maybe_new_cache->IsFailure()) return maybe_new_cache;
+    }
+
+    Map::cast(new_map)->set_prototype(value);
   }
-  Map::cast(new_map)->set_prototype(value);
+  ASSERT(Map::cast(new_map)->prototype() == value);
   real_receiver->set_map(Map::cast(new_map));
 
   heap->ClearInstanceofCache();
@@ -7635,7 +7708,6 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);
   Handle<JSObject> holder_handle(this, isolate);
-
   if (!interceptor->getter()->IsUndefined()) {
     v8::IndexedPropertyGetter getter =
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
