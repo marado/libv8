@@ -1,6 +1,11 @@
 libv8 (3.4.12.1-1) UNRELEASED; urgency=low
 
   * New upstream release.
+  * mipsel architecture added.
+  * Fix FTBFS with gcc 4.6 using -Wnounused-but-set-variable.
+    Closes: bug#625377.
+  * Unfuzz patches.
+TODO: update debian/copyright  
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 23 Apr 2011 18:36:40 +0200
 
