@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,7 @@
 
 #include "accessors.h"
 #include "api.h"
+#include "bootstrapper.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "ic-inl.h"
@@ -38,7 +39,6 @@
 #include "serialize.h"
 #include "stub-cache.h"
 #include "v8threads.h"
-#include "bootstrapper.h"
 
 namespace v8 {
 namespace internal {
@@ -284,7 +284,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   const char* AddressNames[] = {
 #define C(name) "Isolate::" #name,
     ISOLATE_ADDRESS_LIST(C)
-    ISOLATE_ADDRESS_LIST_PROF(C)
     NULL
 #undef C
   };
@@ -1017,10 +1016,11 @@ void Deserializer::ReadChunk(Object** current,
 
       case kNativesStringResource: {
         int index = source_->Get();
-        Vector<const char> source_vector = Natives::GetScriptSource(index);
+        Vector<const char> source_vector = Natives::GetRawScriptSource(index);
         NativesExternalStringResource* resource =
-            new NativesExternalStringResource(
-                isolate->bootstrapper(), source_vector.start());
+            new NativesExternalStringResource(isolate->bootstrapper(),
+                                              source_vector.start(),
+                                              source_vector.length());
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }

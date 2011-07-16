@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
+#include "allocation.h"
 #include "apiutils.h"
 
 namespace v8 {
@@ -169,13 +170,14 @@ class HandleScope {
 void NormalizeProperties(Handle<JSObject> object,
                          PropertyNormalizationMode mode,
                          int expected_additional_properties);
-void NormalizeElements(Handle<JSObject> object);
+Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
-void NumberDictionarySet(Handle<NumberDictionary> dictionary,
-                         uint32_t index,
-                         Handle<Object> value,
-                         PropertyDetails details);
+MUST_USE_RESULT Handle<NumberDictionary> NumberDictionarySet(
+    Handle<NumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyDetails details);
 
 // Flattens a string.
 void FlattenString(Handle<String> str);
@@ -184,7 +186,7 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-Handle<Object> SetProperty(Handle<JSObject> object,
+Handle<Object> SetProperty(Handle<JSReceiver> object,
                            Handle<String> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
@@ -238,13 +240,13 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
                              Handle<Object> value,
                              StrictModeFlag strict_mode);
 
-Handle<Object> GetProperty(Handle<JSObject> obj,
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name);
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> GetProperty(Handle<JSObject> obj,
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            Handle<String> name,
                            LookupResult* result);
 

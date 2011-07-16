@@ -28,26 +28,28 @@
 #ifndef V8_TYPE_INFO_H_
 #define V8_TYPE_INFO_H_
 
+#include "allocation.h"
 #include "globals.h"
-#include "zone.h"
 #include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
+const int kMaxKeyedPolymorphism = 4;
+
 //         Unknown
-//           |   |
-//           |   \--------------|
-//      Primitive             Non-primitive
-//           |   \--------|     |
-//         Number      String   |
-//         /    |         |     |
-//    Double  Integer32   |    /
-//        |      |       /    /
-//        |     Smi     /    /
-//        |      |     /    /
-//        |      |    /    /
-//        Uninitialized.--/
+//           |   \____________
+//           |                |
+//      Primitive       Non-primitive
+//           |   \_______     |
+//           |           |    |
+//        Number       String |
+//         /   \         |    |
+//    Double  Integer32  |   /
+//        |      |      /   /
+//        |     Smi    /   /
+//        |      |    / __/
+//        Uninitialized.
 
 class TypeInfo {
  public:
@@ -70,32 +72,6 @@ class TypeInfo {
   static TypeInfo NonPrimitive() { return TypeInfo(kNonPrimitive); }
   // We haven't started collecting info yet.
   static TypeInfo Uninitialized() { return TypeInfo(kUninitialized); }
-
-  // Return compact representation.  Very sensitive to enum values below!
-  // Compacting drops information about primitive types and strings types.
-  // We use the compact representation when we only care about number types.
-  int ThreeBitRepresentation() {
-    ASSERT(type_ != kUninitialized);
-    int answer = type_ & 0xf;
-    answer = answer > 6 ? answer - 2 : answer;
-    ASSERT(answer >= 0);
-    ASSERT(answer <= 7);
-    return answer;
-  }
-
-  // Decode compact representation.  Very sensitive to enum values below!
-  static TypeInfo ExpandedRepresentation(int three_bit_representation) {
-    Type t = static_cast<Type>(three_bit_representation > 4 ?
-                               three_bit_representation + 2 :
-                               three_bit_representation);
-    t = (t == kUnknown) ? t : static_cast<Type>(t | kPrimitive);
-    ASSERT(t == kUnknown ||
-           t == kNumber ||
-           t == kInteger32 ||
-           t == kSmi ||
-           t == kDouble);
-    return TypeInfo(t);
-  }
 
   int ToInt() {
     return type_;
@@ -227,9 +203,11 @@ enum StringStubFeedback {
 
 // Forward declarations.
 class Assignment;
+class UnaryOperation;
 class BinaryOperation;
 class Call;
 class CompareOperation;
+class CountOperation;
 class CompilationInfo;
 class Property;
 class CaseClause;
@@ -238,8 +216,10 @@ class TypeFeedbackOracle BASE_EMBEDDED {
  public:
   TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
-  bool LoadIsMonomorphic(Property* expr);
-  bool StoreIsMonomorphic(Expression* expr);
+  bool LoadIsMonomorphicNormal(Property* expr);
+  bool LoadIsMegamorphicWithTypeInfo(Property* expr);
+  bool StoreIsMonomorphicNormal(Expression* expr);
+  bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
@@ -247,10 +227,11 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   ZoneMapList* LoadReceiverTypes(Property* expr, Handle<String> name);
   ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
-  ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
-
-  ExternalArrayType GetKeyedLoadExternalArrayType(Property* expr);
-  ExternalArrayType GetKeyedStoreExternalArrayType(Expression* expr);
+  ZoneMapList* CallReceiverTypes(Call* expr,
+                                 Handle<String> name,
+                                 CallKind call_kind);
+  void CollectKeyedReceiverTypes(unsigned ast_id,
+                                 ZoneMapList* types);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
@@ -258,26 +239,32 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 
   // Get type information for arithmetic operations and compares.
+  TypeInfo UnaryType(UnaryOperation* expr);
   TypeInfo BinaryType(BinaryOperation* expr);
   TypeInfo CompareType(CompareOperation* expr);
+  bool IsSymbolCompare(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
+  TypeInfo IncrementType(CountOperation* expr);
 
  private:
-  ZoneMapList* CollectReceiverTypes(int position,
+  ZoneMapList* CollectReceiverTypes(unsigned ast_id,
                                     Handle<String> name,
                                     Code::Flags flags);
 
-  void SetInfo(int position, Object* target);
+  void SetInfo(unsigned ast_id, Object* target);
 
-  void PopulateMap(Handle<Code> code);
-
-  void CollectPositions(Code* code,
-                        List<int>* code_positions,
-                        List<int>* source_positions);
+  void BuildDictionary(Handle<Code> code);
+  void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
+  void CreateDictionary(Handle<Code> code, ZoneList<RelocInfo>* infos);
+  void RelocateRelocInfos(ZoneList<RelocInfo>* infos,
+                          byte* old_start,
+                          byte* new_start);
+  void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
+  void ProcessTarget(unsigned ast_id, Code* target);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
-  Handle<Object> GetInfo(int pos);
+  Handle<Object> GetInfo(unsigned ast_id);
 
   Handle<Context> global_context_;
   Handle<NumberDictionary> dictionary_;

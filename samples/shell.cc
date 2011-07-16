@@ -28,6 +28,9 @@
 #include <v8.h>
 #include <v8-testing.h>
 #include <assert.h>
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+#include <bzlib.h>
+#endif
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
@@ -38,7 +41,7 @@
 // #ifndef USING_V8_SHARED/#endif is a hack until we can resolve whether to
 // still use the shell sample for testing or change to use the developer
 // shell d8 TODO(1272).
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
 #include "../src/v8.h"
 #endif  // USING_V8_SHARED
 
@@ -72,6 +75,7 @@ v8::Handle<v8::Value> Uint16Array(const v8::Arguments& args);
 v8::Handle<v8::Value> Int32Array(const v8::Arguments& args);
 v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args);
 v8::Handle<v8::Value> Float32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Float64Array(const v8::Arguments& args);
 v8::Handle<v8::Value> PixelArray(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
@@ -82,7 +86,7 @@ static bool last_run = true;
 class SourceGroup {
  public:
   SourceGroup() :
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
                   next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
                   done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
                   thread_(NULL),
@@ -130,7 +134,7 @@ class SourceGroup {
     }
   }
 
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   void StartExecuteInThread() {
     if (thread_ == NULL) {
       thread_ = new IsolateThread(this);
@@ -151,7 +155,7 @@ class SourceGroup {
 #endif  // USING_V8_SHARED
 
  private:
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   static v8::internal::Thread::Options GetThreadOptions() {
     v8::internal::Thread::Options options;
     options.name = "IsolateThread";
@@ -166,7 +170,7 @@ class SourceGroup {
   class IsolateThread : public v8::internal::Thread {
    public:
     explicit IsolateThread(SourceGroup* group)
-        : v8::internal::Thread(NULL, GetThreadOptions()), group_(group) {}
+        : v8::internal::Thread(GetThreadOptions()), group_(group) {}
 
     virtual void Run() {
       group_->ExecuteInThread();
@@ -209,6 +213,34 @@ class SourceGroup {
 static SourceGroup* isolate_sources = NULL;
 
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+class BZip2Decompressor : public v8::StartupDataDecompressor {
+ public:
+  virtual ~BZip2Decompressor() { }
+
+ protected:
+  virtual int DecompressData(char* raw_data,
+                             int* raw_data_size,
+                             const char* compressed_data,
+                             int compressed_data_size) {
+    ASSERT_EQ(v8::StartupData::kBZip2,
+              v8::V8::GetCompressedStartupDataAlgorithm());
+    unsigned int decompressed_size = *raw_data_size;
+    int result =
+        BZ2_bzBuffToBuffDecompress(raw_data,
+                                   &decompressed_size,
+                                   const_cast<char*>(compressed_data),
+                                   compressed_data_size,
+                                   0, 1);
+    if (result == BZ_OK) {
+      *raw_data_size = decompressed_size;
+    }
+    return result;
+  }
+};
+#endif
+
+
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
@@ -224,7 +256,7 @@ int RunMain(int argc, char* argv[]) {
   int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--isolate") == 0) {
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
       ++num_isolates;
 #else  // USING_V8_SHARED
       printf("Error: --isolate not supported when linked with shared "
@@ -255,14 +287,14 @@ int RunMain(int argc, char* argv[]) {
     }
     current->End(argc);
   }
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].StartExecuteInThread();
   }
 #endif  // USING_V8_SHARED
   isolate_sources[0].Execute();
   if (run_shell) RunShell(context);
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].WaitForThread();
   }
@@ -298,6 +330,15 @@ int main(int argc, char* argv[]) {
     }
   }
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  BZip2Decompressor startup_data_decompressor;
+  int bz2_result = startup_data_decompressor.Decompress();
+  if (bz2_result != BZ_OK) {
+    fprintf(stderr, "bzip error code: %d\n", bz2_result);
+    exit(1);
+  }
+#endif
+
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   int result = 0;
   if (FLAG_stress_opt || FLAG_stress_deopt) {
@@ -318,6 +359,7 @@ int main(int argc, char* argv[]) {
     result = RunMain(argc, argv);
   }
   v8::V8::Dispose();
+
   return result;
 }
 
@@ -359,6 +401,8 @@ v8::Persistent<v8::Context> CreateShellContext() {
               v8::FunctionTemplate::New(Uint32Array));
   global->Set(v8::String::New("Float32Array"),
               v8::FunctionTemplate::New(Float32Array));
+  global->Set(v8::String::New("Float64Array"),
+              v8::FunctionTemplate::New(Float64Array));
   global->Set(v8::String::New("PixelArray"),
               v8::FunctionTemplate::New(PixelArray));
 
@@ -453,18 +497,47 @@ void ExternalArrayWeakCallback(v8::Persistent<v8::Value> object, void* data) {
 
 v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
                                           v8::ExternalArrayType type,
-                                          int element_size) {
+                                          size_t element_size) {
+  assert(element_size == 1 ||
+         element_size == 2 ||
+         element_size == 4 ||
+         element_size == 8);
   if (args.Length() != 1) {
     return v8::ThrowException(
         v8::String::New("Array constructor needs one parameter."));
   }
-  int length = args[0]->Int32Value();
-  void* data = malloc(length * element_size);
-  memset(data, 0, length * element_size);
+  static const int kMaxLength = 0x3fffffff;
+  size_t length = 0;
+  if (args[0]->IsUint32()) {
+    length = args[0]->Uint32Value();
+  } else if (args[0]->IsNumber()) {
+    double raw_length = args[0]->NumberValue();
+    if (raw_length < 0) {
+      return v8::ThrowException(
+          v8::String::New("Array length must not be negative."));
+    }
+    if (raw_length > kMaxLength) {
+      return v8::ThrowException(
+          v8::String::New("Array length exceeds maximum length."));
+    }
+    length = static_cast<size_t>(raw_length);
+  } else {
+    return v8::ThrowException(
+        v8::String::New("Array length must be a number."));
+  }
+  if (length > static_cast<size_t>(kMaxLength)) {
+    return v8::ThrowException(
+        v8::String::New("Array length exceeds maximum length."));
+  }
+  void* data = calloc(length, element_size);
+  if (data == NULL) {
+    return v8::ThrowException(v8::String::New("Memory allocation failed."));
+  }
   v8::Handle<v8::Object> array = v8::Object::New();
   v8::Persistent<v8::Object> persistent_array =
       v8::Persistent<v8::Object>::New(array);
   persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  persistent_array.MarkIndependent();
   array->SetIndexedPropertiesToExternalArrayData(data, type, length);
   array->Set(v8::String::New("length"), v8::Int32::New(length),
              v8::ReadOnly);
@@ -509,6 +582,12 @@ v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args) {
 v8::Handle<v8::Value> Float32Array(const v8::Arguments& args) {
   return CreateExternalArray(args, v8::kExternalFloatArray,
                              sizeof(float));  // NOLINT
+}
+
+
+v8::Handle<v8::Value> Float64Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalDoubleArray,
+                             sizeof(double));  // NOLINT
 }
 
 

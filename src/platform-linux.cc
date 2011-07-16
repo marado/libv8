@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -87,18 +87,30 @@ void OS::Setup() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
+
+#ifdef __arm__
+  // When running on ARM hardware check that the EABI used by V8 and
+  // by the C code is the same.
+  bool hard_float = OS::ArmUsingHardFloat();
+  if (hard_float) {
+#if !USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary compiled with -mfloat-abi=hard but without "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  } else {
+#if USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary not compiled with -mfloat-abi=hard but with "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  }
+#endif
 }
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
-  // Here gcc is telling us that we are on an ARM and gcc is assuming
-  // that we have VFP3 instructions.  If gcc can assume it then so can
-  // we. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
-  return 1u << VFP3 | 1u << ARMv7;
-#elif CAN_USE_ARMV7_INSTRUCTIONS
-  return 1u << ARMv7;
-#elif(defined(__mips_hard_float) && __mips_hard_float != 0)
+#if(defined(__mips_hard_float) && __mips_hard_float != 0)
     // Here gcc is telling us that we are on an MIPS and gcc is assuming that we
     // have FPU instructions.  If gcc can assume it then so can we.
     return 1u << FPU;
@@ -142,6 +154,7 @@ static bool CPUInfoContainsString(const char * search_string) {
   return false;
 }
 
+
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
   const char* search_string = NULL;
   // Simple detection of VFP at runtime for Linux.
@@ -176,6 +189,50 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   }
 
   return false;
+}
+
+
+// Simple helper function to detect whether the C code is compiled with
+// option -mfloat-abi=hard. The register d0 is loaded with 1.0 and the register
+// pair r0, r1 is loaded with 0.0. If -mfloat-abi=hard is pased to GCC then
+// calling this will return 1.0 and otherwise 0.0.
+static void ArmUsingHardFloatHelper() {
+  asm("mov r0, #0");
+#if defined(__VFP_FP__) && !defined(__SOFTFP__)
+  // Load 0x3ff00000 into r1 using instructions available in both ARM
+  // and Thumb mode.
+  asm("mov r1, #3");
+  asm("mov r2, #255");
+  asm("lsl r1, r1, #8");
+  asm("orr r1, r1, r2");
+  asm("lsl r1, r1, #20");
+  // For vmov d0, r0, r1 use ARM mode.
+#ifdef __thumb__
+  asm volatile(
+    "@   Enter ARM Mode  \n\t"
+    "    adr r3, 1f      \n\t"
+    "    bx  r3          \n\t"
+    "    .ALIGN 4        \n\t"
+    "    .ARM            \n"
+    "1:  vmov d0, r0, r1 \n\t"
+    "@   Enter THUMB Mode\n\t"
+    "    adr r3, 2f+1    \n\t"
+    "    bx  r3          \n\t"
+    "    .THUMB          \n"
+    "2:                  \n\t");
+#else
+  asm("vmov d0, r0, r1");
+#endif  // __thumb__
+#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
+  asm("mov r1, #0");
+}
+
+
+bool OS::ArmUsingHardFloat() {
+  // Cast helper function from returning void to returning double.
+  typedef double (*F)();
+  F f = FUNCTION_CAST<F>(FUNCTION_ADDR(ArmUsingHardFloatHelper));
+  return f() == 1.0;
 }
 #endif  // def __arm__
 
@@ -333,23 +390,6 @@ void OS::Free(void* address, const size_t size) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  // TODO(1240712): mprotect has a return value which is ignored here.
-  mprotect(address, size, PROT_READ);
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  // TODO(1240712): mprotect has a return value which is ignored here.
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  mprotect(address, size, prot);
-}
-
-#endif
-
-
 void OS::Sleep(int milliseconds) {
   unsigned int ms = static_cast<unsigned int>(milliseconds);
   usleep(1000 * ms);
@@ -426,7 +466,6 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 void OS::LogSharedLibraryAddresses() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
@@ -483,7 +522,6 @@ void OS::LogSharedLibraryAddresses() {
   }
   free(lib_name);
   fclose(fp);
-#endif
 }
 
 
@@ -491,7 +529,6 @@ static const char kGCFakeMmap[] = "/tmp/__v8_gc__";
 
 
 void OS::SignalCodeMovingGC() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // Support for ll_prof.py.
   //
   // The Linux profiler built into the kernel logs all mmap's with
@@ -507,7 +544,6 @@ void OS::SignalCodeMovingGC() {
   ASSERT(addr != MAP_FAILED);
   munmap(addr, size);
   fclose(f);
-#endif
 }
 
 
@@ -596,17 +632,15 @@ class Thread::PlatformData : public Malloced {
   pthread_t thread_;  // Thread handle for pthread.
 };
 
-Thread::Thread(Isolate* isolate, const Options& options)
+Thread::Thread(const Options& options)
     : data_(new PlatformData()),
-      isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
 }
 
 
-Thread::Thread(Isolate* isolate, const char* name)
+Thread::Thread(const char* name)
     : data_(new PlatformData()),
-      isolate_(isolate),
       stack_size_(0) {
   set_name(name);
 }
@@ -627,7 +661,6 @@ static void* ThreadEntry(void* arg) {
         0, 0, 0);
   thread->data()->thread_ = pthread_self();
   ASSERT(thread->data()->thread_ != kNoThread);
-  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
 }
@@ -693,7 +726,6 @@ void Thread::YieldCPU() {
 
 class LinuxMutex : public Mutex {
  public:
-
   LinuxMutex() {
     pthread_mutexattr_t attrs;
     int result = pthread_mutexattr_init(&attrs);
@@ -806,8 +838,6 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
 // Android runs a fairly new Linux kernel, so signal info is there,
 // but the C library doesn't have the structs defined.
@@ -918,23 +948,32 @@ class SignalSender : public Thread {
   };
 
   explicit SignalSender(int interval)
-      : Thread(NULL, "SignalSender"),
+      : Thread("SignalSender"),
         vm_tgid_(getpid()),
         interval_(interval) {}
+
+  static void InstallSignalHandler() {
+    struct sigaction sa;
+    sa.sa_sigaction = ProfilerSignalHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    signal_handler_installed_ =
+        (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
+  }
+
+  static void RestoreSignalHandler() {
+    if (signal_handler_installed_) {
+      sigaction(SIGPROF, &old_signal_handler_, 0);
+      signal_handler_installed_ = false;
+    }
+  }
 
   static void AddActiveSampler(Sampler* sampler) {
     ScopedLock lock(mutex_);
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
-      // Install a signal handler.
-      struct sigaction sa;
-      sa.sa_sigaction = ProfilerSignalHandler;
-      sigemptyset(&sa.sa_mask);
-      sa.sa_flags = SA_RESTART | SA_SIGINFO;
-      signal_handler_installed_ =
-          (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
-
-      // Start a thread that sends SIGPROF signal to VM threads.
+      // Start a thread that will send SIGPROF signal to VM threads,
+      // when CPU profiling will be enabled.
       instance_ = new SignalSender(sampler->interval());
       instance_->Start();
     } else {
@@ -946,16 +985,10 @@ class SignalSender : public Thread {
     ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
-      instance_->Join();
+      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
       delete instance_;
       instance_ = NULL;
-
-      // Restore the old signal handler.
-      if (signal_handler_installed_) {
-        sigaction(SIGPROF, &old_signal_handler_, 0);
-        signal_handler_installed_ = false;
-      }
+      RestoreSignalHandler();
     }
   }
 
@@ -967,6 +1000,11 @@ class SignalSender : public Thread {
       bool cpu_profiling_enabled =
           (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
       bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
+      if (cpu_profiling_enabled && !signal_handler_installed_) {
+        InstallSignalHandler();
+      } else if (!cpu_profiling_enabled && signal_handler_installed_) {
+        RestoreSignalHandler();
+      }
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
       if (!cpu_profiling_enabled) {
@@ -1087,6 +1125,5 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal
