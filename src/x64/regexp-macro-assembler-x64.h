@@ -28,6 +28,12 @@
 #ifndef V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
+#include "x64/assembler-x64.h"
+#include "x64/assembler-x64-inl.h"
+#include "macro-assembler.h"
+#include "code.h"
+#include "x64/macro-assembler-x64.h"
+
 namespace v8 {
 namespace internal {
 
@@ -75,7 +81,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           Label* on_no_match);
   virtual void Fail();
-  virtual Handle<Object> GetCode(Handle<String> source);
+  virtual Handle<HeapObject> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);

@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,8 +29,9 @@
 #define V8_HEAP_INL_H_
 
 #include "heap.h"
-#include "objects.h"
 #include "isolate.h"
+#include "list-inl.h"
+#include "objects.h"
 #include "v8-counters.h"
 
 namespace v8 {
@@ -530,8 +531,6 @@ Isolate* Heap::isolate() {
   } while (false)
 
 
-// TODO(isolates): cache isolate: either accept as a parameter or
-//                 set to some known symbol (__CUR_ISOLATE__?)
 #define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)       \
   CALL_AND_RETRY(ISOLATE,                                      \
                  FUNCTION_CALL,                                \

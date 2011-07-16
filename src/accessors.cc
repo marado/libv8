@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,6 +32,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "factory.h"
+#include "list-inl.h"
 #include "safepoint-table.h"
 #include "scopeinfo.h"
 
@@ -101,6 +102,15 @@ Object* Accessors::FlattenNumber(Object* value) {
 
 MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   Isolate* isolate = object->GetIsolate();
+
+  // This means one of the object's prototypes is a JSArray and the
+  // object does not have a 'length' property.  Calling SetProperty
+  // causes an infinite loop.
+  if (!object->IsJSArray()) {
+    return object->SetLocalPropertyIgnoreAttributes(
+        isolate->heap()->length_symbol(), value, NONE);
+  }
+
   value = FlattenNumber(value);
 
   // Need to call methods that may trigger GC.
@@ -116,20 +126,8 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   Handle<Object> number_v = Execution::ToNumber(value_handle, &has_exception);
   if (has_exception) return Failure::Exception();
 
-  // Restore raw pointers,
-  object = *object_handle;
-  value = *value_handle;
-
   if (uint32_v->Number() == number_v->Number()) {
-    if (object->IsJSArray()) {
-      return JSArray::cast(object)->SetElementsLength(*uint32_v);
-    } else {
-      // This means one of the object's prototypes is a JSArray and
-      // the object does not have a 'length' property.
-      // Calling SetProperty causes an infinite loop.
-      return object->SetLocalPropertyIgnoreAttributes(
-          isolate->heap()->length_symbol(), value, NONE);
-    }
+    return Handle<JSArray>::cast(object_handle)->SetElementsLength(*uint32_v);
   }
   return isolate->Throw(
       *isolate->factory()->NewRangeError("invalid_array_length",

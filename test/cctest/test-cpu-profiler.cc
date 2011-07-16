@@ -2,8 +2,6 @@
 //
 // Tests of profiles generator and utilities.
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
@@ -24,11 +22,8 @@ using i::TokenEnumerator;
 TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
   processor.Stop();
   processor.Join();
 }
@@ -88,11 +83,8 @@ TEST(CodeEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
 
   // Enqueue code creation events.
   i::HandleScope scope;
@@ -152,11 +144,8 @@ TEST(TickEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
 
   processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
                             "bbb",
@@ -235,6 +224,46 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
   CpuProfiler::StartProfiling("1");
   CpuProfiler::StopProfiling("");
   CpuProfiler::TearDown();
+}
+
+
+// http://code.google.com/p/v8/issues/detail?id=1398
+// Long stacks (exceeding max frames limit) must not be erased.
+TEST(Issue1398) {
+  TestSetup test_setup;
+  CpuProfilesCollection profiles;
+  profiles.StartProfiling("", 1);
+  ProfileGenerator generator(&profiles);
+  ProfilerEventsProcessor processor(&generator);
+  processor.Start();
+
+  processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
+                            "bbb",
+                            ToAddress(0x1200),
+                            0x80);
+
+  i::TickSample* sample = processor.TickSampleEvent();
+  sample->pc = ToAddress(0x1200);
+  sample->tos = 0;
+  sample->frames_count = i::TickSample::kMaxFramesCount;
+  for (int i = 0; i < sample->frames_count; ++i) {
+    sample->stack[i] = ToAddress(0x1200);
+  }
+
+  processor.Stop();
+  processor.Join();
+  CpuProfile* profile =
+      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  CHECK_NE(NULL, profile);
+
+  int actual_depth = 0;
+  const ProfileNode* node = profile->top_down()->root();
+  while (node->children()->length() > 0) {
+    node = node->children()->last();
+    ++actual_depth;
+  }
+
+  CHECK_EQ(1 + i::TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
 }
 
 
@@ -370,5 +399,3 @@ TEST(DeleteCpuProfileDifferentTokens) {
   CHECK_EQ(0, CpuProfiler::GetProfilesCount());
   CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid3));
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
