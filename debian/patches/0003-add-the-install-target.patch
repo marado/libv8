@@ -6,7 +6,7 @@ Last-Update: 2011-01-20
 
 --- a/SConstruct
 +++ b/SConstruct
-@@ -1056,6 +1056,7 @@
+@@ -1055,6 +1055,7 @@
    result.Add('mode', 'compilation mode (debug, release)', 'release')
    result.Add('sample', 'build sample (shell, process, lineprocessor)', '')
    result.Add('cache', 'directory to use for scons build cache', '')
@@ -14,7 +14,7 @@ Last-Update: 2011-01-20
    result.Add('env', 'override environment settings (NAME0:value0,NAME1:value1,...)', '')
    result.Add('importenv', 'import environment settings (NAME0,NAME1,...)', '')
    AddOptions(PLATFORM_OPTIONS, result)
-@@ -1452,8 +1453,26 @@
+@@ -1451,8 +1452,26 @@
    env.Alias('d8', d8s)
    env.Alias('preparser', preparsers)
  
