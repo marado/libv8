@@ -2,23 +2,19 @@ Description: Enable the i18n extension needed by chromium 11
 Forwarded: not-needed
 Author: Giuseppe Iuculano <iuculano@debian.org>
 Last-Update: 2011-06-19
-Index: libv8-3.1.8.10/src/SConscript
-===================================================================
---- libv8-3.1.8.10.orig/src/SConscript	2011-05-17 16:30:35.000000000 +0200
-+++ libv8-3.1.8.10/src/SConscript	2011-05-17 16:31:59.865182296 +0200
-@@ -135,6 +135,7 @@
+--- a/src/SConscript
++++ b/src/SConscript
+@@ -134,6 +134,7 @@
      zone.cc
      extensions/gc-extension.cc
      extensions/externalize-string-extension.cc
 +    extensions/experimental/i18n-extension.cc
      """),
    'arch:arm': Split("""
-     jump-target-light.cc
-Index: libv8-3.1.8.10/SConstruct
-===================================================================
---- libv8-3.1.8.10.orig/SConstruct	2011-05-17 16:31:28.000000000 +0200
-+++ libv8-3.1.8.10/SConstruct	2011-05-17 16:31:59.889183449 +0200
-@@ -161,7 +161,7 @@
+     arm/builtins-arm.cc
+--- a/SConstruct
++++ b/SConstruct
+@@ -101,7 +101,7 @@
        'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
        'library:shared': {
          'CPPDEFINES': ['V8_SHARED'],
@@ -27,7 +23,7 @@ Index: libv8-3.1.8.10/SConstruct
        }
      },
      'os:macos': {
-@@ -353,7 +353,7 @@
+@@ -340,7 +340,7 @@
  MKSNAPSHOT_EXTRA_FLAGS = {
    'gcc': {
      'os:linux': {
@@ -36,8 +32,8 @@ Index: libv8-3.1.8.10/SConstruct
      },
      'os:macos': {
        'LIBS': ['pthread'],
-@@ -469,7 +469,7 @@
-       'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+@@ -456,7 +456,7 @@
+       'LINKFLAGS':    ['$CCFLAGS'],
      },
      'os:linux': {
 -      'LIBS':         ['pthread'],
@@ -45,7 +41,7 @@ Index: libv8-3.1.8.10/SConstruct
      },
      'os:macos': {
        'LIBS':         ['pthread'],
-@@ -1181,7 +1181,7 @@
+@@ -1461,7 +1461,7 @@
      env.Install(libdir, lib[0])
      if dir not in install_dirs:
        install_dirs += libdir
