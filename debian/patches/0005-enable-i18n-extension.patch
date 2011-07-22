@@ -23,7 +23,7 @@ Last-Update: 2011-07-23
      """),
    'arch:arm': Split("""
      arm/builtins-arm.cc
-@@ -313,6 +322,7 @@
+@@ -320,6 +329,7 @@
    env.Replace(**context.flags['v8'])
    context.ApplyEnvOverrides(env)
    env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
@@ -31,9 +31,9 @@ Last-Update: 2011-07-23
    env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
  
    def BuildJS2CEnv(type):
-@@ -329,6 +339,8 @@
-   d8_js_obj = context.ConfigureObject(env, d8_js, CPPPATH=['.'])
-   d8_objs = [context.ConfigureObject(env, [d8_files]), d8_js_obj]
+@@ -340,6 +350,8 @@
+     d8_objs = [d8_js_obj]
+   d8_objs.append(context.ConfigureObject(env, [d8_files]))
  
 +  env.I18NJS2C('extensions/experimental/i18n-js.cc', 'extensions/experimental/i18n.js', **BuildJS2CEnv('I18N'))
 +
@@ -69,7 +69,7 @@ Last-Update: 2011-07-23
      },
      'os:macos': {
        'LIBS': ['pthread'],
-@@ -456,7 +456,7 @@
+@@ -457,7 +457,7 @@
        'LINKFLAGS':    ['$CCFLAGS'],
      },
      'os:linux': {
@@ -78,7 +78,7 @@ Last-Update: 2011-07-23
      },
      'os:macos': {
        'LIBS':         ['pthread'],
-@@ -1461,7 +1461,7 @@
+@@ -1473,7 +1473,7 @@
      env.Install(libdir, lib[0])
      if dir not in install_dirs:
        install_dirs += libdir
