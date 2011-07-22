@@ -745,6 +745,7 @@ Files: LICENSE
  test/mjsunit/debug-liveedit-utils.js
  test/mjsunit/debug-mirror-cache.js
  test/mjsunit/debug-multiple-breakpoints.js
+ test/mjsunit/debug-receiver.js
  test/mjsunit/debug-referenced-by.js
  test/mjsunit/debug-references.js
  test/mjsunit/debug-return-value.js
@@ -1056,6 +1057,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1529.js
  test/mjsunit/regress/regress-1531.js
  test/mjsunit/regress/regress-155924.js
+ test/mjsunit/regress/regress-1560.js
  test/mjsunit/regress/regress-171.js
  test/mjsunit/regress/regress-176.js
  test/mjsunit/regress/regress-186.js
@@ -1420,7 +1422,8 @@ Files: AUTHORS
  debian/patches/0002-armel-build.patch
  debian/patches/0003-add-the-install-target.patch
  debian/patches/0004-gcc-opt-level-2.patch
- debian/patches/0005-gcc46-compat.patch
+ debian/patches/0005-enable-i18n-extension.patch
+ debian/patches/0006-gcc46-compat.patch
  debian/patches/series
  debian/rules
  debian/source/format
@@ -1486,6 +1489,7 @@ Files: src/assembler.cc
  src/mips/assembler-mips.h
  src/x64/assembler-x64.h
 Copyright: 1994-2006, Sun Microsystems Inc
+ 2011, Sun Microsystems Inc
  2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS "AS
  OWNER OR
