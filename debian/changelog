@@ -1,13 +1,15 @@
 libv8 (3.4.14-1) experimental; urgency=low
 
   * New upstream release.
+
+  [ Jérémy Lal ]
   * mipsel architecture added.
   * Fix FTBFS with gcc 4.6 using -Wnounused-but-set-variable.
     Closes: bug#625377.
   * Enable i18n experimental extension: reworked, could be broken.
   * Unfuzz patches.
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 23 Jul 2011 00:48:13 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 23 Jul 2011 01:14:22 +0200
 
 libv8 (3.1.8.22-1) unstable; urgency=low
 
