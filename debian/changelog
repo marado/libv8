@@ -1,4 +1,4 @@
-libv8 (3.4.14-1) UNRELEASED; urgency=low
+libv8 (3.4.14-1) experimental; urgency=low
 
   * New upstream release.
   * mipsel architecture added.
@@ -7,7 +7,7 @@ libv8 (3.4.14-1) UNRELEASED; urgency=low
   * Enable i18n experimental extension: reworked, could be broken.
   * Unfuzz patches.
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 23 Apr 2011 18:36:40 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 23 Jul 2011 00:48:13 +0200
 
 libv8 (3.1.8.22-1) unstable; urgency=low
 
