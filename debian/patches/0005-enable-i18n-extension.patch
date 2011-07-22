@@ -1,19 +1,56 @@
 Description: Enable the i18n extension needed by chromium 11
+ * src/SConscript is modified to mimic what src/extension/experimental/experimental.gyp does.
+ * in SConstruct, -I. is added (root_dir to CPPPATH) because the extension/experimental files are relative to it.
+ * silence a gcc warning about comparison of signed and unsigned integers in language-matcher.cc 
 Forwarded: not-needed
-Author: Giuseppe Iuculano <iuculano@debian.org>
-Last-Update: 2011-06-19
+Author: Giuseppe Iuculano <iuculano@debian.org>, Jérémy Lal <kapouer@melix.org>
+Last-Update: 2011-07-23
 --- a/src/SConscript
 +++ b/src/SConscript
-@@ -134,6 +134,7 @@
+@@ -134,6 +134,15 @@
      zone.cc
      extensions/gc-extension.cc
      extensions/externalize-string-extension.cc
 +    extensions/experimental/i18n-extension.cc
++    extensions/experimental/break-iterator.cc
++    extensions/experimental/collator.cc
++    extensions/experimental/datetime-format.cc
++    extensions/experimental/i18n-locale.cc
++    extensions/experimental/i18n-utils.cc
++    extensions/experimental/language-matcher.cc
++    extensions/experimental/number-format.cc
++    extensions/experimental/i18n-js.cc
      """),
    'arch:arm': Split("""
      arm/builtins-arm.cc
+@@ -313,6 +322,7 @@
+   env.Replace(**context.flags['v8'])
+   context.ApplyEnvOverrides(env)
+   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
++  env['BUILDERS']['I18NJS2C'] = Builder(action='python src/extensions/experimental/i18n-js2c.py $TARGET $SOURCE')
+   env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
+ 
+   def BuildJS2CEnv(type):
+@@ -329,6 +339,8 @@
+   d8_js_obj = context.ConfigureObject(env, d8_js, CPPPATH=['.'])
+   d8_objs = [context.ConfigureObject(env, [d8_files]), d8_js_obj]
+ 
++  env.I18NJS2C('extensions/experimental/i18n-js.cc', 'extensions/experimental/i18n.js', **BuildJS2CEnv('I18N'))
++
+   # Combine the JavaScript library files into a single C++ file and
+   # compile it.
+   library_files = [s for s in LIBRARY_FILES]
 --- a/SConstruct
 +++ b/SConstruct
+@@ -53,7 +53,7 @@
+ 
+ LIBRARY_FLAGS = {
+   'all': {
+-    'CPPPATH': [join(root_dir, 'src')],
++    'CPPPATH': [join(root_dir, 'src'), root_dir],
+     'regexp:interpreted': {
+       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
+     },
 @@ -101,7 +101,7 @@
        'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
        'library:shared': {
@@ -50,3 +87,25 @@ Last-Update: 2011-06-19
    install_dirs += incdir
    env.Alias('install', install_dirs)
  
+--- a/src/extensions/experimental/language-matcher.cc
++++ b/src/extensions/experimental/language-matcher.cc
+@@ -43,7 +43,7 @@
+ const unsigned int LanguageMatcher::kLanguageWeight = 75;
+ const unsigned int LanguageMatcher::kScriptWeight = 20;
+ const unsigned int LanguageMatcher::kRegionWeight = 5;
+-const unsigned int LanguageMatcher::kThreshold = 50;
++const int LanguageMatcher::kThreshold = 50;
+ const unsigned int LanguageMatcher::kPositionBonus = 1;
+ const char* const LanguageMatcher::kDefaultLocale = "root";
+ 
+--- a/src/extensions/experimental/language-matcher.h
++++ b/src/extensions/experimental/language-matcher.h
+@@ -76,7 +76,7 @@
+   static const unsigned int kRegionWeight;
+ 
+   // LocaleID match score has to be over this number to accept the match.
+-  static const unsigned int kThreshold;
++  static const int kThreshold;
+ 
+   // For breaking ties in priority queue.
+   static const unsigned int kPositionBonus;
