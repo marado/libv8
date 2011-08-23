@@ -1,8 +1,15 @@
 libv8 (3.4.14.13-1) experimental; urgency=low
 
-  * New upstream release. 
+  * New upstream release.
 
- -- Jérémy Lal <kapouer@melix.org>  Thu, 18 Aug 2011 12:10:25 +0200
+  [ Jérémy Lal ]
+  * Bump version in debian/control (and debian/control.in)
+
+  [ Jonas Smedegaard ]
+  * Add patch 0007 to fix armhf.
+    Closes: bug#636370. Thanks to Konstantinos Margaritis.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 24 Aug 2011 01:21:27 +0200
 
 libv8 (3.4.14-1) experimental; urgency=low
 
