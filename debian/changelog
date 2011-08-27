@@ -1,3 +1,10 @@
+libv8 (3.4.14.13-2) experimental; urgency=low
+
+  * fix include of "v8.h" in i18n-extension.h
+    Closes: bug#639522. Thanks to Giuseppe Iuculano.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 28 Aug 2011 00:15:25 +0200
+
 libv8 (3.4.14.13-1) experimental; urgency=low
 
   * New upstream release.
