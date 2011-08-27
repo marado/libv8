@@ -1,10 +1,11 @@
 Description: Enable the i18n extension needed by chromium 11
  * src/SConscript is modified to mimic what src/extension/experimental/experimental.gyp does.
  * in SConstruct, -I. is added (root_dir to CPPPATH) because the extension/experimental files are relative to it.
- * silence a gcc warning about comparison of signed and unsigned integers in language-matcher.cc 
+ * silence a gcc warning about comparison of signed and unsigned integers in language-matcher.cc
+ * fix include of "v8.h" in i18n-extension.h (Closes: #639522)
 Forwarded: not-needed
 Author: Giuseppe Iuculano <iuculano@debian.org>, Jérémy Lal <kapouer@melix.org>
-Last-Update: 2011-07-23
+Last-Update: 2011-08-28
 --- a/src/SConscript
 +++ b/src/SConscript
 @@ -134,6 +134,15 @@
@@ -109,3 +110,14 @@ Last-Update: 2011-07-23
  
    // For breaking ties in priority queue.
    static const unsigned int kPositionBonus;
+--- a/src/extensions/experimental/i18n-extension.h
++++ b/src/extensions/experimental/i18n-extension.h
+@@ -28,7 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+ namespace v8 {
+ namespace internal {
