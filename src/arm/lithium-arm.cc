@@ -1039,7 +1039,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
         : instr->SecondSuccessor();
     return new LGoto(successor->block_id());
   }
-  return new LBranch(UseRegisterAtStart(v));
+  return AssignEnvironment(new LBranch(UseRegister(v)));
 }
 
 
@@ -1399,7 +1399,6 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
   Token::Value op = instr->token();
-  Representation r = instr->GetInputRepresentation();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
   bool reversed = (op == Token::GT || op == Token::LTE);
@@ -1509,16 +1508,10 @@ LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoExternalArrayLength(
-    HExternalArrayLength* instr) {
+LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
+    HFixedArrayBaseLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LExternalArrayLength(array));
-}
-
-
-LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
-  LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LFixedArrayLength(array));
+  return DefineAsRegister(new LFixedArrayBaseLength(array));
 }
 
 
@@ -2006,8 +1999,8 @@ LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
 
 
 LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegisterOrConstant(instr->index());
+  LOperand* string = UseTempRegister(instr->string());
+  LOperand* index = UseTempRegister(instr->index());
   LStringCharCodeAt* result = new LStringCharCodeAt(string, index);
   return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
 }
