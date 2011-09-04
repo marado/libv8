@@ -144,7 +144,7 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_LANGUAGE_MATCHER_H_
 --- a/src/extensions/experimental/i18n-extension.h
 +++ b/src/extensions/experimental/i18n-extension.h
-@@ -28,10 +28,9 @@
+@@ -28,10 +28,18 @@
  #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
  #define V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
  
@@ -153,11 +153,29 @@ Last-Update: 2011-09-04
  
 -namespace v8 {
 -namespace internal {
++// Setup for Linux shared library export. There is no need to distinguish
++// between building or using the V8 shared library, but we should not
++// export symbols when we are building a static library.
++#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
++#define V8EXPORT __attribute__ ((visibility("default")))
++#else  // defined(__GNUC__) && (__GNUC__ >= 4)
++#define V8EXPORT
++#endif  // defined(__GNUC__) && (__GNUC__ >= 4)
++
 +namespace v8_i18n {
  
  
  class I18NExtension : public v8::Extension {
-@@ -49,6 +48,6 @@
+@@ -42,13 +50,13 @@
+       v8::Handle<v8::String> name);
+ 
+   // V8 code prefers Register, while Chrome and WebKit use get kind of methods.
+-  static void Register();
+-  static I18NExtension* get();
++  V8EXPORT static void Register();
++  V8EXPORT static I18NExtension* get();
+ 
+  private:
    static I18NExtension* extension_;
  };
  
