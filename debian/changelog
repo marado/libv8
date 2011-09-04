@@ -1,3 +1,10 @@
+libv8 (3.4.14.13-3) experimental; urgency=low
+
+  * do not put I18NExtension in v8::internal namespace
+    Closes: bug#639596.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 04 Sep 2011 10:03:10 +0200
+
 libv8 (3.4.14.13-2) experimental; urgency=low
 
   * fix include of "v8.h" in i18n-extension.h
