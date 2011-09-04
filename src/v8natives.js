@@ -347,32 +347,49 @@ function IsInconsistentDescriptor(desc) {
 // ES5 8.10.4
 function FromPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
-  var obj = new $Object();
+
   if (IsDataDescriptor(desc)) {
-    obj.value = desc.getValue();
-    obj.writable = desc.isWritable();
+    return { value: desc.getValue(),
+             writable: desc.isWritable(),
+             enumerable: desc.isEnumerable(),
+             configurable: desc.isConfigurable() };
   }
-  if (IsAccessorDescriptor(desc)) {
-    obj.get = desc.getGet();
-    obj.set = desc.getSet();
-  }
-  obj.enumerable = desc.isEnumerable();
-  obj.configurable = desc.isConfigurable();
-  return obj;
+  // Must be an AccessorDescriptor then. We never return a generic descriptor.
+  return { get: desc.getGet(),
+           set: desc.getSet(),
+           enumerable: desc.isEnumerable(),
+           configurable: desc.isConfigurable() };
 }
+
 
 // Harmony Proxies
 function FromGenericPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
   var obj = new $Object();
-  if (desc.hasValue()) obj.value = desc.getValue();
-  if (desc.hasWritable()) obj.writable = desc.isWritable();
-  if (desc.hasGetter()) obj.get = desc.getGet();
-  if (desc.hasSetter()) obj.set = desc.getSet();
-  if (desc.hasEnumerable()) obj.enumerable = desc.isEnumerable();
-  if (desc.hasConfigurable()) obj.configurable = desc.isConfigurable();
+
+  if (desc.hasValue()) {
+    %IgnoreAttributesAndSetProperty(obj, "value", desc.getValue(), NONE);
+  }
+  if (desc.hasWritable()) {
+    %IgnoreAttributesAndSetProperty(obj, "writable", desc.isWritable(), NONE);
+  }
+  if (desc.hasGetter()) {
+    %IgnoreAttributesAndSetProperty(obj, "get", desc.getGet(), NONE);
+  }
+  if (desc.hasSetter()) {
+    %IgnoreAttributesAndSetProperty(obj, "set", desc.getSet(), NONE);
+  }
+  if (desc.hasEnumerable()) {
+    %IgnoreAttributesAndSetProperty(obj, "enumerable",
+                                    desc.isEnumerable(), NONE);
+  }
+  if (desc.hasConfigurable()) {
+    %IgnoreAttributesAndSetProperty(obj, "configurable",
+                                    desc.isConfigurable(), NONE);
+  }
   return obj;
 }
+
 
 // ES5 8.10.5.
 function ToPropertyDescriptor(obj) {
@@ -455,6 +472,7 @@ function PropertyDescriptor() {
 }
 
 PropertyDescriptor.prototype.__proto__ = null;
+
 PropertyDescriptor.prototype.toString = function() {
   return "[object PropertyDescriptor]";
 };
@@ -580,45 +598,6 @@ function ConvertDescriptorArrayToDescriptor(desc_array) {
   desc.setConfigurable(desc_array[CONFIGURABLE_INDEX]);
 
   return desc;
-}
-
-
-// ES5 section 8.12.2.
-function GetProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var getProperty = handler.getPropertyDescriptor;
-    if (IS_UNDEFINED(getProperty)) {
-      throw MakeTypeError("handler_trap_missing",
-                          [handler, "getPropertyDescriptor"]);
-    }
-    var descriptor = %_CallFunction(handler, p, getProperty);
-    if (IS_UNDEFINED(descriptor)) return descriptor;
-    var desc = ToCompletePropertyDescriptor(descriptor);
-    if (!desc.isConfigurable()) {
-      throw MakeTypeError("proxy_prop_not_configurable",
-                          [handler, "getPropertyDescriptor", p, descriptor]);
-    }
-    return desc;
-  }
-  var prop = GetOwnProperty(obj);
-  if (!IS_UNDEFINED(prop)) return prop;
-  var proto = %GetPrototype(obj);
-  if (IS_NULL(proto)) return void 0;
-  return GetProperty(proto, p);
-}
-
-
-// ES5 section 8.12.6
-function HasProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var has = handler.has;
-    if (IS_UNDEFINED(has)) has = DerivedHasTrap;
-    return ToBoolean(%_CallFunction(handler, obj, p, has));
-  }
-  var desc = GetProperty(obj, p);
-  return IS_UNDEFINED(desc) ? false : true;
 }
 
 
