@@ -431,3 +431,25 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
  
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
+--- a/src/extensions/experimental/i18n-js2c.py
++++ b/src/extensions/experimental/i18n-js2c.py
+@@ -87,8 +87,7 @@
+ 
+ #include "src/extensions/experimental/i18n-natives.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ // static
+ const char* I18Natives::GetScriptSource() {
+@@ -98,8 +97,7 @@
+   return i18n_source;
+ }
+ 
+-}  // internal
+-}  // v8
++}  // namespace v8_i18n
+ """
+ 
+ 
