@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,31 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function f(match) {
-  g(match);
-}
+// Flags: --allow-natives-syntax
 
-function g(match) {
-  assertEquals(f, g.caller);
-  assertEquals(match, f.caller);
-}
+function g(f) { return f.call.apply(f.bind, arguments); }
 
-// Check called from function.
-function h() {
-  f(h);
-}
-h();
+var x = new Object;
 
-// Check called from top-level.
-f(null);
+function t() { }
 
-// Check called from eval.
-eval('f(null)');
+g(t, x);
+g(t, x);
+g(t, x);
+%OptimizeFunctionOnNextCall(g);
 
-// Check called from builtin functions. Only show the initially called
-// (publicly exposed) builtin function, not it's internal helper functions.
-[Array.prototype.sort, Array.prototype.sort].sort(f);
+function Fake() {}
 
-"abel".replace(/b/g, function h() {
-   assertEquals(String.prototype.replace, h.caller);
-});
+var fakeCallInvoked = false;
+
+Fake.prototype.call = function () {
+  assertSame(Fake.prototype.bind, this);
+  assertEquals(2, arguments.length);
+  assertSame(fake, arguments[0]);
+  assertSame(x, arguments[1]);
+  fakeCallInvoked = true;
+};
+
+Fake.prototype.bind = function () {
+};
+
+var fake = new Fake;
+
+g(fake, x);
+
+assertTrue(fakeCallInvoked);

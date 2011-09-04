@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,31 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function f(match) {
-  g(match);
-}
+"use strict";
 
-function g(match) {
-  assertEquals(f, g.caller);
-  assertEquals(match, f.caller);
-}
-
-// Check called from function.
-function h() {
-  f(h);
-}
-h();
-
-// Check called from top-level.
-f(null);
-
-// Check called from eval.
-eval('f(null)');
-
-// Check called from builtin functions. Only show the initially called
-// (publicly exposed) builtin function, not it's internal helper functions.
-[Array.prototype.sort, Array.prototype.sort].sort(f);
-
-"abel".replace(/b/g, function h() {
-   assertEquals(String.prototype.replace, h.caller);
-});
+var o = { get "%3" (){} };
+o["%3"] = 10;
