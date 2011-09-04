@@ -1,3 +1,9 @@
+libv8 (3.4.14.18-1) experimental; urgency=low
+
+  * New upstream release. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 04 Sep 2011 16:50:51 +0200
+
 libv8 (3.4.14.13-4) experimental; urgency=low
 
   * Export I18NExtension::get and I18NExtension::Register.
