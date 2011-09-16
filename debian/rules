@@ -18,11 +18,6 @@ DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^(benchmarks/v8-logo\.png|test/mjsunit/unicod
 
 DEB_DH_MAKESHLIBS_ARGS = -- -c4
 
-CXXFLAGS += -fno-strict-aliasing
-CFLAGS += -fno-strict-aliasing
-export CFLAGS
-export CXXFLAGS
-
 # map HOST ARCH AND OS to v8 options
 v8arch := $(or $(v8arch),$(if $(filter i386,$(DEB_HOST_ARCH)),ia32))
 v8arch := $(or $(v8arch),$(if $(filter amd64,$(DEB_HOST_ARCH)),x64))
@@ -33,11 +28,29 @@ v8arch := $(or $(v8arch),$(DEB_HOST_ARCH))
 v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
+
+# armel and armhf arches need flags to work around those issues :
+# -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
+# -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
+
+# armhf is hardfloat
 ifeq (armhf, $(DEB_HOST_ARCH))
 v8armeabi := hard
-else
-v8armeabi := softfp
+CCFLAGS += -fno-tree-sink
+CXXFLAGS += -Wno-psabi
 endif
+
+ifeq (armel, $(DEB_HOST_ARCH))
+v8armeabi := softfp
+CCFLAGS += -fno-tree-sink
+CXXFLAGS += -Wno-psabi
+# Disable thumb-interworking because v8 supports it only on >= armv5t.
+# http://code.google.com/p/v8/issues/detail?id=590
+CCFLAGS += -mno-thumb-interwork
+endif
+
+export CCFLAGS
+export CXXFLAGS
 
 DEB_SCONS_OPTIONS = library=shared soname=on snapshot=on shlibtype=hidden arch=$(v8arch) os=$(v8os) armeabi=$(v8armeabi)
 DEB_SCONS_BUILD_TARGET = library
@@ -45,7 +58,7 @@ DEB_SCONS_BUILD_TARGET = library
 # Scons does not always add -soname param, force it. This prevents gold linker from erroring.
 DEB_SCONS_ENVVARS = SONAME=libv8.so.$(SONAME)
 
-# regression tests need to build shell for mjsunit
+# regression tests need to build shell for mjsunit -- will be deprecated in 3.5 branch in favor of d8. shell becoming a simple v8 cli.
 DEB_SCONS_CHECK_TARGET = sample sample=shell
 
 DEB_SCONS_INSTALL_OPTIONS += DESTDIR="$(cdbs_curdestdir)"
