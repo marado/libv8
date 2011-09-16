@@ -32,7 +32,7 @@ v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
-
+v8armeabi := softfp
 # armhf is hardfloat
 ifeq (armhf, $(DEB_HOST_ARCH))
 v8armeabi := hard
@@ -41,7 +41,6 @@ CXXFLAGS += -Wno-psabi
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
-v8armeabi := softfp
 CCFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # Disable thumb-interworking because v8 supports it only on >= armv5t.

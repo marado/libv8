@@ -1,7 +1,7 @@
-Description: Fix armhf (again)
+Description: armhf built with armeabi:hard, armel built with armeabi:softfp
 Bug-Debian: http://bugs.debian.org/636370
 Author: Konstantinos Margaritis <markos@genesi-usa.com>
-Last-Update: 2011-08-24
+Last-Update: 2011-09-16
 
 --- a/SConstruct
 +++ b/SConstruct
@@ -24,7 +24,7 @@ Last-Update: 2011-08-24
 +  },
 +  'armeabi': {
 +    'values': ['hard', 'softfp', 'soft'],
-+    'default': 'softfp',
++    'default': GuessARMEABI,
 +    'help': 'generate calling conventiont according to selected ARM EABI variant'
 +  },
  }
