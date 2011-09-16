@@ -77,6 +77,107 @@
           }],
         ],
       },
-    }],
+    }],  # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"'
+    ['OS=="win"', {
+      'target_defaults': {
+        'defines': [
+          'WIN32',
+          '_CRT_SECURE_NO_DEPRECATE',
+          '_CRT_NONSTDC_NO_DEPRECATE',
+        ],
+        'conditions': [
+          ['component=="static_library"', {
+            'defines': [
+              '_HAS_EXCEPTIONS=0',
+            ],
+          }],
+        ],        
+        'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
+        'msvs_disabled_warnings': [4355, 4800],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'MinimalRebuild': 'false',
+            'BufferSecurityCheck': 'true',
+            'EnableFunctionLevelLinking': 'true',
+            'RuntimeTypeInfo': 'false',
+            'WarningLevel': '3',
+            'WarnAsError': 'true',
+            'DebugInformationFormat': '3',
+            'Detect64BitPortabilityProblems': 'false',
+            'conditions': [
+              [ 'msvs_multi_core_compile', {
+                'AdditionalOptions': ['/MP'],
+              }],
+              ['component=="shared_library"', {
+                'ExceptionHandling': '1',  # /EHsc
+              }, {
+                'ExceptionHandling': '0',
+              }],
+            ],
+          },
+          'VCLibrarianTool': {
+            'AdditionalOptions': ['/ignore:4221'],
+          },
+          'VCLinkerTool': {
+            'AdditionalDependencies': [
+              'ws2_32.lib',
+            ],
+            'GenerateDebugInformation': 'true',
+            'MapFileName': '$(OutDir)\\$(TargetName).map',
+            'ImportLibrary': '$(OutDir)\\lib\\$(TargetName).lib',
+            'FixedBaseAddress': '1',
+            # LinkIncremental values:
+            #   0 == default
+            #   1 == /INCREMENTAL:NO
+            #   2 == /INCREMENTAL
+            'LinkIncremental': '1',
+            # SubSystem values:
+            #   0 == not set
+            #   1 == /SUBSYSTEM:CONSOLE
+            #   2 == /SUBSYSTEM:WINDOWS
+            'SubSystem': '1',
+          },
+        },
+      },
+    }],  # OS=="win"
+    ['OS=="mac"', {
+      'target_defaults': {
+        'xcode_settings': {
+          'ALWAYS_SEARCH_USER_PATHS': 'NO',
+          'GCC_C_LANGUAGE_STANDARD': 'ansi',        # -ansi
+          'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
+          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
+                                                    # (Equivalent to -fPIC)
+          'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
+          'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
+          'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
+          # GCC_INLINES_ARE_PRIVATE_EXTERN maps to -fvisibility-inlines-hidden
+          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
+          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
+          'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
+          'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
+          'GCC_VERSION': '4.2',
+          'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
+          'MACOSX_DEPLOYMENT_TARGET': '10.4',       # -mmacosx-version-min=10.4
+          'PREBINDING': 'NO',                       # No -Wl,-prebind
+          'USE_HEADERMAP': 'NO',
+          'OTHER_CFLAGS': [
+            '-fno-strict-aliasing',
+          ],
+          'WARNING_CFLAGS': [
+            '-Wall',
+            '-Wendif-labels',
+            '-W',
+            '-Wno-unused-parameter',
+            '-Wnon-virtual-dtor',
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
+          }],
+        ],  # target_conditions
+      },  # target_defaults
+    }],  # OS=="mac"
   ],
 }
