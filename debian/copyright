@@ -7,12 +7,7 @@ Files: *
 Copyright: 2006-2011 the V8 project authors
 License: BSD-3-clause-Google
 
-Files: src/arm/assembler-arm*
-Files: src/arm/assembler-thumb2*
-Files: src/assembler.*
-Files: src/ia32/assembler-ia32*
-Files: src/mips/assembler-mips*
-Files: src/x64/assembler-x64.h
+Files: src/arm/assembler-arm* src/arm/assembler-thumb2* src/assembler.* src/ia32/assembler-ia32* src/mips/assembler-mips* src/x64/assembler-x64.h
 Copyright: 1994-2006, Sun Microsystems Inc.
  2006-2010, the V8 Project Authors
 License: BSD-3-clause-SUN

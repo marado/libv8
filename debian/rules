@@ -18,8 +18,8 @@ DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^(benchmarks/v8-logo\.png|test/mjsunit/unicod
 
 DEB_DH_MAKESHLIBS_ARGS = -- -c4
 
-CXXFLAGS += -fno-strict-aliasing -Wno-unused-but-set-variable
-CFLAGS += -fno-strict-aliasing -Wno-unused-but-set-variable
+CXXFLAGS += -fno-strict-aliasing
+CFLAGS += -fno-strict-aliasing
 export CFLAGS
 export CXXFLAGS
 
@@ -33,8 +33,13 @@ v8arch := $(or $(v8arch),$(DEB_HOST_ARCH))
 v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
+ifeq (armhf, $(DEB_HOST_ARCH))
+v8armeabi := hard
+else
+v8armeabi := softfp
+endif
 
-DEB_SCONS_OPTIONS = library=shared soname=on snapshot=on shlibtype=hidden arch=$(v8arch) os=$(v8os)
+DEB_SCONS_OPTIONS = library=shared soname=on snapshot=on shlibtype=hidden arch=$(v8arch) os=$(v8os) armeabi=$(v8armeabi)
 DEB_SCONS_BUILD_TARGET = library
 
 # Scons does not always add -soname param, force it. This prevents gold linker from erroring.

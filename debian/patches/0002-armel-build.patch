@@ -11,19 +11,32 @@ Bug-GCC: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
 Last-Update: 2010-11-25
 --- a/SConstruct
 +++ b/SConstruct
-@@ -212,7 +212,8 @@
+@@ -149,19 +149,19 @@
+       'armeabi:soft' : {
+         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+         'simulator:none': {
+-          'CCFLAGS':     ['-mfloat-abi=soft'],
++          'CCFLAGS':     ['-mfloat-abi=soft', '-Wno-psabi', '-fno-tree-sink'],
+         }
        },
-       'unalignedaccesses:off' : {
-         'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=0']
--      }
-+      },
-+      'CCFLAGS':      ['-Wno-psabi', '-fno-tree-sink']
+       'armeabi:softfp' : {
+         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0', 'CAN_USE_VFP_INSTRUCTIONS'],
+         'simulator:none': {
+-          'CCFLAGS':     ['-mfloat-abi=softfp'],
++          'CCFLAGS':     ['-mfloat-abi=softfp', '-Wno-psabi', '-fno-tree-sink'],
+         }
+       },
+       'armeabi:hard' : {
+         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+         'simulator:none': {
+-          'CCFLAGS':     ['-mfloat-abi=hard'],
++          'CCFLAGS':     ['-mfloat-abi=hard', '-Wno-psabi', '-fno-tree-sink'],
+         }
+       }
      },
-     'simulator:arm': {
-       'CCFLAGS':      ['-m32'],
 --- a/src/arm/macro-assembler-arm.cc
 +++ b/src/arm/macro-assembler-arm.cc
-@@ -57,9 +57,6 @@
+@@ -60,9 +60,6 @@
  // We do not support thumb inter-working with an arm architecture not supporting
  // the blx instruction (below v5t).  If you know what CPU you are compiling for
  // you can use -march=armv7 or similar.

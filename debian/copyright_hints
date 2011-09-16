@@ -15,12 +15,14 @@ Files: LICENSE
  build/armu.gypi
  build/common.gypi
  build/gyp_v8
+ build/v8-features.gypi
  include/v8-debug.h
  include/v8-preparser.h
  include/v8-profiler.h
  include/v8-testing.h
  include/v8.h
  include/v8stdint.h
+ preparser/SConscript
  preparser/preparser-process.cc
  samples/SConscript
  samples/count-hosts.js
@@ -31,6 +33,7 @@ Files: LICENSE
  src/SConscript
  src/accessors.cc
  src/accessors.h
+ src/allocation-inl.h
  src/allocation.cc
  src/allocation.h
  src/api.cc
@@ -41,7 +44,7 @@ Files: LICENSE
  src/arm/builtins-arm.cc
  src/arm/code-stubs-arm.cc
  src/arm/code-stubs-arm.h
- src/arm/codegen-arm-inl.h
+ src/arm/codegen-arm.cc
  src/arm/codegen-arm.h
  src/arm/constants-arm.cc
  src/arm/constants-arm.h
@@ -53,7 +56,6 @@ Files: LICENSE
  src/arm/frames-arm.h
  src/arm/full-codegen-arm.cc
  src/arm/ic-arm.cc
- src/arm/jump-target-arm.cc
  src/arm/lithium-arm.cc
  src/arm/lithium-arm.h
  src/arm/lithium-codegen-arm.cc
@@ -64,21 +66,16 @@ Files: LICENSE
  src/arm/macro-assembler-arm.h
  src/arm/regexp-macro-assembler-arm.cc
  src/arm/regexp-macro-assembler-arm.h
- src/arm/register-allocator-arm-inl.h
- src/arm/register-allocator-arm.cc
- src/arm/register-allocator-arm.h
  src/arm/simulator-arm.cc
  src/arm/simulator-arm.h
  src/arm/stub-cache-arm.cc
- src/arm/virtual-frame-arm-inl.h
- src/arm/virtual-frame-arm.cc
- src/arm/virtual-frame-arm.h
  src/array.js
  src/ast-inl.h
  src/ast.cc
  src/ast.h
  src/atomicops.h
  src/atomicops_internals_arm_gcc.h
+ src/atomicops_internals_mips_gcc.h
  src/atomicops_internals_x86_gcc.cc
  src/atomicops_internals_x86_gcc.h
  src/atomicops_internals_x86_macosx.h
@@ -103,7 +100,6 @@ Files: LICENSE
  src/code-stubs.cc
  src/code-stubs.h
  src/code.h
- src/codegen-inl.h
  src/codegen.cc
  src/codegen.h
  src/compilation-cache.cc
@@ -153,9 +149,25 @@ Files: LICENSE
  src/dtoa.h
  src/execution.cc
  src/execution.h
+ src/extensions/experimental/break-iterator.cc
+ src/extensions/experimental/break-iterator.h
+ src/extensions/experimental/collator.cc
+ src/extensions/experimental/collator.h
+ src/extensions/experimental/datetime-format.cc
+ src/extensions/experimental/datetime-format.h
  src/extensions/experimental/experimental.gyp
  src/extensions/experimental/i18n-extension.cc
  src/extensions/experimental/i18n-extension.h
+ src/extensions/experimental/i18n-locale.cc
+ src/extensions/experimental/i18n-locale.h
+ src/extensions/experimental/i18n-natives.h
+ src/extensions/experimental/i18n-utils.cc
+ src/extensions/experimental/i18n-utils.h
+ src/extensions/experimental/i18n.js
+ src/extensions/experimental/language-matcher.cc
+ src/extensions/experimental/language-matcher.h
+ src/extensions/experimental/number-format.cc
+ src/extensions/experimental/number-format.h
  src/extensions/externalize-string-extension.cc
  src/extensions/externalize-string-extension.h
  src/extensions/gc-extension.cc
@@ -169,8 +181,6 @@ Files: LICENSE
  src/flag-definitions.h
  src/flags.cc
  src/flags.h
- src/frame-element.cc
- src/frame-element.h
  src/frames-inl.h
  src/frames.cc
  src/frames.h
@@ -195,12 +205,11 @@ Files: LICENSE
  src/heap.h
  src/hydrogen-instructions.cc
  src/hydrogen-instructions.h
- src/hydrogen.cc
  src/hydrogen.h
  src/ia32/builtins-ia32.cc
  src/ia32/code-stubs-ia32.cc
  src/ia32/code-stubs-ia32.h
- src/ia32/codegen-ia32-inl.h
+ src/ia32/codegen-ia32.cc
  src/ia32/codegen-ia32.h
  src/ia32/cpu-ia32.cc
  src/ia32/debug-ia32.cc
@@ -210,7 +219,6 @@ Files: LICENSE
  src/ia32/frames-ia32.h
  src/ia32/full-codegen-ia32.cc
  src/ia32/ic-ia32.cc
- src/ia32/jump-target-ia32.cc
  src/ia32/lithium-codegen-ia32.cc
  src/ia32/lithium-codegen-ia32.h
  src/ia32/lithium-gap-resolver-ia32.cc
@@ -221,14 +229,9 @@ Files: LICENSE
  src/ia32/macro-assembler-ia32.h
  src/ia32/regexp-macro-assembler-ia32.cc
  src/ia32/regexp-macro-assembler-ia32.h
- src/ia32/register-allocator-ia32-inl.h
- src/ia32/register-allocator-ia32.cc
- src/ia32/register-allocator-ia32.h
  src/ia32/simulator-ia32.cc
  src/ia32/simulator-ia32.h
  src/ia32/stub-cache-ia32.cc
- src/ia32/virtual-frame-ia32.cc
- src/ia32/virtual-frame-ia32.h
  src/ic-inl.h
  src/ic.cc
  src/ic.h
@@ -236,18 +239,13 @@ Files: LICENSE
  src/inspector.h
  src/interpreter-irregexp.cc
  src/interpreter-irregexp.h
+ src/isolate-inl.h
+ src/isolate.cc
+ src/isolate.h
+ src/json-parser.h
  src/json.js
  src/jsregexp.cc
  src/jsregexp.h
- src/jump-target-heavy-inl.h
- src/jump-target-heavy.cc
- src/jump-target-heavy.h
- src/jump-target-inl.h
- src/jump-target-light-inl.h
- src/jump-target-light.cc
- src/jump-target-light.h
- src/jump-target.cc
- src/jump-target.h
  src/list-inl.h
  src/list.h
  src/lithium-allocator-inl.h
@@ -271,36 +269,35 @@ Files: LICENSE
  src/mark-compact.cc
  src/mark-compact.h
  src/math.js
- src/memory.h
  src/messages.cc
  src/messages.h
  src/messages.js
  src/mips/builtins-mips.cc
- src/mips/codegen-mips-inl.h
+ src/mips/code-stubs-mips.cc
+ src/mips/code-stubs-mips.h
  src/mips/codegen-mips.cc
  src/mips/codegen-mips.h
  src/mips/constants-mips.cc
  src/mips/constants-mips.h
  src/mips/cpu-mips.cc
  src/mips/debug-mips.cc
+ src/mips/deoptimizer-mips.cc
  src/mips/disasm-mips.cc
- src/mips/fast-codegen-mips.cc
  src/mips/frames-mips.cc
  src/mips/frames-mips.h
  src/mips/full-codegen-mips.cc
  src/mips/ic-mips.cc
- src/mips/jump-target-mips.cc
+ src/mips/lithium-codegen-mips.h
+ src/mips/lithium-mips.h
  src/mips/macro-assembler-mips.cc
  src/mips/macro-assembler-mips.h
- src/mips/register-allocator-mips-inl.h
- src/mips/register-allocator-mips.cc
- src/mips/register-allocator-mips.h
+ src/mips/regexp-macro-assembler-mips.cc
+ src/mips/regexp-macro-assembler-mips.h
  src/mips/simulator-mips.cc
  src/mips/simulator-mips.h
  src/mips/stub-cache-mips.cc
- src/mips/virtual-frame-mips.cc
- src/mips/virtual-frame-mips.h
  src/mirror-debugger.js
+ src/misc-intrinsics.h
  src/mksnapshot.cc
  src/natives.h
  src/objects-debug.cc
@@ -320,8 +317,12 @@ Files: LICENSE
  src/platform-openbsd.cc
  src/platform-posix.cc
  src/platform-solaris.cc
+ src/platform-tls-mac.h
+ src/platform-tls-win32.h
+ src/platform-tls.h
  src/platform-win32.cc
  src/platform.h
+ src/preparse-data-format.h
  src/preparse-data.cc
  src/preparse-data.h
  src/preparser-api.cc
@@ -334,6 +335,7 @@ Files: LICENSE
  src/profile-generator.h
  src/property.cc
  src/property.h
+ src/proxy.js
  src/regexp-macro-assembler-irregexp-inl.h
  src/regexp-macro-assembler-irregexp.cc
  src/regexp-macro-assembler-irregexp.h
@@ -344,9 +346,6 @@ Files: LICENSE
  src/regexp-stack.cc
  src/regexp-stack.h
  src/regexp.js
- src/register-allocator-inl.h
- src/register-allocator.cc
- src/register-allocator.h
  src/rewriter.cc
  src/rewriter.h
  src/runtime-profiler.cc
@@ -365,6 +364,7 @@ Files: LICENSE
  src/serialize.h
  src/shell.h
  src/simulator.h
+ src/small-pointer-list.h
  src/smart-pointer.h
  src/snapshot-common.cc
  src/snapshot-empty.cc
@@ -385,8 +385,6 @@ Files: LICENSE
  src/stub-cache.h
  src/token.cc
  src/token.h
- src/top.cc
- src/top.h
  src/type-info.cc
  src/type-info.h
  src/unbound-queue-inl.h
@@ -395,6 +393,7 @@ Files: LICENSE
  src/unicode.cc
  src/unicode.h
  src/uri.js
+ src/utils-inl.h
  src/utils.cc
  src/utils.h
  src/v8-counters.cc
@@ -402,24 +401,21 @@ Files: LICENSE
  src/v8.cc
  src/v8.h
  src/v8checks.h
+ src/v8conversions.cc
+ src/v8conversions.h
  src/v8dll-main.cc
  src/v8globals.h
+ src/v8memory.h
  src/v8natives.js
  src/v8preparserdll-main.cc
  src/v8threads.cc
  src/v8threads.h
+ src/v8utils.cc
  src/v8utils.h
  src/variables.cc
  src/variables.h
  src/version.cc
  src/version.h
- src/virtual-frame-heavy-inl.h
- src/virtual-frame-heavy.cc
- src/virtual-frame-inl.h
- src/virtual-frame-light-inl.h
- src/virtual-frame-light.cc
- src/virtual-frame.cc
- src/virtual-frame.h
  src/vm-state-inl.h
  src/vm-state.h
  src/win32-headers.h
@@ -428,7 +424,7 @@ Files: LICENSE
  src/x64/builtins-x64.cc
  src/x64/code-stubs-x64.cc
  src/x64/code-stubs-x64.h
- src/x64/codegen-x64-inl.h
+ src/x64/codegen-x64.cc
  src/x64/codegen-x64.h
  src/x64/cpu-x64.cc
  src/x64/debug-x64.cc
@@ -438,7 +434,6 @@ Files: LICENSE
  src/x64/frames-x64.h
  src/x64/full-codegen-x64.cc
  src/x64/ic-x64.cc
- src/x64/jump-target-x64.cc
  src/x64/lithium-codegen-x64.cc
  src/x64/lithium-codegen-x64.h
  src/x64/lithium-gap-resolver-x64.cc
@@ -449,17 +444,13 @@ Files: LICENSE
  src/x64/macro-assembler-x64.h
  src/x64/regexp-macro-assembler-x64.cc
  src/x64/regexp-macro-assembler-x64.h
- src/x64/register-allocator-x64-inl.h
- src/x64/register-allocator-x64.cc
- src/x64/register-allocator-x64.h
  src/x64/simulator-x64.cc
  src/x64/simulator-x64.h
  src/x64/stub-cache-x64.cc
- src/x64/virtual-frame-x64.cc
- src/x64/virtual-frame-x64.h
  src/zone-inl.h
  src/zone.cc
  src/zone.h
+ test/benchmarks/testcfg.py
  test/cctest/SConscript
  test/cctest/cctest.cc
  test/cctest/cctest.gyp
@@ -471,6 +462,7 @@ Files: LICENSE
  test/cctest/gay-precision.h
  test/cctest/gay-shortest.cc
  test/cctest/gay-shortest.h
+ test/cctest/log-eq-of-logging-and-traversal.js
  test/cctest/test-accessors.cc
  test/cctest/test-alloc.cc
  test/cctest/test-api.cc
@@ -488,6 +480,7 @@ Files: LICENSE
  test/cctest/test-deoptimization.cc
  test/cctest/test-disasm-arm.cc
  test/cctest/test-disasm-ia32.cc
+ test/cctest/test-disasm-mips.cc
  test/cctest/test-dtoa.cc
  test/cctest/test-fixed-dtoa.cc
  test/cctest/test-flags.cc
@@ -495,10 +488,10 @@ Files: LICENSE
  test/cctest/test-hashmap.cc
  test/cctest/test-list.cc
  test/cctest/test-liveedit.cc
+ test/cctest/test-lockers.cc
  test/cctest/test-log-stack-tracer.cc
  test/cctest/test-macro-assembler-x64.cc
  test/cctest/test-mark-compact.cc
- test/cctest/test-mips.cc
  test/cctest/test-parsing.cc
  test/cctest/test-regexp.cc
  test/cctest/test-reloc-info.cc
@@ -506,7 +499,6 @@ Files: LICENSE
  test/cctest/test-spaces.cc
  test/cctest/test-thread-termination.cc
  test/cctest/test-threads.cc
- test/cctest/test-type-info.cc
  test/cctest/test-utils.cc
  test/cctest/test-version.cc
  test/cctest/testcfg.py
@@ -516,6 +508,8 @@ Files: LICENSE
  test/message/message.status
  test/message/overwritten-builtins.js
  test/message/overwritten-builtins.out
+ test/message/regress/regress-1527.js
+ test/message/regress/regress-1527.out
  test/message/regress/regress-73.js
  test/message/regress/regress-73.out
  test/message/regress/regress-75.js
@@ -545,9 +539,12 @@ Files: LICENSE
  test/mjsunit/api-call-after-bypassed-exception.js
  test/mjsunit/apply-arguments-gc-safepoint.js
  test/mjsunit/apply.js
+ test/mjsunit/argument-assigned.js
+ test/mjsunit/argument-named-arguments.js
  test/mjsunit/arguments-apply.js
  test/mjsunit/arguments-call-apply.js
  test/mjsunit/arguments-enum.js
+ test/mjsunit/arguments-escape.js
  test/mjsunit/arguments-indirect.js
  test/mjsunit/arguments-lazy.js
  test/mjsunit/arguments-load-across-eval.js
@@ -575,6 +572,7 @@ Files: LICENSE
  test/mjsunit/array-splice.js
  test/mjsunit/array-unshift.js
  test/mjsunit/ascii-regexp-subject.js
+ test/mjsunit/assert-opt-and-deopt.js
  test/mjsunit/big-array-literal.js
  test/mjsunit/big-object-literal.js
  test/mjsunit/binary-op-newspace.js
@@ -583,12 +581,13 @@ Files: LICENSE
  test/mjsunit/bitops-info.js
  test/mjsunit/bitwise-operations-undefined.js
  test/mjsunit/body-not-visible.js
+ test/mjsunit/boolean.js
+ test/mjsunit/break.js
  test/mjsunit/bugs/618.js
  test/mjsunit/bugs/bug-1344252.js
  test/mjsunit/bugs/bug-222.js
  test/mjsunit/bugs/bug-617.js
  test/mjsunit/bugs/bug-618.js
- test/mjsunit/bugs/bug-900066.js
  test/mjsunit/bugs/bug-941049.js
  test/mjsunit/call-non-function-call.js
  test/mjsunit/call-non-function.js
@@ -618,14 +617,18 @@ Files: LICENSE
  test/mjsunit/compiler/delete.js
  test/mjsunit/compiler/deopt-args.js
  test/mjsunit/compiler/deopt-inlined-smi.js
+ test/mjsunit/compiler/eval-introduced-closure.js
  test/mjsunit/compiler/expression-trees.js
  test/mjsunit/compiler/for-stmt.js
  test/mjsunit/compiler/function-call.js
+ test/mjsunit/compiler/global-accessors.js
  test/mjsunit/compiler/globals.js
+ test/mjsunit/compiler/inline-arguments.js
  test/mjsunit/compiler/inline-compare.js
  test/mjsunit/compiler/inline-conditional.js
  test/mjsunit/compiler/inline-global-access.js
  test/mjsunit/compiler/inline-param.js
+ test/mjsunit/compiler/inline-throw.js
  test/mjsunit/compiler/inline-two.js
  test/mjsunit/compiler/jsnatives.js
  test/mjsunit/compiler/literals-assignment.js
@@ -646,6 +649,7 @@ Files: LICENSE
  test/mjsunit/compiler/regress-0.js
  test/mjsunit/compiler/regress-1.js
  test/mjsunit/compiler/regress-1085.js
+ test/mjsunit/compiler/regress-1394.js
  test/mjsunit/compiler/regress-2.js
  test/mjsunit/compiler/regress-3.js
  test/mjsunit/compiler/regress-3136962.js
@@ -661,13 +665,16 @@ Files: LICENSE
  test/mjsunit/compiler/regress-arguments.js
  test/mjsunit/compiler/regress-arrayliteral.js
  test/mjsunit/compiler/regress-closures-with-eval.js
+ test/mjsunit/compiler/regress-const.js
  test/mjsunit/compiler/regress-funarguments.js
  test/mjsunit/compiler/regress-funcaller.js
  test/mjsunit/compiler/regress-gap.js
  test/mjsunit/compiler/regress-gvn.js
  test/mjsunit/compiler/regress-intoverflow.js
+ test/mjsunit/compiler/regress-lbranch-double.js
  test/mjsunit/compiler/regress-loadfield.js
  test/mjsunit/compiler/regress-loop-deopt.js
+ test/mjsunit/compiler/regress-max-locals-for-osr.js
  test/mjsunit/compiler/regress-max.js
  test/mjsunit/compiler/regress-or.js
  test/mjsunit/compiler/regress-rep-change.js
@@ -716,6 +723,8 @@ Files: LICENSE
  test/mjsunit/debug-enable-disable-breakpoints.js
  test/mjsunit/debug-evaluate-arguments.js
  test/mjsunit/debug-evaluate-bool-constructor.js
+ test/mjsunit/debug-evaluate-locals-optimized-double.js
+ test/mjsunit/debug-evaluate-locals-optimized.js
  test/mjsunit/debug-evaluate-locals.js
  test/mjsunit/debug-evaluate-recursive.js
  test/mjsunit/debug-evaluate-with-context.js
@@ -737,6 +746,7 @@ Files: LICENSE
  test/mjsunit/debug-liveedit-utils.js
  test/mjsunit/debug-mirror-cache.js
  test/mjsunit/debug-multiple-breakpoints.js
+ test/mjsunit/debug-receiver.js
  test/mjsunit/debug-referenced-by.js
  test/mjsunit/debug-references.js
  test/mjsunit/debug-return-value.js
@@ -775,14 +785,17 @@ Files: LICENSE
  test/mjsunit/dont-reinit-global-var.js
  test/mjsunit/double-equals.js
  test/mjsunit/dtoa.js
+ test/mjsunit/element-kind.js
  test/mjsunit/enumeration-order.js
  test/mjsunit/error-constructors.js
  test/mjsunit/escape.js
  test/mjsunit/eval-enclosing-function-name.js
  test/mjsunit/eval-typeof-non-existing.js
  test/mjsunit/eval.js
+ test/mjsunit/external-array.js
  test/mjsunit/extra-arguments.js
  test/mjsunit/extra-commas.js
+ test/mjsunit/fast-element-smi-check.js
  test/mjsunit/for-in-delete.js
  test/mjsunit/for-in-null-or-undefined.js
  test/mjsunit/for-in-special-cases.js
@@ -792,6 +805,7 @@ Files: LICENSE
  test/mjsunit/fun-name.js
  test/mjsunit/function-arguments-null.js
  test/mjsunit/function-bind.js
+ test/mjsunit/function-call.js
  test/mjsunit/function-caller.js
  test/mjsunit/function-names.js
  test/mjsunit/function-property.js
@@ -805,6 +819,7 @@ Files: LICENSE
  test/mjsunit/get-prototype-of.js
  test/mjsunit/getter-in-prototype.js
  test/mjsunit/getter-in-value-prototype.js
+ test/mjsunit/global-accessors.js
  test/mjsunit/global-const-var-conflicts.js
  test/mjsunit/global-deleted-property-ic.js
  test/mjsunit/global-deleted-property-keyed.js
@@ -815,7 +830,9 @@ Files: LICENSE
  test/mjsunit/global-vars-eval.js
  test/mjsunit/global-vars-with.js
  test/mjsunit/greedy.js
+ test/mjsunit/harmony/proxies.js
  test/mjsunit/has-own-property.js
+ test/mjsunit/hex-parsing.js
  test/mjsunit/html-comments.js
  test/mjsunit/html-string-funcs.js
  test/mjsunit/if-in-undefined.js
@@ -832,12 +849,15 @@ Files: LICENSE
  test/mjsunit/keyed-call-ic.js
  test/mjsunit/keyed-ic.js
  test/mjsunit/keyed-storage-extend.js
+ test/mjsunit/keywords-and-reserved_words.js
  test/mjsunit/large-object-allocation.js
  test/mjsunit/large-object-literal.js
  test/mjsunit/lazy-load.js
  test/mjsunit/leakcheck.js
  test/mjsunit/length.js
+ test/mjsunit/limit-locals.js
  test/mjsunit/local-load-from-eval.js
+ test/mjsunit/logical.js
  test/mjsunit/math-abs.js
  test/mjsunit/math-floor.js
  test/mjsunit/math-min-max.js
@@ -862,6 +882,7 @@ Files: LICENSE
  test/mjsunit/mjsunit.status
  test/mjsunit/mod.js
  test/mjsunit/mul-exhaustive.js
+ test/mjsunit/multiline.js
  test/mjsunit/multiple-return.js
  test/mjsunit/negate-zero.js
  test/mjsunit/negate.js
@@ -871,11 +892,13 @@ Files: LICENSE
  test/mjsunit/no-octal-constants-above-256.js
  test/mjsunit/no-semicolon.js
  test/mjsunit/non-ascii-replace.js
+ test/mjsunit/not.js
  test/mjsunit/nul-characters.js
  test/mjsunit/number-limits.js
  test/mjsunit/number-string-index-call.js
  test/mjsunit/number-tostring-small.js
  test/mjsunit/number-tostring.js
+ test/mjsunit/numops-fuzz.js
  test/mjsunit/obj-construct.js
  test/mjsunit/object-create.js
  test/mjsunit/object-define-properties.js
@@ -889,9 +912,9 @@ Files: LICENSE
  test/mjsunit/object-prevent-extensions.js
  test/mjsunit/object-seal.js
  test/mjsunit/object-toprimitive.js
- test/mjsunit/override-eval-with-non-function.js
  test/mjsunit/override-read-only-property.js
  test/mjsunit/parse-int-float.js
+ test/mjsunit/polymorph-arrays.js
  test/mjsunit/property-load-across-eval.js
  test/mjsunit/property-object-key.js
  test/mjsunit/proto.js
@@ -991,18 +1014,54 @@ Files: LICENSE
  test/mjsunit/regress/regress-1213575.js
  test/mjsunit/regress/regress-1215653.js
  test/mjsunit/regress/regress-1218.js
+ test/mjsunit/regress/regress-1229.js
+ test/mjsunit/regress/regress-1233.js
+ test/mjsunit/regress/regress-1236.js
+ test/mjsunit/regress/regress-1237.js
  test/mjsunit/regress/regress-124.js
+ test/mjsunit/regress/regress-1240.js
+ test/mjsunit/regress/regress-1246.js
  test/mjsunit/regress/regress-1254366.js
  test/mjsunit/regress/regress-1257.js
+ test/mjsunit/regress/regress-1278.js
+ test/mjsunit/regress/regress-1309.js
+ test/mjsunit/regress/regress-1323.js
  test/mjsunit/regress/regress-1327557.js
+ test/mjsunit/regress/regress-1337.js
  test/mjsunit/regress/regress-1346700.js
+ test/mjsunit/regress/regress-1351.js
+ test/mjsunit/regress/regress-1355.js
+ test/mjsunit/regress/regress-1360.js
+ test/mjsunit/regress/regress-1365.js
+ test/mjsunit/regress/regress-1369.js
  test/mjsunit/regress/regress-137.js
+ test/mjsunit/regress/regress-1383.js
+ test/mjsunit/regress/regress-1387.js
+ test/mjsunit/regress/regress-1389.js
  test/mjsunit/regress/regress-1401.js
  test/mjsunit/regress/regress-1403.js
+ test/mjsunit/regress/regress-1412.js
+ test/mjsunit/regress/regress-1423.js
+ test/mjsunit/regress/regress-1434.js
+ test/mjsunit/regress/regress-1436.js
  test/mjsunit/regress/regress-1439135.js
+ test/mjsunit/regress/regress-1447.js
+ test/mjsunit/regress/regress-1472.js
+ test/mjsunit/regress/regress-1476.js
  test/mjsunit/regress/regress-149.js
+ test/mjsunit/regress/regress-1491.js
  test/mjsunit/regress/regress-1493017.js
+ test/mjsunit/regress/regress-1513.js
+ test/mjsunit/regress/regress-1521.js
+ test/mjsunit/regress/regress-1523.js
+ test/mjsunit/regress/regress-1528.js
+ test/mjsunit/regress/regress-1529.js
+ test/mjsunit/regress/regress-1531.js
  test/mjsunit/regress/regress-155924.js
+ test/mjsunit/regress/regress-1560.js
+ test/mjsunit/regress/regress-1582.js
+ test/mjsunit/regress/regress-1583.js
+ test/mjsunit/regress/regress-1592.js
  test/mjsunit/regress/regress-171.js
  test/mjsunit/regress/regress-176.js
  test/mjsunit/regress/regress-186.js
@@ -1126,14 +1185,18 @@ Files: LICENSE
  test/mjsunit/regress/regress-780423.js
  test/mjsunit/regress/regress-78270.js
  test/mjsunit/regress/regress-784.js
+ test/mjsunit/regress/regress-794.js
  test/mjsunit/regress/regress-798.js
  test/mjsunit/regress/regress-799761.js
  test/mjsunit/regress/regress-806.js
  test/mjsunit/regress/regress-806473.js
  test/mjsunit/regress/regress-815.js
+ test/mjsunit/regress/regress-82769.js
  test/mjsunit/regress/regress-842.js
  test/mjsunit/regress/regress-842017.js
+ test/mjsunit/regress/regress-84234.js
  test/mjsunit/regress/regress-851.js
+ test/mjsunit/regress/regress-85177.js
  test/mjsunit/regress/regress-857.js
  test/mjsunit/regress/regress-86.js
  test/mjsunit/regress/regress-87.js
@@ -1141,17 +1204,23 @@ Files: LICENSE
  test/mjsunit/regress/regress-874178.js
  test/mjsunit/regress/regress-875031.js
  test/mjsunit/regress/regress-877615.js
+ test/mjsunit/regress/regress-88591.js
+ test/mjsunit/regress/regress-88858.js
  test/mjsunit/regress/regress-892742.js
  test/mjsunit/regress/regress-900.js
  test/mjsunit/regress/regress-900055.js
  test/mjsunit/regress/regress-900966.js
  test/mjsunit/regress/regress-91.js
+ test/mjsunit/regress/regress-91120.js
+ test/mjsunit/regress/regress-91517.js
+ test/mjsunit/regress/regress-91787.js
  test/mjsunit/regress/regress-918.js
  test/mjsunit/regress/regress-925537.js
  test/mjsunit/regress/regress-927.js
  test/mjsunit/regress/regress-931.js
  test/mjsunit/regress/regress-937896.js
  test/mjsunit/regress/regress-944.js
+ test/mjsunit/regress/regress-955.js
  test/mjsunit/regress/regress-962.js
  test/mjsunit/regress/regress-969.js
  test/mjsunit/regress/regress-974.js
@@ -1162,6 +1231,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-995.js
  test/mjsunit/regress/regress-996542.js
  test/mjsunit/regress/regress-998565.js
+ test/mjsunit/regress/regress-arguments-gc.js
  test/mjsunit/regress/regress-conditional-position.js
  test/mjsunit/regress/regress-crbug-18639.js
  test/mjsunit/regress/regress-crbug-3184.js
@@ -1170,12 +1240,15 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-39160.js
  test/mjsunit/regress/regress-crbug-40931.js
  test/mjsunit/regress/regress-crbug-72736.js
+ test/mjsunit/regress/regress-crbug-84186.js
+ test/mjsunit/regress/regress-crbug-87478.js
  test/mjsunit/regress/regress-create-exception.js
  test/mjsunit/regress/regress-deopt-gc.js
  test/mjsunit/regress/regress-lazy-deopt-reloc.js
  test/mjsunit/regress/regress-push-args-twice.js
  test/mjsunit/regress/regress-r3391.js
  test/mjsunit/regress/regress-r4998.js
+ test/mjsunit/regress/regress-regexp-codeflush.js
  test/mjsunit/regress/regress-swapelements.js
  test/mjsunit/regress/splice-missing-wb.js
  test/mjsunit/samevalue.js
@@ -1197,6 +1270,8 @@ Files: LICENSE
  test/mjsunit/stress-array-push.js
  test/mjsunit/strict-equals.js
  test/mjsunit/strict-mode-eval.js
+ test/mjsunit/strict-mode-implicit-receiver.js
+ test/mjsunit/strict-mode-opt.js
  test/mjsunit/strict-mode.js
  test/mjsunit/string-add.js
  test/mjsunit/string-case.js
@@ -1246,6 +1321,7 @@ Files: LICENSE
  test/mjsunit/try-finally-nested.js
  test/mjsunit/try.js
  test/mjsunit/typeof.js
+ test/mjsunit/unbox-double-arrays.js
  test/mjsunit/undeletable-functions.js
  test/mjsunit/unicode-case-overoptimization.js
  test/mjsunit/unicode-string-to-number.js
@@ -1264,13 +1340,41 @@ Files: LICENSE
  test/mozilla/mozilla-shell-emulation.js
  test/mozilla/mozilla.status
  test/mozilla/testcfg.py
+ test/preparser/empty.js
+ test/preparser/functions-only.js
+ test/preparser/non-alphanum.js
+ test/preparser/non-use-strict-hex-escape.js
+ test/preparser/non-use-strict-octal-escape.js
+ test/preparser/non-use-strict-uhex-escape.js
+ test/preparser/nonstrict-arguments.js
+ test/preparser/nonstrict-eval.js
+ test/preparser/nonstrict-with.js
+ test/preparser/preparser.status
+ test/preparser/strict-const.js
+ test/preparser/strict-function-statement.pyt
+ test/preparser/strict-identifiers.pyt
+ test/preparser/strict-octal-indirect-regexp.js
+ test/preparser/strict-octal-number.js
+ test/preparser/strict-octal-regexp.js
+ test/preparser/strict-octal-string.js
+ test/preparser/strict-octal-use-strict-after.js
+ test/preparser/strict-octal-use-strict-before.js
+ test/preparser/strict-with.js
+ test/preparser/symbols-only.js
+ test/preparser/testcfg.py
  test/sputnik/sputnik.status
  test/sputnik/testcfg.py
+ test/test262/harness-adapt.js
+ test/test262/test262.status
+ test/test262/testcfg.py
  tools/codemap.js
  tools/consarray.js
  tools/csvparser.js
  tools/disasm.py
  tools/gc-nvp-trace-processor.py
+ tools/gcmole/Makefile
+ tools/gcmole/gcmole.cc
+ tools/gdb-v8-support.py
  tools/grokdump.py
  tools/gyp/v8.gyp
  tools/jsmin.py
@@ -1293,8 +1397,8 @@ Copyright: 2006-2008, the V8 project authors.
  2006-2010, the V8 project authors.
  2006-2011, the V8 project authors.
  2007-2008, the V8 project authors.
- 2007-2009, the V8 project authors.
  2007-2010, the V8 project authors.
+ 2007-2011, the V8 project authors.
  2008, the V8 project authors.
  2008-2009, the V8 project authors.
  2009, the V8 project authors.
@@ -1326,6 +1430,8 @@ Files: AUTHORS
  debian/patches/0003-add-the-install-target.patch
  debian/patches/0004-gcc-opt-level-2.patch
  debian/patches/0005-enable-i18n-extension.patch
+ debian/patches/0006-gcc46-compat.patch
+ debian/patches/0007_armhf.patch
  debian/patches/series
  debian/rules
  debian/source/format
@@ -1338,48 +1444,17 @@ Files: AUTHORS
  test/mjsunit/tools/tickprocessor-test.ignore-unknown
  test/mjsunit/tools/tickprocessor-test.log
  test/mjsunit/tools/tickprocessor-test.separate-ic
+ test/preparser/preparser.expectation
  test/sputnik/README
+ test/test262/README
+ tools/freebsd-tick-processor
+ tools/gcmole/README
  tools/linux-tick-processor
  tools/mac-nm
  tools/mac-tick-processor
  tools/oom_dump/README
- tools/v8.xcodeproj/project.pbxproj
+ tools/v8.xcodeproj/README.txt
  tools/visual_studio/README.txt
- tools/visual_studio/arm.vsprops
- tools/visual_studio/common.vsprops
- tools/visual_studio/d8.vcproj
- tools/visual_studio/d8_arm.vcproj
- tools/visual_studio/d8_x64.vcproj
- tools/visual_studio/d8js2c.cmd
- tools/visual_studio/debug.vsprops
- tools/visual_studio/ia32.vsprops
- tools/visual_studio/js2c.cmd
- tools/visual_studio/release.vsprops
- tools/visual_studio/v8.sln
- tools/visual_studio/v8.vcproj
- tools/visual_studio/v8_arm.sln
- tools/visual_studio/v8_arm.vcproj
- tools/visual_studio/v8_base.vcproj
- tools/visual_studio/v8_base_arm.vcproj
- tools/visual_studio/v8_base_x64.vcproj
- tools/visual_studio/v8_cctest.vcproj
- tools/visual_studio/v8_cctest_arm.vcproj
- tools/visual_studio/v8_cctest_x64.vcproj
- tools/visual_studio/v8_mksnapshot.vcproj
- tools/visual_studio/v8_mksnapshot_x64.vcproj
- tools/visual_studio/v8_process_sample.vcproj
- tools/visual_studio/v8_process_sample_arm.vcproj
- tools/visual_studio/v8_process_sample_x64.vcproj
- tools/visual_studio/v8_shell_sample.vcproj
- tools/visual_studio/v8_shell_sample_arm.vcproj
- tools/visual_studio/v8_shell_sample_x64.vcproj
- tools/visual_studio/v8_snapshot.vcproj
- tools/visual_studio/v8_snapshot_cc.vcproj
- tools/visual_studio/v8_snapshot_cc_x64.vcproj
- tools/visual_studio/v8_snapshot_x64.vcproj
- tools/visual_studio/v8_x64.sln
- tools/visual_studio/v8_x64.vcproj
- tools/visual_studio/x64.vsprops
  tools/windows-tick-processor.bat
 Copyright: *No copyright*
 License: UNKNOWN
@@ -1394,11 +1469,11 @@ Files: test/cctest/test-circular-queue.cc
  test/cctest/test-heap-profiler.cc
  test/cctest/test-heap.cc
  test/cctest/test-lock.cc
- test/cctest/test-log-utils.cc
  test/cctest/test-log.cc
  test/cctest/test-platform-linux.cc
  test/cctest/test-platform-macos.cc
  test/cctest/test-platform-nullos.cc
+ test/cctest/test-platform-tls.cc
  test/cctest/test-platform-win32.cc
  test/cctest/test-profile-generator.cc
  test/cctest/test-sockets.cc
@@ -1409,6 +1484,7 @@ Copyright: 2006-2008, the V8 project authors.
  2006-2009, the V8 project authors.
  2009, the V8 project authors.
  2010, the V8 project authors.
+ 2011, the V8 project authors.
 License: UNKNOWN
  FIXME
 
@@ -1421,9 +1497,7 @@ Files: src/assembler.cc
  src/mips/assembler-mips.h
  src/x64/assembler-x64.h
 Copyright: 1994-2006, Sun Microsystems Inc
- 2006-2008, the V8 project authors.
- 2006-2009, the V8 project authors.
- 2010, the V8 project authors.
+ 2011, Sun Microsystems Inc
  2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS "AS
  OWNER OR
@@ -1448,19 +1522,18 @@ Files: src/arm/assembler-arm-inl.h
  src/ia32/assembler-ia32.cc
 Copyright: 1994-2006, Sun Microsystems Inc
  2006-2008, the V8 project authors.
- 2010, the V8 project authors.
+ 2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
 License: BSD (2 clause)
  FIXME
 
-Files: src/arm/codegen-arm.cc
- src/ia32/codegen-ia32.cc
- src/x64/codegen-x64.cc
-Copyright: 2010, the V8 project authors.
+Files: src/extensions/experimental/i18n-js2c.py
+ tools/js2c.py
+Copyright: 2006-2008, the V8 project authors.
+ 2011, Google Inc.
  2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
- they are all shadowed
 License: BSD (3 clause)
  FIXME
 
@@ -1468,6 +1541,13 @@ Files: LICENSE.valgrind
  src/third_party/valgrind/valgrind.h
 Copyright: 2000-2007, Julian Seward.
 License: BSD (3 clause)
+ FIXME
+
+Files: tools/gcmole/gccause.lua
+ tools/gcmole/gcmole.lua
+Copyright: 2011, the V8 project authors.
+ HOLDERS AND CONTRIBUTORS
+License: UNKNOWN
  FIXME
 
 Files: LICENSE.strongtalk
@@ -1485,14 +1565,14 @@ License: BSD (3 clause)
 Files: src/scanner-base.cc
 Copyright: && IsCarriageReturn(c0_)) Advance();
  && IsLineFeed(c0_)) Advance();
- 2010, the V8 project authors.
+ 2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
 
 Files: src/runtime.cc
 Copyright: * kJsonQuotesCharactersPerEntry;
- 2010, the V8 project authors.
+ 2011, the V8 project authors.
  >= kQuoteTableLength) {
  HOLDERS AND CONTRIBUTORS
  || c == 0x200b;
@@ -1500,7 +1580,7 @@ License: BSD (3 clause)
  FIXME
 
 Files: src/scanner-base.h
-Copyright: 2010, the V8 project authors.
+Copyright: 2011, the V8 project authors.
  <= 5) return c + 10;
  <= 9) return c;
  HOLDERS AND CONTRIBUTORS
@@ -1522,10 +1602,10 @@ Copyright: 1997-2007, University of Cambridge
 License: BSD (3 clause)
  FIXME
 
-Files: tools/js2c.py
-Copyright: 2006-2008, the V8 project authors.
- 2008, Google Inc.
+Files: src/hydrogen.cc
+Copyright: 2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
+ Reachable only normally
 License: BSD (3 clause)
  FIXME
 

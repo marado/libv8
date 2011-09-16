@@ -1,12 +1,56 @@
-libv8 (3.1.8.26-1) UNRELEASED; urgency=low
+libv8 (3.4.14.18-1) experimental; urgency=low
 
-  New upstream release.
+  * New upstream release. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 04 Sep 2011 16:50:51 +0200
+
+libv8 (3.4.14.13-4) experimental; urgency=low
+
+  * Export I18NExtension::get and I18NExtension::Register.
+    Closes: bug#639596.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 04 Sep 2011 15:41:48 +0200
+
+libv8 (3.4.14.13-3) experimental; urgency=low
+
+  * move I18NExtension from v8::internal to v8_i18n namespace,
+    following the externalization of i18n extension in chromium 15.
+    Closes: bug#639596.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 04 Sep 2011 10:35:09 +0200
+
+libv8 (3.4.14.13-2) experimental; urgency=low
+
+  * fix include of "v8.h" in i18n-extension.h
+    Closes: bug#639522. Thanks to Giuseppe Iuculano.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 28 Aug 2011 00:15:25 +0200
+
+libv8 (3.4.14.13-1) experimental; urgency=low
+
+  * New upstream release.
+
+  [ Jérémy Lal ]
+  * Bump version in debian/control (and debian/control.in)
 
   [ Jonas Smedegaard ]
-  * Bump version in debian/control (and debian/control.in).
-  * Add -Wno-unused-but-set-variable needed with recent GCC.
+  * Add patch 0007 to fix armhf.
+    Closes: bug#636370. Thanks to Konstantinos Margaritis.
 
- -- Jonas Smedegaard <dr@jones.dk>  Wed, 24 Aug 2011 01:59:25 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 24 Aug 2011 01:21:27 +0200
+
+libv8 (3.4.14-1) experimental; urgency=low
+
+  * New upstream release.
+
+  [ Jérémy Lal ]
+  * mipsel architecture added.
+  * Fix FTBFS with gcc 4.6 using -Wnounused-but-set-variable.
+    Closes: bug#625377.
+  * Enable i18n experimental extension: reworked, could be broken.
+  * Unfuzz patches.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 23 Jul 2011 01:14:22 +0200
 
 libv8 (3.1.8.22-1) unstable; urgency=low
 

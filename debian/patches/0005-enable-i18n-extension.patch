@@ -1,20 +1,59 @@
 Description: Enable the i18n extension needed by chromium 11
+ * src/SConscript is modified to mimic what src/extension/experimental/experimental.gyp does.
+ * in SConstruct, -I. is added (root_dir to CPPPATH) because the extension/experimental files are relative to it.
+ * silence a gcc warning about comparison of signed and unsigned integers in language-matcher.cc
+ * fix include of "v8.h" in i18n-extension.h (Closes: #639522)
+ * do not put I18NExtension in v8::internal namespace. (Closes: #639596)
 Forwarded: not-needed
-Author: Giuseppe Iuculano <iuculano@debian.org>
-Last-Update: 2011-06-19
+Author: Giuseppe Iuculano <iuculano@debian.org>, Jérémy Lal <kapouer@melix.org>
+Last-Update: 2011-09-04
 --- a/src/SConscript
 +++ b/src/SConscript
-@@ -135,6 +135,7 @@
+@@ -134,6 +134,15 @@
      zone.cc
      extensions/gc-extension.cc
      extensions/externalize-string-extension.cc
 +    extensions/experimental/i18n-extension.cc
++    extensions/experimental/break-iterator.cc
++    extensions/experimental/collator.cc
++    extensions/experimental/datetime-format.cc
++    extensions/experimental/i18n-locale.cc
++    extensions/experimental/i18n-utils.cc
++    extensions/experimental/language-matcher.cc
++    extensions/experimental/number-format.cc
++    extensions/experimental/i18n-js.cc
      """),
    'arch:arm': Split("""
-     jump-target-light.cc
+     arm/builtins-arm.cc
+@@ -320,6 +329,7 @@
+   env.Replace(**context.flags['v8'])
+   context.ApplyEnvOverrides(env)
+   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
++  env['BUILDERS']['I18NJS2C'] = Builder(action='python src/extensions/experimental/i18n-js2c.py $TARGET $SOURCE')
+   env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
+ 
+   def BuildJS2CEnv(type):
+@@ -340,6 +350,8 @@
+     d8_objs = [d8_js_obj]
+   d8_objs.append(context.ConfigureObject(env, [d8_files]))
+ 
++  env.I18NJS2C('extensions/experimental/i18n-js.cc', 'extensions/experimental/i18n.js', **BuildJS2CEnv('I18N'))
++
+   # Combine the JavaScript library files into a single C++ file and
+   # compile it.
+   library_files = [s for s in LIBRARY_FILES]
 --- a/SConstruct
 +++ b/SConstruct
-@@ -161,7 +161,7 @@
+@@ -53,7 +53,7 @@
+ 
+ LIBRARY_FLAGS = {
+   'all': {
+-    'CPPPATH': [join(root_dir, 'src')],
++    'CPPPATH': [join(root_dir, 'src'), root_dir],
+     'regexp:interpreted': {
+       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
+     },
+@@ -101,7 +101,7 @@
        'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
        'library:shared': {
          'CPPDEFINES': ['V8_SHARED'],
@@ -23,7 +62,7 @@ Last-Update: 2011-06-19
        }
      },
      'os:macos': {
-@@ -353,7 +353,7 @@
+@@ -340,7 +340,7 @@
  MKSNAPSHOT_EXTRA_FLAGS = {
    'gcc': {
      'os:linux': {
@@ -32,8 +71,8 @@ Last-Update: 2011-06-19
      },
      'os:macos': {
        'LIBS': ['pthread'],
-@@ -469,7 +469,7 @@
-       'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+@@ -457,7 +457,7 @@
+       'LINKFLAGS':    ['$CCFLAGS'],
      },
      'os:linux': {
 -      'LIBS':         ['pthread'],
@@ -41,7 +80,7 @@ Last-Update: 2011-06-19
      },
      'os:macos': {
        'LIBS':         ['pthread'],
-@@ -1181,7 +1181,7 @@
+@@ -1473,7 +1473,7 @@
      env.Install(libdir, lib[0])
      if dir not in install_dirs:
        install_dirs += libdir
@@ -49,4 +88,386 @@ Last-Update: 2011-06-19
 +  env.Install(incdir, [ 'include/v8.h', 'include/v8-debug.h', 'include/v8-profiler.h', 'include/v8-preparser.h', 'include/v8-testing.h', 'include/v8stdint.h', 'src/extensions/experimental/i18n-extension.h' ]);
    install_dirs += incdir
    env.Alias('install', install_dirs)
+ 
+--- a/src/extensions/experimental/language-matcher.cc
++++ b/src/extensions/experimental/language-matcher.cc
+@@ -37,13 +37,12 @@
+ #include "unicode/locid.h"
+ #include "unicode/uloc.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ const unsigned int LanguageMatcher::kLanguageWeight = 75;
+ const unsigned int LanguageMatcher::kScriptWeight = 20;
+ const unsigned int LanguageMatcher::kRegionWeight = 5;
+-const unsigned int LanguageMatcher::kThreshold = 50;
++const int LanguageMatcher::kThreshold = 50;
+ const unsigned int LanguageMatcher::kPositionBonus = 1;
+ const char* const LanguageMatcher::kDefaultLocale = "root";
+ 
+@@ -249,4 +248,4 @@
+   return !U_FAILURE(status);
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/language-matcher.h
++++ b/src/extensions/experimental/language-matcher.h
+@@ -32,8 +32,7 @@
+ 
+ #include "unicode/uloc.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ struct LocaleIDMatch {
+   LocaleIDMatch();
+@@ -76,7 +75,7 @@
+   static const unsigned int kRegionWeight;
+ 
+   // LocaleID match score has to be over this number to accept the match.
+-  static const unsigned int kThreshold;
++  static const int kThreshold;
+ 
+   // For breaking ties in priority queue.
+   static const unsigned int kPositionBonus;
+@@ -90,6 +89,6 @@
+                                              LocaleIDMatch* result);
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_LANGUAGE_MATCHER_H_
+--- a/src/extensions/experimental/i18n-extension.h
++++ b/src/extensions/experimental/i18n-extension.h
+@@ -28,10 +28,18 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+-namespace v8 {
+-namespace internal {
++// Setup for Linux shared library export. There is no need to distinguish
++// between building or using the V8 shared library, but we should not
++// export symbols when we are building a static library.
++#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
++#define V8EXPORT __attribute__ ((visibility("default")))
++#else  // defined(__GNUC__) && (__GNUC__ >= 4)
++#define V8EXPORT
++#endif  // defined(__GNUC__) && (__GNUC__ >= 4)
++
++namespace v8_i18n {
+ 
+ 
+ class I18NExtension : public v8::Extension {
+@@ -42,13 +50,13 @@
+       v8::Handle<v8::String> name);
+ 
+   // V8 code prefers Register, while Chrome and WebKit use get kind of methods.
+-  static void Register();
+-  static I18NExtension* get();
++  V8EXPORT static void Register();
++  V8EXPORT static I18NExtension* get();
+ 
+  private:
+   static I18NExtension* extension_;
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+--- a/src/extensions/experimental/break-iterator.cc
++++ b/src/extensions/experimental/break-iterator.cc
+@@ -33,8 +33,7 @@
+ #include "unicode/locid.h"
+ #include "unicode/rbbi.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ v8::Persistent<v8::FunctionTemplate> BreakIterator::break_iterator_template_;
+ 
+@@ -249,4 +248,4 @@
+   return wrapper;
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/break-iterator.h
++++ b/src/extensions/experimental/break-iterator.h
+@@ -37,8 +37,7 @@
+ class UnicodeString;
+ }
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class BreakIterator {
+  public:
+@@ -84,6 +83,6 @@
+   static v8::Persistent<v8::FunctionTemplate> break_iterator_template_;
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_BREAK_ITERATOR_H_
+--- a/src/extensions/experimental/collator.cc
++++ b/src/extensions/experimental/collator.cc
+@@ -31,8 +31,7 @@
+ #include "unicode/locid.h"
+ #include "unicode/ucol.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ v8::Persistent<v8::FunctionTemplate> Collator::collator_template_;
+ 
+@@ -219,4 +218,4 @@
+   return wrapper;
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/collator.h
++++ b/src/extensions/experimental/collator.h
+@@ -37,8 +37,7 @@
+ class UnicodeString;
+ }
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class Collator {
+  public:
+@@ -63,6 +62,6 @@
+   static v8::Persistent<v8::FunctionTemplate> collator_template_;
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_COLLATOR
+--- a/src/extensions/experimental/datetime-format.cc
++++ b/src/extensions/experimental/datetime-format.cc
+@@ -35,8 +35,7 @@
+ #include "unicode/locid.h"
+ #include "unicode/smpdtfmt.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ v8::Persistent<v8::FunctionTemplate> DateTimeFormat::datetime_format_template_;
+ 
+@@ -381,4 +380,4 @@
+   return icu::DateFormat::kShort;
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/datetime-format.h
++++ b/src/extensions/experimental/datetime-format.h
+@@ -36,8 +36,7 @@
+ class SimpleDateFormat;
+ }
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class DateTimeFormat {
+  public:
+@@ -78,6 +77,6 @@
+   static v8::Persistent<v8::FunctionTemplate> datetime_format_template_;
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
+--- a/src/extensions/experimental/i18n-extension.cc
++++ b/src/extensions/experimental/i18n-extension.cc
+@@ -34,8 +34,7 @@
+ #include "src/extensions/experimental/i18n-natives.h"
+ #include "src/extensions/experimental/number-format.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ I18NExtension* I18NExtension::extension_ = NULL;
+ 
+@@ -71,4 +70,4 @@
+   static v8::DeclareExtension i18n_extension_declaration(I18NExtension::get());
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/i18n-locale.cc
++++ b/src/extensions/experimental/i18n-locale.cc
+@@ -32,8 +32,7 @@
+ #include "unicode/locid.h"
+ #include "unicode/uloc.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ const char* const I18NLocale::kLocaleID = "localeID";
+ const char* const I18NLocale::kRegionID = "regionID";
+@@ -108,4 +107,4 @@
+   return !U_FAILURE(status);
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/i18n-locale.h
++++ b/src/extensions/experimental/i18n-locale.h
+@@ -30,8 +30,7 @@
+ 
+ #include "include/v8.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class I18NLocale {
+  public:
+@@ -55,6 +54,6 @@
+   static const char* const kICULocaleID;
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_LOCALE_H_
+--- a/src/extensions/experimental/i18n-natives.h
++++ b/src/extensions/experimental/i18n-natives.h
+@@ -28,8 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class I18Natives {
+  public:
+@@ -38,6 +37,6 @@
+   static const char* GetScriptSource();
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+--- a/src/extensions/experimental/i18n-utils.cc
++++ b/src/extensions/experimental/i18n-utils.cc
+@@ -31,8 +31,7 @@
+ 
+ #include "unicode/unistr.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ // static
+ void I18NUtils::StrNCopy(char* dest, int length, const char* src) {
+@@ -84,4 +83,4 @@
+   target[length - 1] = 0x0u;
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/i18n-utils.h
++++ b/src/extensions/experimental/i18n-utils.h
+@@ -36,8 +36,7 @@
+ class UnicodeString;
+ }
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class I18NUtils {
+  public:
+@@ -64,6 +63,6 @@
+   I18NUtils() {}
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
+--- a/src/extensions/experimental/number-format.cc
++++ b/src/extensions/experimental/number-format.cc
+@@ -37,8 +37,7 @@
+ #include "unicode/uchar.h"
+ #include "unicode/ucurr.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ const int NumberFormat::kCurrencyCodeLength = 4;
+ 
+@@ -353,4 +352,4 @@
+                       "that is not a NumberFormat.")));
+ }
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+--- a/src/extensions/experimental/number-format.h
++++ b/src/extensions/experimental/number-format.h
+@@ -36,8 +36,7 @@
+ class DecimalFormat;
+ }
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ class NumberFormat {
+  public:
+@@ -66,6 +65,6 @@
+   static v8::Persistent<v8::FunctionTemplate> number_format_template_;
+ };
+ 
+-} }  // namespace v8::internal
++}  // namespace v8_i18n
+ 
+ #endif  // V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
+--- a/src/extensions/experimental/i18n-js2c.py
++++ b/src/extensions/experimental/i18n-js2c.py
+@@ -87,8 +87,7 @@
+ 
+ #include "src/extensions/experimental/i18n-natives.h"
+ 
+-namespace v8 {
+-namespace internal {
++namespace v8_i18n {
+ 
+ // static
+ const char* I18Natives::GetScriptSource() {
+@@ -98,8 +97,7 @@
+   return i18n_source;
+ }
+ 
+-}  // internal
+-}  // v8
++}  // namespace v8_i18n
+ """
+ 
  
