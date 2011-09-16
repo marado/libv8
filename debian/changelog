@@ -1,6 +1,9 @@
 libv8 (3.4.14.21-1) unstable; urgency=low
 
-  * New upstream release. 
+  * New upstream release.
+  * Adds -mno-thumb-interwork on armel (armeabi:softfp).
+    Upstream does not support thumb interworking < armv5t.
+    However it is supported on armhf.
 
  -- Jérémy Lal <kapouer@melix.org>  Sun, 04 Sep 2011 16:50:51 +0200
 
