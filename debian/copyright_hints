@@ -514,6 +514,8 @@ Files: LICENSE
  test/message/regress/regress-73.out
  test/message/regress/regress-75.js
  test/message/regress/regress-75.out
+ test/message/replacement-marker-as-argument.js
+ test/message/replacement-marker-as-argument.out
  test/message/simple-throw.js
  test/message/simple-throw.out
  test/message/testcfg.py
@@ -1062,6 +1064,8 @@ Files: LICENSE
  test/mjsunit/regress/regress-1582.js
  test/mjsunit/regress/regress-1583.js
  test/mjsunit/regress/regress-1592.js
+ test/mjsunit/regress/regress-1647.js
+ test/mjsunit/regress/regress-1650.js
  test/mjsunit/regress/regress-171.js
  test/mjsunit/regress/regress-176.js
  test/mjsunit/regress/regress-186.js
@@ -1220,7 +1224,9 @@ Files: LICENSE
  test/mjsunit/regress/regress-931.js
  test/mjsunit/regress/regress-937896.js
  test/mjsunit/regress/regress-944.js
+ test/mjsunit/regress/regress-94425.js
  test/mjsunit/regress/regress-955.js
+ test/mjsunit/regress/regress-95920.js
  test/mjsunit/regress/regress-962.js
  test/mjsunit/regress/regress-969.js
  test/mjsunit/regress/regress-974.js
@@ -1426,7 +1432,6 @@ Files: AUTHORS
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
- debian/patches/0002-armel-build.patch
  debian/patches/0003-add-the-install-target.patch
  debian/patches/0004-gcc-opt-level-2.patch
  debian/patches/0005-enable-i18n-extension.patch
