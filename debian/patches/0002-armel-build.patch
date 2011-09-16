@@ -1,5 +1,7 @@
 Description: tune flags to build libv8 on armel
- * mno-thumb-interwork to allow compilation on default debian armel target (-march=armv4t)
+ * mno-thumb-interwork because v8 supports thumb-interwork on armv5t.
+   On debian, armel arch targets armv4t, with softfp, so we use that to know where to put the flag.
+   armhf arch, where thumb-interwork is supported, uses hardfloat.
  * fno-tree-sink to workaround a gcc armel bug
  * Wno-psabi to fix gcc warnings on armel
 Forwarded: not-needed
@@ -23,7 +25,7 @@ Last-Update: 2010-11-25
          'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0', 'CAN_USE_VFP_INSTRUCTIONS'],
          'simulator:none': {
 -          'CCFLAGS':     ['-mfloat-abi=softfp'],
-+          'CCFLAGS':     ['-mfloat-abi=softfp', '-Wno-psabi', '-fno-tree-sink'],
++          'CCFLAGS':     ['-mfloat-abi=softfp', '-mno-thumb-interwork', '-Wno-psabi', '-fno-tree-sink'],
          }
        },
        'armeabi:hard' : {
@@ -34,15 +36,3 @@ Last-Update: 2010-11-25
          }
        }
      },
---- a/src/arm/macro-assembler-arm.cc
-+++ b/src/arm/macro-assembler-arm.cc
-@@ -60,9 +60,6 @@
- // We do not support thumb inter-working with an arm architecture not supporting
- // the blx instruction (below v5t).  If you know what CPU you are compiling for
- // you can use -march=armv7 or similar.
--#if defined(USE_THUMB_INTERWORK) && !defined(CAN_USE_THUMB_INSTRUCTIONS)
--# error "For thumb inter-working we require an architecture which supports blx"
--#endif
- 
- 
- // Using bx does not yield better code, so use it only when required
