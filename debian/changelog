@@ -9,6 +9,8 @@ libv8 (3.4.14.21-1) UNRELEASED; urgency=low
     them using a quilt patch.
   * Relax build-dependencies on cdbs (unneededly tight) and debhelper
     (needed version satisfied even in oldstable).
+  * Tests timeout after 120 seconds, instead of 60.
+    Some builders can have slower machines.
 
   [ Jonas Smedegaard ]
   * Update watch file: Track 3.4.x releases.
