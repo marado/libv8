@@ -1,4 +1,4 @@
-libv8 (3.4.14.21-1) UNRELEASED; urgency=low
+libv8 (3.4.14.21-1) unstable; urgency=low
 
   [ Jérémy Lal ]
   * New upstream release.
@@ -22,7 +22,7 @@ libv8 (3.4.14.21-1) UNRELEASED; urgency=low
     + Use ~ as indicator for derived licenses.
     + Shorten license comment, and quote license name.
 
- -- Jonas Smedegaard <dr@jones.dk>  Sat, 17 Sep 2011 11:43:34 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 17 Sep 2011 16:55:28 +0200
 
 libv8 (3.4.14.13-4) experimental; urgency=low
 
