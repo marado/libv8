@@ -1,13 +1,26 @@
-libv8 (3.4.14.21-1) unstable; urgency=low
+libv8 (3.4.14.21-1) UNRELEASED; urgency=low
 
+  [ Jérémy Lal ]
   * New upstream release.
   * Adds -mno-thumb-interwork on armel (armeabi:softfp).
     Upstream does not support thumb interworking < armv5t.
     However it is supported on armhf.
   * Move compiler flags for arm in debian/rules, instead of setting
     them using a quilt patch.
+  * Relax build-dependencies on cdbs (unneededly tight) and debhelper
+    (needed version satisfied even in oldstable).
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 17 Sep 2011 10:34:39 +0200
+  [ Jonas Smedegaard ]
+  * Update watch file: Track 3.4.x releases.
+  * Relax build-dependency on devscripts (needed version satisfied even
+    in oldstable).
+  * Update copyright file:
+    + Fix use Source: (not Upstream-Source:).
+    + Newline-delimit file list.
+    + Use ~ as indicator for derived licenses.
+    + Shorten license comment, and quote license name.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 17 Sep 2011 11:43:34 +0200
 
 libv8 (3.4.14.13-4) experimental; urgency=low
 
