@@ -1,16 +1,21 @@
 Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
 Upstream-Contact: the V8 Project Authors <v8-dev@googlegroups.com>
-Upstream-Source: http://code.google.com/p/v8
+Source: http://code.google.com/p/v8
 Upstream-Name: v8
 
 Files: *
 Copyright: 2006-2011 the V8 project authors
-License: BSD-3-clause-Google
+License: BSD-3-clause~Google
 
-Files: src/arm/assembler-arm* src/arm/assembler-thumb2* src/assembler.* src/ia32/assembler-ia32* src/mips/assembler-mips* src/x64/assembler-x64.h
+Files: src/arm/assembler-arm*
+ src/arm/assembler-thumb2*
+ src/assembler.*
+ src/ia32/assembler-ia32*
+ src/mips/assembler-mips*
+ src/x64/assembler-x64.h
 Copyright: 1994-2006, Sun Microsystems Inc.
  2006-2010, the V8 Project Authors
-License: BSD-3-clause-SUN
+License: BSD-3-clause~SUN
 
 Files: test/mjsunit/third_party/*
 Copyright: 2006,2009, Apple Computer, Inc.
@@ -23,7 +28,7 @@ License: BSD-4-clause
 Files: test/mjsunit/third_party/regexp-pcre.js
 Copyright: 1997-2007, University of Cambridge
  2007, Google Inc
-License: BSD-3-clause-Cambridge
+License: BSD-3-clause~Cambridge
 
 Files: benchmark/deltablue.js
 Copyright: 1996, John Maloney
@@ -33,11 +38,11 @@ License: GPL-2+
 
 Files: benchmarks/crypto.js
 Copyright: 2003-2005, Tom Wu
-License: MIT-Wu
+License: MIT~Wu
 
 Files: benchmarks/raytrace.js
 Copyright: 2005-2007, Sam Stephenson
-License: MIT-Prototype
+License: MIT~Prototype
 Comment:
  Prototype is freely distributable under the terms of an MIT-style license.
  For details, see the Prototype web site: http://prototype.conio.net/
@@ -74,7 +79,7 @@ License: BSD-3-clause
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: BSD-3-clause-Google
+License: BSD-3-clause~Google
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
  met:
@@ -100,7 +105,7 @@ License: BSD-3-clause-Google
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: BSD-3-clause-SUN
+License: BSD-3-clause~SUN
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
  met:
@@ -126,7 +131,7 @@ License: BSD-3-clause-SUN
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: BSD-3-clause-Cambridge
+License: BSD-3-clause~Cambridge
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
  met:
@@ -187,7 +192,7 @@ License: BSD-4-clause
  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  POSSIBILITY OF SUCH DAMAGE.
 
-License: MIT-Wu
+License: MIT~Wu
  Permission is hereby granted, free of charge, to any person obtaining a
  copy of this software and associated documentation files (the
  "Software"), to deal in the Software without restriction, including
@@ -215,7 +220,7 @@ License: MIT-Wu
  All redistributions must retain an intact copy of this copyright notice
  and disclaimer.
 
-License: MIT-Prototype
+License: MIT~Prototype
  Permission to use, copy, modify, and distribute this software for any
  purpose without fee is hereby granted, provided that this entire notice
  is included in all copies of any software which is or includes a copy
@@ -238,8 +243,8 @@ License: GPL-2+
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  General Public License for more details.
 Comment:
- On Debian systems, the complete text of the GNU General Public License
- (GPL) version 2 can be found in '/usr/share/common-licenses/GPL-2'.
+ On Debian systems the 'GNU General Public License' version 2 is located
+ in '/usr/share/common-licenses/GPL-2'.
  .
- You should have received a copy of the GNU General Public License
+ You should have received a copy of the 'GNU General Public License'
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
