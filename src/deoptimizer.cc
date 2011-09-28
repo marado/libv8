@@ -613,11 +613,13 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       intptr_t input_value = input_->GetRegister(input_reg);
       if (FLAG_trace_deopt) {
         PrintF(
-            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s\n",
+            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s ",
             output_[frame_index]->GetTop() + output_offset,
             output_offset,
             input_value,
             converter.NameOfCPURegister(input_reg));
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
@@ -675,10 +677,12 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
-        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
+        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d] ",
                output_offset,
                input_value,
                input_offset);
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
@@ -1183,11 +1187,11 @@ void TranslationBuffer::Add(int32_t value) {
 
 
 int32_t TranslationIterator::Next() {
-  ASSERT(HasNext());
   // Run through the bytes until we reach one with a least significant
   // bit of zero (marks the end).
   uint32_t bits = 0;
   for (int i = 0; true; i += 7) {
+    ASSERT(HasNext());
     uint8_t next = buffer_->get(index_++);
     bits |= (next >> 1) << i;
     if ((next & 1) == 0) break;
@@ -1438,6 +1442,7 @@ void SlotRef::ComputeSlotMappingForArguments(JavaScriptFrame* frame,
   UNREACHABLE();
 }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(
     Deoptimizer* deoptimizer, int frame_index) {
@@ -1467,5 +1472,6 @@ void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
