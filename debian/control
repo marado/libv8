@@ -19,30 +19,30 @@ Package: libv8-dev
 Section: libdevel
 Architecture: i386 amd64 armel armhf mipsel
 Depends: libv8-3.4.14.21 (= ${binary:Version}), ${misc:Depends}
-Description: Development files for the V8 JavaScript Engine
- V8 is Google's open source, high performance JavaScript engine. It is written
- in C++ and is used in Google Chrome, Google's open source browser.
+Description: v8 JavaScript engine - development files
+ V8 is a high performance JavaScript engine written in C++.  It is used
+ in the web browser Chromium.
  .
  Install this package if you wish to develop your own programs using the
- V8 JavaScript Engine
+ v8 JavaScript engine.
 
 Package: libv8-3.4.14.21
 Architecture: i386 amd64 armel armhf mipsel
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: V8 JavaScript Engine
- V8 is Google's open source, high performance JavaScript engine. It is written
- in C++ and is used in Google Chrome, Google's open source browser.
+Description: v8 JavaScript engine - runtime library
+ V8 is a high performance JavaScript engine written in C++.  It is used
+ in the web browser Chromium.
  .
- This package includes the dynamic library against which you can link your
- program.
+ This package includes the dynamic library against which you can link
+ your program.
 
 Package: libv8-dbg
 Priority: extra
 Section: debug
 Architecture: i386 amd64 armel armhf mipsel
 Depends: libv8-3.4.14.21 (= ${binary:Version}), ${misc:Depends}
-Description: Debugging symbols for the V8 JavaScript Engine
- V8 is Google's open source, high performance JavaScript engine. It is written
- in C++ and is used in Google Chrome, Google's open source browser.
+Description: v8 JavaScript engine - debugging symbols
+ V8 is a high performance JavaScript engine written in C++.  It is used
+ in the web browser Chromium.
  .
  This package provides the debugging symbols for the library.
