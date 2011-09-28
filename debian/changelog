@@ -1,4 +1,4 @@
-libv8 (3.4.14.21-2) UNRELEASED; urgency=low
+libv8 (3.4.14.21-2) unstable; urgency=low
 
   [ Jonas Smedegaard ]
   * Rewrite short and long descriptions. Closes: bug#624374.
@@ -6,6 +6,7 @@ libv8 (3.4.14.21-2) UNRELEASED; urgency=low
 
   [ Jérémy Lal ]
   * Redirect output of mksnapshot to stdout. This helps armel debugging.
+  * Backport of fix for upstream issue#1706: unaligned access on armel.
 
  -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Sep 2011 11:25:48 +0200
 
