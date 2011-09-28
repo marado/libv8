@@ -29,6 +29,8 @@ v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
+# force aligned access
+v8armunaligned :=
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
@@ -41,6 +43,7 @@ CXXFLAGS += -Wno-psabi
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
+v8armunaligned := unalignedaccesses=off
 CCFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # Disable thumb-interworking because v8 supports it only on >= armv5t.
@@ -51,7 +54,7 @@ endif
 export CCFLAGS
 export CXXFLAGS
 
-DEB_SCONS_OPTIONS = library=shared soname=on snapshot=on shlibtype=hidden arch=$(v8arch) os=$(v8os) armeabi=$(v8armeabi)
+DEB_SCONS_OPTIONS = library=shared soname=on snapshot=on shlibtype=hidden arch=$(v8arch) os=$(v8os) armeabi=$(v8armeabi) $(v8armunaligned)
 DEB_SCONS_BUILD_TARGET = library
 
 # Scons does not always add -soname param, force it. This prevents gold linker from erroring.
