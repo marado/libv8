@@ -1,0 +1,16 @@
+Description: Redirect mksnapshot log to stdout
+ armel builds typically fail at mksnapshot, for which it is useful to be able to get the actual log.
+Forwarded: not-needed
+Author: Jérémy Lal <kapouer@melix.org>
+Last-Update: 2011-09-28
+--- a/src/SConscript
++++ b/src/SConscript
+@@ -388,7 +388,7 @@
+   mksnapshot = mksnapshot_env.Program('mksnapshot', [mksnapshot_src, libraries_obj, experimental_libraries_obj,  non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
+   if context.use_snapshot:
+     if context.build_snapshot:
+-      snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
++      snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE='-')
+     else:
+       snapshot_cc = 'snapshot.cc'
+     snapshot_obj = context.ConfigureObject(env, snapshot_cc, CPPPATH=['.'])
