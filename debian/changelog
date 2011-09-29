@@ -4,12 +4,12 @@ libv8 (3.5.10.14-1) UNRELEASED; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Sep 2011 22:54:29 +0200
 
-libv8 (3.4.14.21-3) UNRELEASED; urgency=low
+libv8 (3.4.14.21-3) unstable; urgency=low
 
   * Disable VFP for armel
   * Disable unaligned access for armel
 
- -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Sep 2011 21:54:42 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Sep 2011 23:14:48 +0200
 
 libv8 (3.4.14.21-2) unstable; urgency=low
 
