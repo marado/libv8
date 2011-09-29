@@ -60,8 +60,8 @@ DEB_SCONS_BUILD_TARGET = library
 # Scons does not always add -soname param, force it. This prevents gold linker from erroring.
 DEB_SCONS_ENVVARS = SONAME=libv8.so.$(SONAME)
 
-# regression tests need to build shell for mjsunit -- will be deprecated in 3.5 branch in favor of d8. shell becoming a simple v8 cli.
-DEB_SCONS_CHECK_TARGET = sample sample=shell
+# regression tests need to build shell for mjsunit
+DEB_SCONS_CHECK_TARGET = d8
 
 DEB_SCONS_INSTALL_OPTIONS += DESTDIR="$(cdbs_curdestdir)"
 
