@@ -1,9 +1,10 @@
 libv8 (3.4.14.33-1) unstable; urgency=low
 
   * Upstream update.
-  * Run tests with d8 instead of shell. 
+  * Run tests with d8 instead of shell.
+  * Upstream support for gcc 4.6, patch removed.
 
- -- Jérémy Lal <kapouer@melix.org>  Tue, 18 Oct 2011 14:31:03 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Tue, 18 Oct 2011 14:42:55 +0200
 
 libv8 (3.4.14.21-3) unstable; urgency=low
 
