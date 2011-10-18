@@ -664,6 +664,7 @@ Files: LICENSE
  test/mjsunit/compiler/regress-6.js
  test/mjsunit/compiler/regress-7.js
  test/mjsunit/compiler/regress-8.js
+ test/mjsunit/compiler/regress-96989.js
  test/mjsunit/compiler/regress-arguments.js
  test/mjsunit/compiler/regress-arrayliteral.js
  test/mjsunit/compiler/regress-closures-with-eval.js
@@ -1231,7 +1232,9 @@ Files: LICENSE
  test/mjsunit/regress/regress-969.js
  test/mjsunit/regress/regress-974.js
  test/mjsunit/regress/regress-982.js
+ test/mjsunit/regress/regress-98773.js
  test/mjsunit/regress/regress-990205.js
+ test/mjsunit/regress/regress-99167.js
  test/mjsunit/regress/regress-992.js
  test/mjsunit/regress/regress-992733.js
  test/mjsunit/regress/regress-995.js
@@ -1437,6 +1440,8 @@ Files: AUTHORS
  debian/patches/0005-enable-i18n-extension.patch
  debian/patches/0006-gcc46-compat.patch
  debian/patches/0007_armhf.patch
+ debian/patches/0008_mksnapshot_stdout.patch
+ debian/patches/0009_unaligned_access_armel.patch
  debian/patches/series
  debian/rules
  debian/source/format
@@ -1545,6 +1550,7 @@ License: BSD (3 clause)
 Files: LICENSE.valgrind
  src/third_party/valgrind/valgrind.h
 Copyright: 2000-2007, Julian Seward.
+ 2000-2010, Julian Seward.
 License: BSD (3 clause)
  FIXME
 
