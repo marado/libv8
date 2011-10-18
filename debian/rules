@@ -61,7 +61,7 @@ DEB_SCONS_BUILD_TARGET = library
 DEB_SCONS_ENVVARS = SONAME=libv8.so.$(SONAME)
 
 # regression tests need to build shell for mjsunit -- will be deprecated in 3.5 branch in favor of d8. shell becoming a simple v8 cli.
-DEB_SCONS_CHECK_TARGET = sample sample=shell
+DEB_SCONS_CHECK_TARGET = d8
 
 DEB_SCONS_INSTALL_OPTIONS += DESTDIR="$(cdbs_curdestdir)"
 
@@ -72,13 +72,14 @@ clean::
 	rm -rf obj
 	rm -f test/*/*.pyc
 	rm -f shell
+	rm -f d8
 
 # actually run regression tests
 #  * relax regression tests when targeted experimental suite
 #  * run only javascript tests, cctests are for development purposes
 exp-relax-check := $(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),-)
 common-post-build-impl::
-	$(exp-relax-check)$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,LD_PRELOAD=$(CURDIR)/libv8-$(SONAME).so $(CURDIR)/tools/test.py --progress=verbose --snapshot --no-build --timeout=120 mjsunit message arch=$(v8arch))
+	$(exp-relax-check)$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,LD_PRELOAD=$(CURDIR)/libv8-$(SONAME).so $(CURDIR)/tools/test.py --progress=verbose --snapshot --no-build --timeout=120 --shell=d8 mjsunit message arch=$(v8arch))
 
 common-install-impl::
 	cd debian/tmp/usr/lib/ ; \
