@@ -24,25 +24,10 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Flags: --allow-natives-syntax
 
-// Optimized variable access inside through a catch context should work.
-function test(x) {
-  try {
-    throw new Error();
-  } catch (e) {
-    var y = {f: 1};
-    var f = function () {
-      var z = y;
-      var g = function () {
-        if (y.f === z.f) return x;
-      };
-      %OptimizeFunctionOnNextCall(g);
-      return g;
-    }
-    assertEquals(3, f()());
-  }
-}
+// Flags: --expose-gc --max-new-space-size=1024
 
-test(3);
+eval("function Node() { this.a = 1; this.a = 3; }");
+new Node;
+for (var i = 0; i < 4; ++i) gc();
+for (var i = 0; i < 100000; ++i) new Node;

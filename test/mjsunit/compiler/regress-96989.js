@@ -24,25 +24,20 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+
 // Flags: --allow-natives-syntax
 
-// Optimized variable access inside through a catch context should work.
-function test(x) {
-  try {
-    throw new Error();
-  } catch (e) {
-    var y = {f: 1};
-    var f = function () {
-      var z = y;
-      var g = function () {
-        if (y.f === z.f) return x;
-      };
-      %OptimizeFunctionOnNextCall(g);
-      return g;
-    }
-    assertEquals(3, f()());
+// Test correct handling of uninitialized const.
+
+function test() {
+  for (var i = 41; i < 42; i++) {
+    var c = t ^ i;
   }
+  const t;
+  return c;
 }
 
-test(3);
+for (var i=0; i<10; i++) test();
+%OptimizeFunctionOnNextCall(test);
+assertEquals(41, test());
