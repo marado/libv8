@@ -24,25 +24,16 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Flags: --allow-natives-syntax
 
-// Optimized variable access inside through a catch context should work.
-function test(x) {
-  try {
-    throw new Error();
-  } catch (e) {
-    var y = {f: 1};
-    var f = function () {
-      var z = y;
-      var g = function () {
-        if (y.f === z.f) return x;
-      };
-      %OptimizeFunctionOnNextCall(g);
-      return g;
-    }
-    assertEquals(3, f()());
-  }
-}
+// Calling Array.sort on an external array is not supposed to crash.
 
-test(3);
+var array = new Int16Array(23);
+array[7] = 7; array[9] = 9;
+assertEquals(23, array.length);
+assertEquals(7, array[7]);
+assertEquals(9, array[9]);
+
+Array.prototype.sort.call(array);
+assertEquals(23, array.length);
+assertEquals(7, array[21]);
+assertEquals(9, array[22]);
