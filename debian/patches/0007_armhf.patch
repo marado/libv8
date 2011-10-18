@@ -5,7 +5,7 @@ Last-Update: 2011-09-16
 
 --- a/SConstruct
 +++ b/SConstruct
-@@ -884,6 +884,10 @@
+@@ -885,6 +885,10 @@
    return 'default'
  
  
@@ -16,7 +16,7 @@ Last-Update: 2011-09-16
  PLATFORM_OPTIONS = {
    'arch': {
      'values': ['arm', 'ia32', 'x64', 'mips'],
-@@ -899,7 +903,12 @@
+@@ -900,7 +904,12 @@
      'values': ['gcc', 'msvc'],
      'guess': GuessToolchain,
      'help': 'the toolchain to use'
@@ -30,7 +30,7 @@ Last-Update: 2011-09-16
  }
  
  SIMPLE_OPTIONS = {
-@@ -1019,11 +1028,11 @@
+@@ -1020,11 +1029,11 @@
      'default': 'off',
      'help': 'select profile guided optimization variant',
    },
@@ -47,7 +47,7 @@ Last-Update: 2011-09-16
    'mipsabi': {
      'values': ['hardfloat', 'softfloat', 'none'],
      'default': 'hardfloat',
-@@ -1164,6 +1173,8 @@
+@@ -1165,6 +1174,8 @@
      Abort("Option unalignedaccesses only supported for the ARM architecture.")
    if env['os'] != 'linux' and env['compress_startup_data'] != 'off':
      Abort("Startup data compression is only available on Linux")
