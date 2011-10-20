@@ -1,0 +1,16 @@
+Author: Vyacheslav Egorov
+Origin: https://raw.github.com/gist/1302061/371cebbda9e2bf0790728f3b5f47d38b74a26368/CountLeadingZeros.patch
+Debian-Bug: http://bugs.debian.org/644163
+Last-Update: 2011-10-21
+--- a/src/arm/macro-assembler-arm.cc
++++ b/src/arm/macro-assembler-arm.cc
+@@ -2907,8 +2907,8 @@
+ #ifdef CAN_USE_ARMV5_INSTRUCTIONS
+   clz(zeros, source);  // This instruction is only supported after ARM5.
+ #else
+-  mov(zeros, Operand(0, RelocInfo::NONE));
+   Move(scratch, source);
++  mov(zeros, Operand(0, RelocInfo::NONE));
+   // Top 16.
+   tst(scratch, Operand(0xffff0000));
+   add(zeros, zeros, Operand(16), LeaveCC, eq);

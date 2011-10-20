@@ -5,3 +5,4 @@
 0007_armhf.patch
 0008_mksnapshot_stdout.patch
 0009_unaligned_access_armel.patch
+0010_fix_arm_bug.patch
