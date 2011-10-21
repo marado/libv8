@@ -1,5 +1,6 @@
+Description: Fix CountLeadingZeros on non-ARMv5 hardware
 Author: Vyacheslav Egorov
-Origin: https://raw.github.com/gist/1302061/371cebbda9e2bf0790728f3b5f47d38b74a26368/CountLeadingZeros.patch
+Origin: http://code.google.com/p/v8/source/detail?r=9736
 Debian-Bug: http://bugs.debian.org/644163
 Last-Update: 2011-10-21
 --- a/src/arm/macro-assembler-arm.cc
