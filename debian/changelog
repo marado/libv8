@@ -2,10 +2,15 @@ libv8 (3.4.14.33-1) unstable; urgency=low
 
   * Upstream update.
   * Run tests with d8 instead of shell.
-  * Fix armel tests. Closes: bug#644163.
-    Thanks to Vyacheslav Egorov.
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 21 Oct 2011 00:59:58 +0200
+
+libv8 (3.4.14.21-4) unstable; urgency=low
+
+  * Fix armel tests. Closes: bug#644163.
+    Thanks to Vyacheslav Egorov. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 21 Oct 2011 16:24:05 +0200
 
 libv8 (3.4.14.21-3) unstable; urgency=low
 
