@@ -1260,7 +1260,9 @@ Files: LICENSE
  test/mjsunit/regress/regress-969.js
  test/mjsunit/regress/regress-974.js
  test/mjsunit/regress/regress-982.js
+ test/mjsunit/regress/regress-98773.js
  test/mjsunit/regress/regress-990205.js
+ test/mjsunit/regress/regress-99167.js
  test/mjsunit/regress/regress-992.js
  test/mjsunit/regress/regress-992733.js
  test/mjsunit/regress/regress-995.js
@@ -1472,6 +1474,8 @@ Files: AUTHORS
  debian/patches/0007_armhf.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0009_unaligned_access_armel.patch
+ debian/patches/0010_fix_arm_bug.patch
+ debian/patches/0011_use_system_gyp.patch
  debian/patches/series
  debian/rules
  debian/source/format
