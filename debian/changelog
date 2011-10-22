@@ -1,4 +1,4 @@
-libv8 (3.5.10.14-1) experimental; urgency=low
+libv8 (3.5.10.22-1) experimental; urgency=low
 
   * New upstream release.
   * Tests are run using d8 instead of shell.
