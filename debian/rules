@@ -52,6 +52,7 @@ endif
 export CCFLAGS
 export CXXFLAGS
 
+DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch)
 
 # regression tests
@@ -60,7 +61,6 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).check
 DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/libv8.so.$(SONAME)
 
 clean::
-	make clean
 	rm -rf out
 	rm -f tools/*.pyc
 	rm -f test/*/*.pyc
