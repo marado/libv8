@@ -53,10 +53,10 @@ export CCFLAGS
 export CXXFLAGS
 
 DEB_MAKE_CLEAN_TARGET = clean
-DEB_MAKE_BUILD_TARGET = $(v8arch)
+DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
 # regression tests
-DEB_MAKE_CHECK_TARGET = $(v8arch).check
+DEB_MAKE_CHECK_TARGET = $(v8arch).release.check
 
 DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/libv8.so.$(SONAME)
 
