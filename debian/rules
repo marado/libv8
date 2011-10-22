@@ -7,7 +7,7 @@ debian/control.in::
 	sed -e 's/__LIBPKGNAME__/$(LIBPKGNAME)/g' <debian/control.in.in >debian/control.in
 
 include /usr/share/cdbs/1/rules/utils.mk
-include /usr/share/cdbs/1/class/scons.mk
+include /usr/share/cdbs/1/class/makefile.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
 
 SONAME = $(DEB_UPSTREAM_VERSION)
@@ -29,21 +29,19 @@ v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
-# force aligned access
-v8armunaligned :=
+DEB_MAKE_EXTRA_ARGS = library=shared soname_version=$(SONAME) OS=$(v8os)
+
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
-v8armeabi := soft
-# armhf is hardfloat
 ifeq (armhf, $(DEB_HOST_ARCH))
-v8armeabi := hard
+DEB_MAKE_EXTRA_ARGS += v8_use_arm_eabi_hardfloat=true
 CCFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
-v8armunaligned := unalignedaccesses=off
+DEB_MAKE_EXTRA_ARGS += v8_can_use_unaligned_accesses=false v8_use_arm_eabi_hardfloat=false
 CCFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # Disable thumb-interworking because v8 supports it only on >= armv5t.
@@ -54,33 +52,27 @@ endif
 export CCFLAGS
 export CXXFLAGS
 
-DEB_SCONS_OPTIONS = library=shared soname=on snapshot=on shlibtype=hidden arch=$(v8arch) os=$(v8os) armeabi=$(v8armeabi) $(v8armunaligned)
-DEB_SCONS_BUILD_TARGET = library
+DEB_MAKE_BUILD_TARGET = $(v8arch)
 
-# Scons does not always add -soname param, force it. This prevents gold linker from erroring.
-DEB_SCONS_ENVVARS = SONAME=libv8.so.$(SONAME)
-
-# regression tests need to build shell for mjsunit
-DEB_SCONS_CHECK_TARGET = d8
-
-DEB_SCONS_INSTALL_OPTIONS += DESTDIR="$(cdbs_curdestdir)"
+# regression tests
+DEB_MAKE_CHECK_TARGET = $(v8arch).check
 
 DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/libv8.so.$(SONAME)
 
 clean::
-	rm -f tools/*.pyc libv8-$(SONAME).so
-	rm -rf obj
+	make clean
+	rm -rf out
+	rm -f tools/*.pyc
 	rm -f test/*/*.pyc
-	rm -f shell
 
 # actually run regression tests
 #  * relax regression tests when targeted experimental suite
 #  * run only javascript tests, cctests are for development purposes
-exp-relax-check := $(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),-)
-common-post-build-impl::
-	$(exp-relax-check)$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,LD_PRELOAD=$(CURDIR)/libv8-$(SONAME).so $(CURDIR)/tools/test.py --progress=verbose --snapshot --no-build --timeout=120 mjsunit message arch=$(v8arch))
+#exp-relax-check := $(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),-)
+#common-post-build-impl::
+#	$(exp-relax-check)$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,LD_PRELOAD=$(CURDIR)/libv8-$(SONAME).so $(CURDIR)/tools/test.py --progress=verbose --snapshot --no-build --timeout=120 --shell=d8 mjsunit message arch=$(v8arch))
 
-common-install-impl::
-	cd debian/tmp/usr/lib/ ; \
-	mv libv8-$(SONAME)*.so libv8.so.$(SONAME) ; \
-	ln -s -T libv8.so.$(SONAME) libv8.so
+#common-install-impl::
+#	cd debian/tmp/usr/lib/ ; \
+#	mv libv8-$(SONAME)*.so libv8.so.$(SONAME) ; \
+#	ln -s -T libv8.so.$(SONAME) libv8.so
