@@ -1442,6 +1442,7 @@ Files: AUTHORS
  debian/patches/0007_armhf.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0009_unaligned_access_armel.patch
+ debian/patches/0010_fix_arm_bug.patch
  debian/patches/series
  debian/rules
  debian/source/format
