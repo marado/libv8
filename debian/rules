@@ -49,6 +49,8 @@ CXXFLAGS += -Wno-psabi
 CCFLAGS += -mno-thumb-interwork
 endif
 
+v8out = $(CURDIR)/out/$(v8arch).release/lib.target/libv8.so
+
 export CCFLAGS
 export CXXFLAGS
 
@@ -56,7 +58,13 @@ DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
 # regression tests
-DEB_MAKE_CHECK_TARGET = $(v8arch).release.check
+#  * relax regression tests when targeted experimental suite
+#  * run only javascript tests, cctests are for development purposes
+DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
+	LD_PRELOAD=$(v8out) \
+	TESTSUITES="mjsunit message preparser" \
+	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
+
 
 DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/libv8.so.$(SONAME)
 
@@ -65,14 +73,8 @@ clean::
 	rm -f tools/*.pyc
 	rm -f test/*/*.pyc
 
-# actually run regression tests
-#  * relax regression tests when targeted experimental suite
-#  * run only javascript tests, cctests are for development purposes
-#exp-relax-check := $(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),-)
-#common-post-build-impl::
-#	$(exp-relax-check)$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,LD_PRELOAD=$(CURDIR)/libv8-$(SONAME).so $(CURDIR)/tools/test.py --progress=verbose --snapshot --no-build --timeout=120 --shell=d8 mjsunit message arch=$(v8arch))
-
-#common-install-impl::
-#	cd debian/tmp/usr/lib/ ; \
-#	mv libv8-$(SONAME)*.so libv8.so.$(SONAME) ; \
-#	ln -s -T libv8.so.$(SONAME) libv8.so
+common-install-impl::
+	mkdir -p debian/tmp/usr/lib ; \
+	cd debian/tmp/usr/lib ; \
+	cp $(v8out) libv8.so.$(SONAME) ; \
+	ln -s -T libv8.so.$(SONAME) libv8.so

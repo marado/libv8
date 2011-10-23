@@ -1,2 +1,2 @@
-debian/tmp/usr/include
-debian/tmp/usr/lib/libv8.so
+include usr
+libv8.so usr/lib
