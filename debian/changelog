@@ -1,10 +1,18 @@
 libv8 (3.5.10.22-1) experimental; urgency=low
 
   * New upstream release.
+  * Builds using gyp (instead of Scons).
   * Tests are run using d8 instead of shell.
   * Update watch file: Track 3.5.x releases.
 
  -- Jérémy Lal <kapouer@melix.org>  Thu, 29 Sep 2011 09:26:02 +0200
+
+libv8 (3.4.14.21-4) unstable; urgency=low
+
+  * Fix armel tests. Closes: bug#644163.
+    Thanks to Vyacheslav Egorov. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 21 Oct 2011 16:24:05 +0200
 
 libv8 (3.4.14.21-3) unstable; urgency=low
 
