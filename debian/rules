@@ -31,6 +31,9 @@ v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
 DEB_MAKE_EXTRA_ARGS = library=shared soname_version=$(SONAME) OS=$(v8os)
 
+# only symbols with V8EXPORT attribute are visible
+CCFLAGS += -fvisibility=hidden
+
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
