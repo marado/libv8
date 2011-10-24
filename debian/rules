@@ -66,6 +66,7 @@ DEB_MAKE_BUILD_TARGET = $(v8arch).release
 DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	LD_PRELOAD=$(v8out) \
 	TESTSUITES="mjsunit message preparser" \
+	TESTJOBS=$(DEB_MAKE_PARALLEL) \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
 
