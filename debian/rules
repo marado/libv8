@@ -52,7 +52,7 @@ CXXFLAGS += -Wno-psabi
 CCFLAGS += -mno-thumb-interwork
 endif
 
-v8out = $(CURDIR)/out/$(v8arch).release/lib.target/libv8.so
+v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(LIBPKGNAME).so
 
 export CCFLAGS
 export CXXFLAGS

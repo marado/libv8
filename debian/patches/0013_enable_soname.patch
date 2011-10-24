@@ -1,0 +1,44 @@
+Description: enable soname
+Origin: http://code.google.com/p/v8/source/browse/
+Last-Update: 2011-10-25
+--- a/tools/gyp/v8.gyp
++++ b/tools/gyp/v8.gyp
+@@ -71,6 +71,13 @@
+                     ],
+                   },
+                 }],
++                ['soname_version!=""', {
++                  # Ideally, we'd like to specify the full filename for the
++                  # library and set it to "libv8.so.<(soname_version)",
++                  # but currently the best we can do is use 'product_name' and
++                  # get "libv8-<(soname_version).so".
++                  'product_name': 'v8-<(soname_version)',
++                }],
+               ],
+             },
+             {
+--- a/build/common.gypi
++++ b/build/common.gypi
+@@ -72,6 +72,9 @@
+     'v8_use_snapshot%': 'true',
+     'host_os%': '<(OS)',
+     'v8_use_liveobjectlist%': 'false',
++
++    # For a shared library build, results in "libv8-<(soname_version).so".
++    'soname_version%': '',
+   },
+   'target_defaults': {
+     'conditions': [
+--- a/Makefile
++++ b/Makefile
+@@ -69,6 +69,10 @@
+ else
+   GYPFLAGS += -Dv8_can_use_vfp_instructions=true
+ endif
++# soname_version=1.2.3
++ifdef soname_version
++  GYPFLAGS += -Dsoname_version=$(soname_version)
++endif
+ 
+ # ----------------- available targets: --------------------
+ # - any arch listed in ARCHES (see below)
