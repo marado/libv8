@@ -4,6 +4,7 @@ libv8 (3.5.10.22-1) experimental; urgency=low
   * Builds using gyp (instead of deprecated scons build):
     + removed scons patches
     + added gyp patches to achieve the same result.
+  * Remove mipsel architecture, not supported upstream.
   * Tests are run using d8 instead of shell.
   * Update watch file: Track 3.5.x releases.
 
