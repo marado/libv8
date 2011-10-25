@@ -579,7 +579,7 @@ Last-Update: 2011-10-25
            ],
 +          'link_settings': {
 +              'libraries': [
-+                '-licui18n', '-licuuc', '-licudata',
++                '-licui18n', '-licuuc',
 +              ],
 +          },
            'sources': [
