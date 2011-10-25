@@ -5,6 +5,10 @@ libv8 (3.5.10.22-1) experimental; urgency=low
   * Tests are run using d8 instead of shell.
   * Update watch file: Track 3.5.x releases.
 
+  [ TODO ]
+  * 0013 patch generates this soname : libv8-3.5.10.22.so, but we really
+    want libv8.so3.5.10.22. Patching gyp might be required.
+
  -- Jérémy Lal <kapouer@melix.org>  Tue, 25 Oct 2011 01:43:48 +0200
 
 libv8 (3.4.14.21-4) unstable; urgency=low
