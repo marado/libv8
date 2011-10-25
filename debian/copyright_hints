@@ -1467,15 +1467,14 @@ Files: AUTHORS
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
- debian/patches/0003-add-the-install-target.patch
  debian/patches/0004-gcc-opt-level-2.patch
  debian/patches/0005-enable-i18n-extension.patch
- debian/patches/0006-gcc46-compat.patch
- debian/patches/0007_armhf.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0009_unaligned_access_armel.patch
  debian/patches/0010_fix_arm_bug.patch
  debian/patches/0011_use_system_gyp.patch
+ debian/patches/0012_make_check_testsuites.patch
+ debian/patches/0013_enable_soname.patch
  debian/patches/series
  debian/rules
  debian/source/format
