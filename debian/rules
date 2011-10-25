@@ -12,6 +12,7 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 
 SONAME = $(DEB_UPSTREAM_VERSION)
 LIBPKGNAME = libv8-$(SONAME)
+libSoname = libv8.so.$(SONAME)
 
 # suppress checking binary files, to not upset dpkg-source
 DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^(benchmarks/v8-logo\.png|test/mjsunit/unicode-test\.js|debian/(changelog|copyright(|_hints|_newhints)))$
@@ -52,7 +53,7 @@ CXXFLAGS += -Wno-psabi
 CCFLAGS += -mno-thumb-interwork
 endif
 
-v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(LIBPKGNAME).so
+v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
 
 export CCFLAGS
 export CXXFLAGS
@@ -70,7 +71,7 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
 
-DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/libv8.so.$(SONAME)
+DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/$(libSoname)
 
 clean::
 	rm -rf out
@@ -80,5 +81,5 @@ clean::
 common-install-impl::
 	mkdir -p debian/tmp/usr/lib ; \
 	cd debian/tmp/usr/lib ; \
-	cp $(v8out) libv8.so.$(SONAME) ; \
-	ln -s -T libv8.so.$(SONAME) libv8.so
+	cp $(v8out) . ; \
+	ln -s -T $(libSoname) libv8.so
