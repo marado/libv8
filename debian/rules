@@ -30,7 +30,7 @@ v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
-DEB_MAKE_EXTRA_ARGS = library=shared soname_version=$(SONAME) OS=$(v8os) V=1
+DEB_MAKE_EXTRA_ARGS += library=shared soname_version=$(SONAME) OS=$(v8os) V=1
 
 # only symbols with V8EXPORT attribute are visible
 CCFLAGS += -fvisibility=hidden
