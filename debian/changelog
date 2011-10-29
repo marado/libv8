@@ -1,4 +1,4 @@
-libv8 (3.5.10.22-1) experimental; urgency=low
+libv8 (3.5.10.23-1) experimental; urgency=low
 
   * New upstream release.
   * Build using gyp (instead of deprecated scons build):
@@ -9,7 +9,7 @@ libv8 (3.5.10.22-1) experimental; urgency=low
   * Allow parallel builds.
   * Update watch file: Track 3.5.x releases.
 
- -- Jérémy Lal <kapouer@melix.org>  Tue, 25 Oct 2011 13:44:38 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 09:33:41 +0200
 
 libv8 (3.4.14.21-4) unstable; urgency=low
 
