@@ -64,6 +64,8 @@ export CXXFLAGS
 DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
+# Some tests are not gcc-4.6 compatible. Add this until they do.
+CXXFLAGS += -Wno-unused-but-set-variable
 # regression tests
 #  * relax regression tests when targeted experimental suite
 #  * run only javascript tests, cctests are for development purposes
