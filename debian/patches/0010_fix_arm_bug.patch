@@ -5,7 +5,7 @@ Debian-Bug: http://bugs.debian.org/644163
 Last-Update: 2011-10-21
 --- a/src/arm/macro-assembler-arm.cc
 +++ b/src/arm/macro-assembler-arm.cc
-@@ -2901,8 +2901,8 @@
+@@ -2941,8 +2941,8 @@
  #ifdef CAN_USE_ARMV5_INSTRUCTIONS
    clz(zeros, source);  // This instruction is only supported after ARM5.
  #else
