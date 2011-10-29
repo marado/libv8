@@ -1,2 +1,3 @@
-debian/tmp/usr/include
-debian/tmp/usr/lib/libv8.so
+include usr
+src/extensions/experimental/i18n-extension.h usr/include
+debian/tmp/usr/lib/libv8.so usr/lib

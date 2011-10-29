@@ -1,9 +1,15 @@
-libv8 (3.4.14.33-1) unstable; urgency=low
+libv8 (3.5.10.23-1) experimental; urgency=low
 
-  * Upstream update.
-  * Run tests with d8 instead of shell.
+  * New upstream release.
+  * Build using gyp (instead of deprecated scons build):
+    + removed scons patches
+    + added gyp patches to achieve the same result.
+  * Remove mipsel architecture, not yet supported upstream.
+  * Tests are run using d8 instead of shell.
+  * Allow parallel builds.
+  * Update watch file: Track 3.5.x releases.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 21 Oct 2011 00:59:58 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 09:33:41 +0200
 
 libv8 (3.4.14.21-4) unstable; urgency=low
 

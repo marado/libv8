@@ -1,8 +1,7 @@
-0003-add-the-install-target.patch
-0004-gcc-opt-level-2.patch
 0005-enable-i18n-extension.patch
-0006-gcc46-compat.patch
-0007_armhf.patch
 0008_mksnapshot_stdout.patch
 0009_unaligned_access_armel.patch
 0010_fix_arm_bug.patch
+0011_use_system_gyp.patch
+0012_make_check_testsuites.patch
+0013_enable_soname.patch

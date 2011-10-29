@@ -1,97 +1,26 @@
 Description: Enable the i18n extension needed by chromium 11
- * src/SConscript is modified to mimic what src/extension/experimental/experimental.gyp does.
- * in SConstruct, -I. is added (root_dir to CPPPATH) because the extension/experimental files are relative to it.
+ * tools/gyp/v8.gyp is modified to mimic what src/extension/experimental/experimental.gyp does.
+ * internalize src/extension/experimental paths, remove src/ and include/
  * silence a gcc warning about comparison of signed and unsigned integers in language-matcher.cc
  * fix include of "v8.h" in i18n-extension.h (Closes: #639522)
- * do not put I18NExtension in v8::internal namespace. (Closes: #639596)
+ * do not put I18NExtension in v8::internal namespace, use v8_i18n (same name as the externalized version) (Closes: #639596)
 Forwarded: not-needed
 Author: Giuseppe Iuculano <iuculano@debian.org>, Jérémy Lal <kapouer@melix.org>
-Last-Update: 2011-09-04
---- a/src/SConscript
-+++ b/src/SConscript
-@@ -134,6 +134,15 @@
-     zone.cc
-     extensions/gc-extension.cc
-     extensions/externalize-string-extension.cc
-+    extensions/experimental/i18n-extension.cc
-+    extensions/experimental/break-iterator.cc
-+    extensions/experimental/collator.cc
-+    extensions/experimental/datetime-format.cc
-+    extensions/experimental/i18n-locale.cc
-+    extensions/experimental/i18n-utils.cc
-+    extensions/experimental/language-matcher.cc
-+    extensions/experimental/number-format.cc
-+    extensions/experimental/i18n-js.cc
-     """),
-   'arch:arm': Split("""
-     arm/builtins-arm.cc
-@@ -320,6 +329,7 @@
-   env.Replace(**context.flags['v8'])
-   context.ApplyEnvOverrides(env)
-   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
-+  env['BUILDERS']['I18NJS2C'] = Builder(action='python src/extensions/experimental/i18n-js2c.py $TARGET $SOURCE')
-   env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
- 
-   def BuildJS2CEnv(type):
-@@ -340,6 +350,8 @@
-     d8_objs = [d8_js_obj]
-   d8_objs.append(context.ConfigureObject(env, [d8_files]))
- 
-+  env.I18NJS2C('extensions/experimental/i18n-js.cc', 'extensions/experimental/i18n.js', **BuildJS2CEnv('I18N'))
-+
-   # Combine the JavaScript library files into a single C++ file and
-   # compile it.
-   library_files = [s for s in LIBRARY_FILES]
---- a/SConstruct
-+++ b/SConstruct
-@@ -53,7 +53,7 @@
- 
- LIBRARY_FLAGS = {
-   'all': {
--    'CPPPATH': [join(root_dir, 'src')],
-+    'CPPPATH': [join(root_dir, 'src'), root_dir],
-     'regexp:interpreted': {
-       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
-     },
-@@ -101,7 +101,7 @@
-       'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
-       'library:shared': {
-         'CPPDEFINES': ['V8_SHARED'],
--        'LIBS': ['pthread']
-+        'LIBS': ['pthread', 'icui18n', 'icuuc', 'icudata']
-       }
-     },
-     'os:macos': {
-@@ -340,7 +340,7 @@
- MKSNAPSHOT_EXTRA_FLAGS = {
-   'gcc': {
-     'os:linux': {
--      'LIBS': ['pthread'],
-+      'LIBS': ['pthread', 'icui18n', 'icuuc', 'icudata'],
-     },
-     'os:macos': {
-       'LIBS': ['pthread'],
-@@ -457,7 +457,7 @@
-       'LINKFLAGS':    ['$CCFLAGS'],
-     },
-     'os:linux': {
--      'LIBS':         ['pthread'],
-+      'LIBS':         ['pthread', 'icui18n', 'icuuc', 'icudata'],
-     },
-     'os:macos': {
-       'LIBS':         ['pthread'],
-@@ -1473,7 +1473,7 @@
-     env.Install(libdir, lib[0])
-     if dir not in install_dirs:
-       install_dirs += libdir
--  env.Install(incdir, [ 'include/v8.h', 'include/v8-debug.h', 'include/v8-profiler.h', 'include/v8-preparser.h', 'include/v8-testing.h', 'include/v8stdint.h' ]);
-+  env.Install(incdir, [ 'include/v8.h', 'include/v8-debug.h', 'include/v8-profiler.h', 'include/v8-preparser.h', 'include/v8-testing.h', 'include/v8stdint.h', 'src/extensions/experimental/i18n-extension.h' ]);
-   install_dirs += incdir
-   env.Alias('install', install_dirs)
- 
+Last-Update: 2011-10-25
 --- a/src/extensions/experimental/language-matcher.cc
 +++ b/src/extensions/experimental/language-matcher.cc
-@@ -37,13 +37,12 @@
+@@ -28,22 +28,21 @@
+ // TODO(cira): Remove LanguageMatcher from v8 when ICU implements
+ // language matching API.
+ 
+-#include "src/extensions/experimental/language-matcher.h"
++#include "extensions/experimental/language-matcher.h"
+ 
+ #include <string.h>
+ 
+-#include "src/extensions/experimental/i18n-utils.h"
++#include "extensions/experimental/i18n-utils.h"
+ #include "unicode/datefmt.h"  // For getAvailableLocales
  #include "unicode/locid.h"
  #include "unicode/uloc.h"
  
@@ -115,7 +44,12 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/language-matcher.h
 +++ b/src/extensions/experimental/language-matcher.h
-@@ -32,8 +32,7 @@
+@@ -28,12 +28,11 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_LANGUAGE_MATCHER_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_LANGUAGE_MATCHER_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
  
  #include "unicode/uloc.h"
  
@@ -185,6 +119,15 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
 --- a/src/extensions/experimental/break-iterator.cc
 +++ b/src/extensions/experimental/break-iterator.cc
+@@ -25,7 +25,7 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/break-iterator.h"
++#include "extensions/experimental/break-iterator.h"
+ 
+ #include <string.h>
+ 
 @@ -33,8 +33,7 @@
  #include "unicode/locid.h"
  #include "unicode/rbbi.h"
@@ -203,6 +146,15 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/break-iterator.h
 +++ b/src/extensions/experimental/break-iterator.h
+@@ -28,7 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_BREAK_ITERATOR_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_BREAK_ITERATOR_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+ #include "unicode/uversion.h"
+ 
 @@ -37,8 +37,7 @@
  class UnicodeString;
  }
@@ -223,7 +175,14 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_BREAK_ITERATOR_H_
 --- a/src/extensions/experimental/collator.cc
 +++ b/src/extensions/experimental/collator.cc
-@@ -31,8 +31,7 @@
+@@ -25,14 +25,13 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/collator.h"
++#include "extensions/experimental/collator.h"
+ 
+ #include "unicode/coll.h"
  #include "unicode/locid.h"
  #include "unicode/ucol.h"
  
@@ -241,6 +200,15 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/collator.h
 +++ b/src/extensions/experimental/collator.h
+@@ -28,7 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H
+ #define V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+ #include "unicode/uversion.h"
+ 
 @@ -37,8 +37,7 @@
  class UnicodeString;
  }
@@ -261,7 +229,19 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_COLLATOR
 --- a/src/extensions/experimental/datetime-format.cc
 +++ b/src/extensions/experimental/datetime-format.cc
-@@ -35,8 +35,7 @@
+@@ -25,18 +25,17 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/datetime-format.h"
++#include "extensions/experimental/datetime-format.h"
+ 
+ #include <string.h>
+ 
+-#include "src/extensions/experimental/i18n-utils.h"
++#include "extensions/experimental/i18n-utils.h"
+ #include "unicode/dtfmtsym.h"
+ #include "unicode/dtptngen.h"
  #include "unicode/locid.h"
  #include "unicode/smpdtfmt.h"
  
@@ -279,6 +259,15 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/datetime-format.h
 +++ b/src/extensions/experimental/datetime-format.h
+@@ -28,7 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+ #include "unicode/uversion.h"
+ 
 @@ -36,8 +36,7 @@
  class SimpleDateFormat;
  }
@@ -299,9 +288,25 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
 --- a/src/extensions/experimental/i18n-extension.cc
 +++ b/src/extensions/experimental/i18n-extension.cc
-@@ -34,8 +34,7 @@
- #include "src/extensions/experimental/i18n-natives.h"
- #include "src/extensions/experimental/number-format.h"
+@@ -25,17 +25,16 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/i18n-extension.h"
++#include "extensions/experimental/i18n-extension.h"
+ 
+-#include "src/extensions/experimental/break-iterator.h"
+-#include "src/extensions/experimental/collator.h"
+-#include "src/extensions/experimental/datetime-format.h"
+-#include "src/extensions/experimental/i18n-locale.h"
+-#include "src/extensions/experimental/i18n-natives.h"
+-#include "src/extensions/experimental/number-format.h"
++#include "extensions/experimental/break-iterator.h"
++#include "extensions/experimental/collator.h"
++#include "extensions/experimental/datetime-format.h"
++#include "extensions/experimental/i18n-locale.h"
++#include "extensions/experimental/i18n-natives.h"
++#include "extensions/experimental/number-format.h"
  
 -namespace v8 {
 -namespace internal {
@@ -317,7 +322,17 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/i18n-locale.cc
 +++ b/src/extensions/experimental/i18n-locale.cc
-@@ -32,8 +32,7 @@
+@@ -25,15 +25,14 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/i18n-locale.h"
++#include "extensions/experimental/i18n-locale.h"
+ 
+-#include "src/extensions/experimental/i18n-utils.h"
+-#include "src/extensions/experimental/language-matcher.h"
++#include "extensions/experimental/i18n-utils.h"
++#include "extensions/experimental/language-matcher.h"
  #include "unicode/locid.h"
  #include "unicode/uloc.h"
  
@@ -335,9 +350,12 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/i18n-locale.h
 +++ b/src/extensions/experimental/i18n-locale.h
-@@ -30,8 +30,7 @@
+@@ -28,10 +28,9 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_LOCALE_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_I18N_LOCALE_H_
  
- #include "include/v8.h"
+-#include "include/v8.h"
++#include "v8.h"
  
 -namespace v8 {
 -namespace internal {
@@ -375,7 +393,14 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
 --- a/src/extensions/experimental/i18n-utils.cc
 +++ b/src/extensions/experimental/i18n-utils.cc
-@@ -31,8 +31,7 @@
+@@ -25,14 +25,13 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/i18n-utils.h"
++#include "extensions/experimental/i18n-utils.h"
+ 
+ #include <string.h>
  
  #include "unicode/unistr.h"
  
@@ -393,6 +418,15 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/i18n-utils.h
 +++ b/src/extensions/experimental/i18n-utils.h
+@@ -28,7 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+ #include "unicode/uversion.h"
+ 
 @@ -36,8 +36,7 @@
  class UnicodeString;
  }
@@ -413,9 +447,23 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
 --- a/src/extensions/experimental/number-format.cc
 +++ b/src/extensions/experimental/number-format.cc
-@@ -37,8 +37,7 @@
- #include "unicode/uchar.h"
- #include "unicode/ucurr.h"
+@@ -25,11 +25,11 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#include "src/extensions/experimental/number-format.h"
++#include "extensions/experimental/number-format.h"
+ 
+ #include <string.h>
+ 
+-#include "src/extensions/experimental/i18n-utils.h"
++#include "extensions/experimental/i18n-utils.h"
+ #include "unicode/dcfmtsym.h"
+ #include "unicode/decimfmt.h"
+ #include "unicode/locid.h"
+@@ -39,8 +39,7 @@
+ #include "unicode/unum.h"
+ #include "unicode/uversion.h"
  
 -namespace v8 {
 -namespace internal {
@@ -423,7 +471,7 @@ Last-Update: 2011-09-04
  
  const int NumberFormat::kCurrencyCodeLength = 4;
  
-@@ -353,4 +352,4 @@
+@@ -371,4 +370,4 @@
                        "that is not a NumberFormat.")));
  }
  
@@ -431,6 +479,15 @@ Last-Update: 2011-09-04
 +}  // namespace v8_i18n
 --- a/src/extensions/experimental/number-format.h
 +++ b/src/extensions/experimental/number-format.h
+@@ -28,7 +28,7 @@
+ #ifndef V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
+ #define V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
+ 
+-#include "include/v8.h"
++#include "v8.h"
+ 
+ #include "unicode/uversion.h"
+ 
 @@ -36,8 +36,7 @@
  class DecimalFormat;
  }
@@ -451,9 +508,12 @@ Last-Update: 2011-09-04
  #endif  // V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
 --- a/src/extensions/experimental/i18n-js2c.py
 +++ b/src/extensions/experimental/i18n-js2c.py
-@@ -87,8 +87,7 @@
+@@ -85,10 +85,9 @@
+ // want to make changes to this file you should either change the
+ // javascript source files or the i18n-js2c.py script.
  
- #include "src/extensions/experimental/i18n-natives.h"
+-#include "src/extensions/experimental/i18n-natives.h"
++#include "extensions/experimental/i18n-natives.h"
  
 -namespace v8 {
 -namespace internal {
@@ -471,3 +531,132 @@ Last-Update: 2011-09-04
  """
  
  
+--- a/tools/gyp/v8.gyp
++++ b/tools/gyp/v8.gyp
+@@ -89,10 +89,10 @@
+           'conditions': [
+             ['want_separate_host_toolset==1', {
+               'toolsets': ['host', 'target'],
+-              'dependencies': ['mksnapshot#host', 'js2c#host'],
++              'dependencies': ['mksnapshot#host', 'js2c#host', 'js2c_i18n#host'],
+             }, {
+               'toolsets': ['target'],
+-              'dependencies': ['mksnapshot', 'js2c'],
++              'dependencies': ['mksnapshot', 'js2c', 'js2c_i18n'],
+             }],
+             ['component=="shared_library"', {
+               'conditions': [
+@@ -127,6 +127,7 @@
+           'sources': [
+             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
+             '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
++            '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
+             '<(INTERMEDIATE_DIR)/snapshot.cc',
+           ],
+           'actions': [
+@@ -197,15 +198,16 @@
+           'sources': [
+             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
+             '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
++            '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
+             '../../src/snapshot-empty.cc',
+           ],
+           'conditions': [
+             ['want_separate_host_toolset==1', {
+               'toolsets': ['host', 'target'],
+-              'dependencies': ['js2c#host'],
++              'dependencies': ['js2c#host', 'js2c_i18n#host'],
+             }, {
+               'toolsets': ['target'],
+-              'dependencies': ['js2c'],
++              'dependencies': ['js2c', 'js2c_i18n'],
+             }],
+             ['component=="shared_library"', {
+               'defines': [
+@@ -221,6 +223,11 @@
+           'include_dirs+': [
+             '../../src',
+           ],
++          'link_settings': {
++              'libraries': [
++                '-licui18n', '-licuuc',
++              ],
++          },
+           'sources': [
+             '../../src/accessors.cc',
+             '../../src/accessors.h',
+@@ -470,6 +477,23 @@
+             '../../src/extensions/externalize-string-extension.h',
+             '../../src/extensions/gc-extension.cc',
+             '../../src/extensions/gc-extension.h',
++            '../../src/extensions/experimental/break-iterator.cc',
++            '../../src/extensions/experimental/break-iterator.h',
++            '../../src/extensions/experimental/collator.cc',
++            '../../src/extensions/experimental/collator.h',
++            '../../src/extensions/experimental/datetime-format.cc',
++            '../../src/extensions/experimental/datetime-format.h',
++            '../../src/extensions/experimental/i18n-extension.cc',
++            '../../src/extensions/experimental/i18n-extension.h',
++            '../../src/extensions/experimental/i18n-locale.cc',
++            '../../src/extensions/experimental/i18n-locale.h',
++            '../../src/extensions/experimental/i18n-natives.h',
++            '../../src/extensions/experimental/i18n-utils.cc',
++            '../../src/extensions/experimental/i18n-utils.h',
++            '../../src/extensions/experimental/language-matcher.cc',
++            '../../src/extensions/experimental/language-matcher.h',
++            '../../src/extensions/experimental/number-format.cc',
++            '../../src/extensions/experimental/number-format.h',
+           ],
+           'conditions': [
+             ['want_separate_host_toolset==1', {
+@@ -731,6 +755,40 @@
+           ],
+         },
+         {
++          'target_name': 'js2c_i18n',
++          'type': 'none',
++          'conditions': [
++            ['want_separate_host_toolset==1', {
++              'toolsets': ['host'],
++            }, {
++              'toolsets': ['target'],
++            }],
++          ],
++          'variables': {
++            'js_files': [
++              '../../src/extensions/experimental/i18n.js'
++            ],
++          },
++          'actions': [
++            {
++              'action_name': 'js2c_i18n',
++              'inputs': [
++                '../../src/extensions/experimental/i18n-js2c.py',
++                '<@(js_files)',
++              ],
++              'outputs': [
++                '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
++              ],
++              'action': [
++                'python',
++                '../../src/extensions/experimental/i18n-js2c.py',
++                '<@(_outputs)',
++                '<@(js_files)'
++              ],
++            },
++          ],
++        },
++        {
+           'target_name': 'mksnapshot',
+           'type': 'executable',
+           'dependencies': [
+@@ -779,6 +837,9 @@
+                 '-lbz2',
+               ]}],
+           ],
++          'libraries': [
++            '-licui18n', '-licuuc', '-licudata',
++          ],
+         },
+         {
+           'target_name': 'preparser_lib',
