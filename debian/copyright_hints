@@ -955,6 +955,7 @@ Files: LICENSE
  test/mjsunit/regexp-string-methods.js
  test/mjsunit/regexp.js
  test/mjsunit/regress/bitops-register-alias.js
+ test/mjsunit/regress/regress-100409.js
  test/mjsunit/regress/regress-1015.js
  test/mjsunit/regress/regress-1017.js
  test/mjsunit/regress/regress-1020.js
@@ -1467,7 +1468,6 @@ Files: AUTHORS
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
- debian/patches/0004-gcc-opt-level-2.patch
  debian/patches/0005-enable-i18n-extension.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0009_unaligned_access_armel.patch
