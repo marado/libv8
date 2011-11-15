@@ -1,0 +1,62 @@
+Description: Fix compatiblity with ICU 4.8.
+ ICU 4.6 NumberFormat::EStyle enum is gone in ICU 4.8. Adding #if #else to
+ make it work across versions.
+ .
+ There was an ICU cleanup (removing all C++ style enums and replacing them
+ with plain C enums). NumberFormat::EStyle had a draft status (from ICU 4.2)
+ and it was cut. Confusion came up because DateFormat::EStyle is stable and
+ won't be removed.
+ .
+ This patch fixes compatiblity with ICU 4.8.
+Origin: upstream, http://code.google.com/p/v8/source/detail?r=8701
+Bug: http://code.google.com/p/v8/issues/detail?id=1561
+Bug-Debian: http://bugs.debian.org/648506
+Last-Update: 2011-11-15
+--- a/src/extensions/experimental/number-format.cc
++++ b/src/extensions/experimental/number-format.cc
+@@ -36,6 +36,8 @@
+ #include "unicode/numfmt.h"
+ #include "unicode/uchar.h"
+ #include "unicode/ucurr.h"
++#include "unicode/unum.h"
++#include "unicode/uversion.h"
+ 
+ namespace v8_i18n {
+ 
+@@ -230,6 +232,8 @@
+ }
+ 
+ // Generates ICU number format pattern from given skeleton.
++// TODO(cira): Remove once ICU includes equivalent method
++// (see http://bugs.icu-project.org/trac/ticket/8610).
+ static icu::DecimalFormat* CreateFormatterFromSkeleton(
+     const icu::Locale& icu_locale,
+     const icu::UnicodeString& skeleton,
+@@ -250,6 +254,7 @@
+     // Case of non-consecutive U+00A4 is taken care of in i18n.js.
+     int32_t end_index = skeleton.lastIndexOf(currency_symbol, index);
+ 
++#if (U_ICU_VERSION_MAJOR_NUM == 4) && (U_ICU_VERSION_MINOR_NUM <= 6)
+     icu::NumberFormat::EStyles style;
+     switch (end_index - index) {
+       case 0:
+@@ -261,6 +266,19 @@
+       default:
+         style = icu::NumberFormat::kPluralCurrencyStyle;
+     }
++#else  // ICU version is 4.8 or above (we ignore versions below 4.0).
++    UNumberFormatStyle style;
++    switch (end_index - index) {
++      case 0:
++        style = UNUM_CURRENCY;
++        break;
++      case 1:
++        style = UNUM_CURRENCY_ISO;
++        break;
++      default:
++        style = UNUM_CURRENCY_PLURAL;
++    }
++#endif
+ 
+     base_format = static_cast<icu::DecimalFormat*>(
+         icu::NumberFormat::createInstance(icu_locale, style, *status));
