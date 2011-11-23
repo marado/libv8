@@ -4,7 +4,7 @@ libv8 (3.6.6.6-1) experimental; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 10:09:37 +0200
 
-libv8 (3.5.10.23-1) unstable; urgency=low
+libv8 (3.5.10.24-1) unstable; urgency=low
 
   * New upstream release.
   * Build using gyp (instead of deprecated scons build):
