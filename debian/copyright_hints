@@ -965,6 +965,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1017.js
  test/mjsunit/regress/regress-1020.js
  test/mjsunit/regress/regress-1030466.js
+ test/mjsunit/regress/regress-103259.js
  test/mjsunit/regress/regress-1036894.js
  test/mjsunit/regress/regress-1039610.js
  test/mjsunit/regress/regress-1050043.js
