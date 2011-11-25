@@ -1,6 +1,8 @@
 libv8 (3.5.10.24-1) unstable; urgency=low
 
   * New upstream release.
+
+  [ Jérémy Lal ]
   * Build using gyp (instead of deprecated scons build):
     + removed scons patches
     + added gyp patches to achieve the same result.
@@ -9,7 +11,7 @@ libv8 (3.5.10.24-1) unstable; urgency=low
   * Allow parallel builds.
   * Update watch file: Track 3.5.x releases.
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 09:33:41 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 25 Nov 2011 10:02:06 +0700
 
 libv8 (3.4.14.21-5) unstable; urgency=low
 
