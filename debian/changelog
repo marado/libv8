@@ -1,4 +1,4 @@
-libv8 (3.5.10.24-1) UNRELEASED; urgency=low
+libv8 (3.5.10.24-1) unstable; urgency=low
 
   * New upstream release.
 
@@ -11,7 +11,7 @@ libv8 (3.5.10.24-1) UNRELEASED; urgency=low
   * Allow parallel builds.
   * Update watch file: Track 3.5.x releases.
 
- -- Jonas Smedegaard <dr@jones.dk>  Fri, 25 Nov 2011 10:02:06 +0700
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 26 Nov 2011 00:34:40 +0700
 
 libv8 (3.4.14.21-5) unstable; urgency=low
 
