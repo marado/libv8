@@ -33,7 +33,7 @@ v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
-DEB_MAKE_EXTRA_ARGS += library=shared soname_version=$(SONAME) OS=$(v8os) V=1 GYPFLAGS="-Dhost_arch=$(v8arch)"
+GYPFLAGS += -Dhost_arch=$(v8arch) -Dtarget_arch=$(v8arch)
 
 # still not compatible with GCC 4.6 defaults (at 3.5.10.24)
 CXXFLAGS += -Wno-unused-but-set-variable
@@ -43,26 +43,31 @@ CXXFLAGS += -Wno-unused-but-set-variable
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
 ifeq (armhf, $(DEB_HOST_ARCH))
 DEB_MAKE_EXTRA_ARGS += v8_use_arm_eabi_hardfloat=true
-CCFLAGS += -fno-tree-sink
+CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
+# enable armv7 vfpv3
+GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
 DEB_MAKE_EXTRA_ARGS += v8_can_use_unaligned_accesses=false v8_use_arm_eabi_hardfloat=false
-CCFLAGS += -fno-tree-sink
+CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # Disable thumb-interworking because v8 supports it only on >= armv5t.
 # http://code.google.com/p/v8/issues/detail?id=590
-CCFLAGS += -mno-thumb-interwork
+CXXFLAGS += -mno-thumb-interwork
+# disable armv7
+GYPFLAGS += -Darmv7=0
 endif
 
-v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
-
-export CCFLAGS
+export GYPFLAGS
 export CXXFLAGS
 
+DEB_MAKE_EXTRA_ARGS += library=shared soname_version=$(SONAME) OS=$(v8os) V=1 
 DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
+
+v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
 
 # regression tests
 #  * relax regression tests when targeted experimental suite
