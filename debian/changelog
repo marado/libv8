@@ -4,9 +4,27 @@ libv8 (3.6.6.8-1) experimental; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 10:09:37 +0200
 
+libv8 (3.5.10.24-2) unstable; urgency=low
+
+  * Set -Wno-unused-but-set-variable, i386 build fail otherwise.
+    Closes: bug#650547
+  * Remove mipsel from architectures. Will be re-enabled when
+    upstream really supports it.
+    Closes: bug#650549
+  * Disable default arm flags (debian/0014_disable_armv7_defaults.patch) and
+    set them properly for armel and armhf, using GYPFLAGS variable in
+    debian/rules. Closes: bug#650548
+  * Remove 0009_unaligned_access_armel.patch, never proved it was needed.
+  * Remove -fvisibility=hidden flag, applied upstream.
+  * CCFLAGS are ignored by the build system, use CXXFLAGS instead.
+
+ -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 14:31:59 +0100
+
 libv8 (3.5.10.24-1) unstable; urgency=low
 
   * New upstream release.
+
+  [ Jérémy Lal ]
   * Build using gyp (instead of deprecated scons build):
     + removed scons patches
     + added gyp patches to achieve the same result.
@@ -15,7 +33,16 @@ libv8 (3.5.10.24-1) unstable; urgency=low
   * Allow parallel builds.
   * Update watch file: Track 3.5.x releases.
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 09:33:41 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 26 Nov 2011 00:34:40 +0700
+
+libv8 (3.4.14.21-5) unstable; urgency=low
+
+  [ Jakub Wilk ]
+  * Add patch (taken from upstream VCS) to fix compatibility with ICU 4.8
+    Closes: bug#648506.
+    Thanks to Julien Cristau for the bug report.
+
+ -- Jérémy Lal <kapouer@melix.org>  Tue, 15 Nov 2011 23:07:20 +0100
 
 libv8 (3.4.14.21-4) unstable; urgency=low
 
