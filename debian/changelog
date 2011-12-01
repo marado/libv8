@@ -1,3 +1,19 @@
+libv8 (3.5.10.24-2) UNRELEASED; urgency=low
+
+  * Set -Wno-unused-but-set-variable, i386 build fail otherwise.
+    Closes: bug#650547
+  * Remove mipsel from architectures. Will be reenabled when
+    upstream really supports it.
+    Closes: bug#650549
+  * Set host_arch in debian/rules, otherwise it might not be properly
+    detected.
+  * Remove armv7 defaults, try to reenable armv4t build.
+    Closes: bug#650548
+  * Remove 0009_unaligned_access_armel.patch, it is not clear wether
+    it's really needed.
+
+ -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 09:04:46 +0100
+
 libv8 (3.5.10.24-1) unstable; urgency=low
 
   * New upstream release.
