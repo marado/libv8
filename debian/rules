@@ -35,9 +35,6 @@ v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
 DEB_MAKE_EXTRA_ARGS += library=shared soname_version=$(SONAME) OS=$(v8os) V=1 GYPFLAGS="-Dhost_arch=$(v8arch)"
 
-# only symbols with V8EXPORT attribute are visible
-CCFLAGS += -fvisibility=hidden
-
 # still not compatible with GCC 4.6 defaults (at 3.5.10.24)
 CXXFLAGS += -Wno-unused-but-set-variable
 
