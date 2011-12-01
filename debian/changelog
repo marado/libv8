@@ -12,7 +12,7 @@ libv8 (3.5.10.24-2) unstable; urgency=low
   * Remove -fvisibility=hidden flag, applied upstream.
   * CCFLAGS are ignored by the build system, use CXXFLAGS instead.
 
- -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 14:29:56 +0100
+ -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 14:31:59 +0100
 
 libv8 (3.5.10.24-1) unstable; urgency=low
 
