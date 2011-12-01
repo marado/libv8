@@ -33,7 +33,7 @@ v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
 v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
-GYPFLAGS += -Dhost_arch=$(v8arch) -Dtarget_arch=$(v8arch)
+GYPFLAGS += -Dhost_arch=$(v8arch)
 
 # still not compatible with GCC 4.6 defaults (at 3.5.10.24)
 CXXFLAGS += -Wno-unused-but-set-variable
