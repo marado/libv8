@@ -5,12 +5,11 @@ libv8 (3.5.10.24-2) UNRELEASED; urgency=low
   * Remove mipsel from architectures. Will be reenabled when
     upstream really supports it.
     Closes: bug#650549
-  * Set host_arch in debian/rules, otherwise it might not be properly
-    detected.
-  * Remove armv7 defaults, try to reenable armv4t build.
+  * Disable default arm flags and set them properly for armel and armhf.
     Closes: bug#650548
-  * Remove 0009_unaligned_access_armel.patch, it is not clear wether
-    it's really needed.
+  * Remove 0009_unaligned_access_armel.patch, never proved it was needed.
+  * Remove -fvisibility=hidden flag, applied upstream.
+  * CCFLAGS are ignored by the build system, use CXXFLAGS instead.
 
  -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 09:04:46 +0100
 
