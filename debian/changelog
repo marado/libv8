@@ -1,17 +1,18 @@
-libv8 (3.5.10.24-2) UNRELEASED; urgency=low
+libv8 (3.5.10.24-2) unstable; urgency=low
 
   * Set -Wno-unused-but-set-variable, i386 build fail otherwise.
     Closes: bug#650547
   * Remove mipsel from architectures. Will be reenabled when
     upstream really supports it.
     Closes: bug#650549
-  * Disable default arm flags and set them properly for armel and armhf.
-    Closes: bug#650548
+  * Disable default arm flags (debian/0014_disable_armv7_defaults.patch) and
+    set them properly for armel and armhf, using GYPFLAGS variable in
+    debian/rules. Closes: bug#650548
   * Remove 0009_unaligned_access_armel.patch, never proved it was needed.
   * Remove -fvisibility=hidden flag, applied upstream.
   * CCFLAGS are ignored by the build system, use CXXFLAGS instead.
 
- -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 09:04:46 +0100
+ -- Jérémy Lal <kapouer@melix.org>  Thu, 01 Dec 2011 14:13:57 +0100
 
 libv8 (3.5.10.24-1) unstable; urgency=low
 
