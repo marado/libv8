@@ -1476,6 +1476,7 @@ Files: AUTHORS
  debian/patches/0011_use_system_gyp.patch
  debian/patches/0012_make_check_testsuites.patch
  debian/patches/0013_enable_soname.patch
+ debian/patches/0014_disable_armv7_defaults.patch
  debian/patches/series
  debian/rules
  debian/source/format
