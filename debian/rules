@@ -46,7 +46,7 @@ DEB_MAKE_EXTRA_ARGS += v8_use_arm_eabi_hardfloat=true
 CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # enable armv7 vfpv3
-GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3
+GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
