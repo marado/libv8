@@ -1,3 +1,9 @@
+libv8 (3.5.10.24-3) UNRELEASED; urgency=low
+
+  * Set arm_neon=0 for armhf.
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 02 Dec 2011 10:01:19 +0100
+
 libv8 (3.5.10.24-2) unstable; urgency=low
 
   * Set -Wno-unused-but-set-variable, i386 build fail otherwise.
