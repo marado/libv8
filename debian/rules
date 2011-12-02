@@ -42,22 +42,21 @@ CXXFLAGS += -Wno-unused-but-set-variable
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
 ifeq (armhf, $(DEB_HOST_ARCH))
-DEB_MAKE_EXTRA_ARGS += v8_use_arm_eabi_hardfloat=true
 CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # enable armv7 vfpv3
-GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0
+GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0 -Dv8_use_arm_eabi_hardfloat=true
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
-DEB_MAKE_EXTRA_ARGS += v8_can_use_unaligned_accesses=false v8_use_arm_eabi_hardfloat=false vfp3=off
+DEB_MAKE_EXTRA_ARGS += vfp3=off
 CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 # Disable thumb-interworking because v8 supports it only on >= armv5t.
 # http://code.google.com/p/v8/issues/detail?id=590
 CXXFLAGS += -mno-thumb-interwork
-# disable armv7
-GYPFLAGS += -Darmv7=0
+# disable armv7, use softfloat
+GYPFLAGS += -Darmv7=0 -Dv8_can_use_unaligned_accesses=false -Dv8_use_arm_eabi_hardfloat=false
 endif
 
 export GYPFLAGS
