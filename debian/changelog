@@ -4,6 +4,13 @@ libv8 (3.6.6.8-1) experimental; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 10:09:37 +0200
 
+libv8 (3.5.10.24-4) unstable; urgency=low
+
+  * v8_use_arm_eabi_hardfloat must be passed in GYPFLAGS,
+    this should fix armhf build.
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 02 Dec 2011 14:22:46 +0100
+
 libv8 (3.5.10.24-3) unstable; urgency=low
 
   * Fix build failures for arm:
