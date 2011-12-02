@@ -4,6 +4,15 @@ libv8 (3.6.6.8-1) experimental; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 10:09:37 +0200
 
+libv8 (3.5.10.24-3) unstable; urgency=low
+
+  * Fix build failures for arm:
+    + arm_neon=0 for armhf
+    + vfp3=off for armel
+    Closes: bug#650548
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 02 Dec 2011 10:17:48 +0100
+
 libv8 (3.5.10.24-2) unstable; urgency=low
 
   * Set -Wno-unused-but-set-variable, i386 build fail otherwise.
