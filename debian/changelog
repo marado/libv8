@@ -2,8 +2,9 @@ libv8 (3.5.10.24-4) unstable; urgency=low
 
   * v8_use_arm_eabi_hardfloat must be passed in GYPFLAGS,
     this should fix armhf build.
+  * Ubuntu vendor needs different armel architecture settings.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 02 Dec 2011 14:22:46 +0100
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 05 Dec 2011 11:36:38 +0100
 
 libv8 (3.5.10.24-3) unstable; urgency=low
 
