@@ -5,3 +5,4 @@
 0012_make_check_testsuites.patch
 0013_enable_soname.patch
 0014_disable_armv7_defaults.patch
+0015_build_samples.patch
