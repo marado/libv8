@@ -49,14 +49,19 @@ GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0 -Dv8_use_arm_eabi_hardfloat=t
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
-DEB_MAKE_EXTRA_ARGS += vfp3=off
 CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
+ifeq ($(shell dpkg-vendor --is ubuntu && echo true),true)
+# Ubuntu targets armv7+ with VFP and thumb2 support by default for armel
+GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0 -Dv8_use_arm_eabi_hardfloat=false
+else
+DEB_MAKE_EXTRA_ARGS += vfp3=off
 # Disable thumb-interworking because v8 supports it only on >= armv5t.
 # http://code.google.com/p/v8/issues/detail?id=590
 CXXFLAGS += -mno-thumb-interwork
 # disable armv7, use softfloat
 GYPFLAGS += -Darmv7=0 -Dv8_can_use_unaligned_accesses=false -Dv8_use_arm_eabi_hardfloat=false
+endif
 endif
 
 export GYPFLAGS
