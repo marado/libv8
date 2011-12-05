@@ -21,20 +21,23 @@ Last-Update: 2011-12-05
 +     '/usr/include'
      ],
 +    'link_settings': {
-+            'libraries': [
-+              '-lv8',
-+            ],
-+          },
++	   'libraries': [
++	      '-lv8',
++	   ],
++	},
    },
    'targets': [
      {
-@@ -42,6 +47,9 @@
+@@ -48,6 +53,12 @@
        'sources': [
-         'shell.cc',
+         'process.cc',
        ],
-+      'include_dirs': [
-+     '/usr/include'
-+    ],
-     },
-     {
-       'target_name': 'process',
++    },
++    {
++      'target_name': 'lineprocessor',
++      'sources': [
++        'lineprocessor.cc',
++      ],
+     }
+   ],
+ }
