@@ -4,6 +4,7 @@ libv8 (3.6.6.14-1) UNRELEASED; urgency=low
   * Refresh patches. Remove unused 0009_unaligned_access_armel.patch.
   * Add samples/*.cc, samples/*.js and provide usable samples.gyp
     to libv8-dev examples. Closes: bug#612362.
+  * Update watch file: Track 3.6.x releases.
 
  -- Jérémy Lal <kapouer@melix.org>  Mon, 05 Dec 2011 16:24:17 +0100
 
