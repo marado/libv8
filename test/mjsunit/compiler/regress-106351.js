@@ -25,19 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // Flags: --allow-natives-syntax
 
-// Test correct handling of uninitialized const.
-
-function test() {
-  for (var i = 41; i < 42; i++) {
-    var c = t ^ i;
-  }
-  const t;
-  return c;
+// Test Math.round with the input reused in the same expression.
+function test(x) {
+  var v = Math.round(x) - x;
+  assertEquals(0.5, v);
 }
 
-for (var i=0; i<10; i++) test();
+for (var i = 0; i < 5; ++i) test(0.5);
 %OptimizeFunctionOnNextCall(test);
-assertEquals(41, test());
+test(0.5);
