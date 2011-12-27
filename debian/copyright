@@ -22,7 +22,7 @@ Copyright: 2006,2009, Apple Computer, Inc.
 License: BSD-3-clause
 
 Files: src/third-party/valgrind/valgrind.h
-Copyright: 2000-2007, Julian Seward
+Copyright: 2000-2010, Julian Seward
 License: BSD-4-clause
 
 Files: test/mjsunit/third_party/regexp-pcre.js

@@ -4,7 +4,7 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-12-01
 --- a/Makefile
 +++ b/Makefile
-@@ -161,7 +161,7 @@
+@@ -163,7 +163,7 @@
  
  $(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE)
  	gyp --generator-output="$(OUTDIR)" build/all.gyp \

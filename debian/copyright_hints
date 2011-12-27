@@ -17,6 +17,7 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
+ debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
  include/v8-profiler.h
@@ -660,6 +661,7 @@ Files: LICENSE
  test/mjsunit/compiler/recursive-deopt.js
  test/mjsunit/compiler/regress-0.js
  test/mjsunit/compiler/regress-1.js
+ test/mjsunit/compiler/regress-106351.js
  test/mjsunit/compiler/regress-1085.js
  test/mjsunit/compiler/regress-1394.js
  test/mjsunit/compiler/regress-2.js
@@ -1268,6 +1270,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-962.js
  test/mjsunit/regress/regress-96523.js
  test/mjsunit/regress/regress-969.js
+ test/mjsunit/regress/regress-97116.js
  test/mjsunit/regress/regress-974.js
  test/mjsunit/regress/regress-982.js
  test/mjsunit/regress/regress-990205.js
@@ -1477,16 +1480,17 @@ Files: AUTHORS
  debian/control.in.in
  debian/gbp.conf
  debian/libv8-dev.dirs
+ debian/libv8-dev.examples
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
  debian/patches/0005-enable-i18n-extension.patch
  debian/patches/0008_mksnapshot_stdout.patch
- debian/patches/0009_unaligned_access_armel.patch
  debian/patches/0010_fix_arm_bug.patch
  debian/patches/0011_use_system_gyp.patch
  debian/patches/0012_make_check_testsuites.patch
  debian/patches/0013_enable_soname.patch
+ debian/patches/0014_disable_armv7_defaults.patch
  debian/patches/series
  debian/rules
  debian/source/format

@@ -1,17 +1,14 @@
 Description: enable soname, done right.
 Origin: http://code.google.com/p/v8/source/browse/
 Bug-V8: http://code.google.com/p/v8/issues/detail?id=1786
-Last-Update: 2011-10-29
+Last-Update: 2011-12-27
 --- a/tools/gyp/v8.gyp
 +++ b/tools/gyp/v8.gyp
-@@ -74,9 +74,8 @@
-                 ['soname_version!=""', {
-                   # Ideally, we'd like to specify the full filename for the
+@@ -76,7 +76,7 @@
                    # library and set it to "libv8.so.<(soname_version)",
--                  # but currently the best we can do is use 'product_name' and
--                  # get "libv8-<(soname_version).so".
+                   # but currently the best we can do is use 'product_name' and
+                   # get "libv8-<(soname_version).so".
 -                  'product_name': 'v8-<(soname_version)',
-+                  # to do this we use 'product_extension'
 +                  'product_extension': 'so.<(soname_version)',
                  }],
                ],

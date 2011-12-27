@@ -1,13 +1,10 @@
-libv8 (3.6.6.8-1) experimental; urgency=low
+libv8 (3.6.6.14-1) UNRELEASED; urgency=low
 
-  * New upstream release. 
-
- -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Oct 2011 10:09:37 +0200
-
-libv8 (3.5.10.24-5) UNRELEASED; urgency=low
-
+  * Upstream update.
+  * Refresh patches. Remove unused 0009_unaligned_access_armel.patch.
   * Add samples/*.cc, samples/*.js and provide usable samples.gyp
     to libv8-dev examples. Closes: bug#612362.
+  * Update watch file: Track 3.6.x releases.
 
  -- Jérémy Lal <kapouer@melix.org>  Mon, 05 Dec 2011 16:24:17 +0100
 
@@ -47,7 +44,6 @@ libv8 (3.5.10.24-2) unstable; urgency=low
 libv8 (3.5.10.24-1) unstable; urgency=low
 
   * New upstream release.
-
   [ Jérémy Lal ]
   * Build using gyp (instead of deprecated scons build):
     + removed scons patches
