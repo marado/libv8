@@ -17,6 +17,7 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
+ debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
  include/v8-profiler.h
@@ -358,8 +359,8 @@ Files: LICENSE
  src/runtime.js
  src/safepoint-table.cc
  src/safepoint-table.h
- src/scanner.cc
- src/scanner.h
+ src/scanner-character-streams.cc
+ src/scanner-character-streams.h
  src/scopeinfo.cc
  src/scopeinfo.h
  src/scopes.cc
@@ -368,7 +369,7 @@ Files: LICENSE
  src/serialize.h
  src/simulator.h
  src/small-pointer-list.h
- src/smart-pointer.h
+ src/smart-array-pointer.h
  src/snapshot-common.cc
  src/snapshot-empty.cc
  src/snapshot.h
@@ -423,6 +424,8 @@ Files: LICENSE
  src/vm-state.h
  src/weakmap.js
  src/win32-headers.h
+ src/win32-math.cc
+ src/win32-math.h
  src/x64/assembler-x64-inl.h
  src/x64/assembler-x64.cc
  src/x64/builtins-x64.cc
@@ -598,6 +601,7 @@ Files: LICENSE
  test/mjsunit/bugs/bug-618.js
  test/mjsunit/bugs/bug-941049.js
  test/mjsunit/bugs/harmony/debug-blockscopes.js
+ test/mjsunit/builtins.js
  test/mjsunit/call-non-function-call.js
  test/mjsunit/call-non-function.js
  test/mjsunit/call-stub.js
@@ -657,6 +661,7 @@ Files: LICENSE
  test/mjsunit/compiler/recursive-deopt.js
  test/mjsunit/compiler/regress-0.js
  test/mjsunit/compiler/regress-1.js
+ test/mjsunit/compiler/regress-106351.js
  test/mjsunit/compiler/regress-1085.js
  test/mjsunit/compiler/regress-1394.js
  test/mjsunit/compiler/regress-2.js
@@ -671,7 +676,6 @@ Files: LICENSE
  test/mjsunit/compiler/regress-6.js
  test/mjsunit/compiler/regress-7.js
  test/mjsunit/compiler/regress-8.js
- test/mjsunit/compiler/regress-96989.js
  test/mjsunit/compiler/regress-arguments.js
  test/mjsunit/compiler/regress-arrayliteral.js
  test/mjsunit/compiler/regress-closures-with-eval.js
@@ -768,6 +772,7 @@ Files: LICENSE
  test/mjsunit/debug-setexceptionbreak.js
  test/mjsunit/debug-sourceinfo.js
  test/mjsunit/debug-sourceslice.js
+ test/mjsunit/debug-step-2.js
  test/mjsunit/debug-step-stub-callfunction.js
  test/mjsunit/debug-step.js
  test/mjsunit/debug-stepin-accessor.js
@@ -840,7 +845,9 @@ Files: LICENSE
  test/mjsunit/global-vars-eval.js
  test/mjsunit/global-vars-with.js
  test/mjsunit/greedy.js
+ test/mjsunit/harmony/block-conflicts.js
  test/mjsunit/harmony/block-lazy-compile.js
+ test/mjsunit/harmony/block-leave.js
  test/mjsunit/harmony/block-let-crankshaft.js
  test/mjsunit/harmony/block-let-declaration.js
  test/mjsunit/harmony/block-let-semantics.js
@@ -1033,6 +1040,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1213.js
  test/mjsunit/regress/regress-1213516.js
  test/mjsunit/regress/regress-1213575.js
+ test/mjsunit/regress/regress-1215.js
  test/mjsunit/regress/regress-1215653.js
  test/mjsunit/regress/regress-1218.js
  test/mjsunit/regress/regress-1229.js
@@ -1080,6 +1088,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1529.js
  test/mjsunit/regress/regress-1531.js
  test/mjsunit/regress/regress-1546.js
+ test/mjsunit/regress/regress-1548.js
  test/mjsunit/regress/regress-155924.js
  test/mjsunit/regress/regress-1560.js
  test/mjsunit/regress/regress-1563.js
@@ -1089,6 +1098,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1592.js
  test/mjsunit/regress/regress-1620.js
  test/mjsunit/regress/regress-1625.js
+ test/mjsunit/regress/regress-1639.js
  test/mjsunit/regress/regress-1647.js
  test/mjsunit/regress/regress-1650.js
  test/mjsunit/regress/regress-171.js
@@ -1260,17 +1270,17 @@ Files: LICENSE
  test/mjsunit/regress/regress-962.js
  test/mjsunit/regress/regress-96523.js
  test/mjsunit/regress/regress-969.js
+ test/mjsunit/regress/regress-97116.js
  test/mjsunit/regress/regress-974.js
  test/mjsunit/regress/regress-982.js
- test/mjsunit/regress/regress-98773.js
  test/mjsunit/regress/regress-990205.js
- test/mjsunit/regress/regress-99167.js
  test/mjsunit/regress/regress-992.js
  test/mjsunit/regress/regress-992733.js
  test/mjsunit/regress/regress-995.js
  test/mjsunit/regress/regress-996542.js
  test/mjsunit/regress/regress-998565.js
  test/mjsunit/regress/regress-arguments-gc.js
+ test/mjsunit/regress/regress-bind-receiver.js
  test/mjsunit/regress/regress-conditional-position.js
  test/mjsunit/regress/regress-crbug-18639.js
  test/mjsunit/regress/regress-crbug-3184.js
@@ -1283,6 +1293,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-87478.js
  test/mjsunit/regress/regress-create-exception.js
  test/mjsunit/regress/regress-deopt-gc.js
+ test/mjsunit/regress/regress-fundecl.js
  test/mjsunit/regress/regress-lazy-deopt-reloc.js
  test/mjsunit/regress/regress-push-args-twice.js
  test/mjsunit/regress/regress-r3391.js
@@ -1382,6 +1393,8 @@ Files: LICENSE
  test/mozilla/mozilla-shell-emulation.js
  test/mozilla/mozilla.status
  test/mozilla/testcfg.py
+ test/preparser/duplicate-parameter.pyt
+ test/preparser/duplicate-property.pyt
  test/preparser/empty.js
  test/preparser/functions-only.js
  test/preparser/non-alphanum.js
@@ -1427,6 +1440,7 @@ Files: LICENSE
  tools/process-heap-prof.py
  tools/profile.js
  tools/profile_view.js
+ tools/push-to-trunk.sh
  tools/run-valgrind.py
  tools/splaytree.js
  tools/stats-viewer.py
@@ -1466,12 +1480,12 @@ Files: AUTHORS
  debian/control.in.in
  debian/gbp.conf
  debian/libv8-dev.dirs
+ debian/libv8-dev.examples
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
  debian/patches/0005-enable-i18n-extension.patch
  debian/patches/0008_mksnapshot_stdout.patch
- debian/patches/0009_unaligned_access_armel.patch
  debian/patches/0010_fix_arm_bug.patch
  debian/patches/0011_use_system_gyp.patch
  debian/patches/0012_make_check_testsuites.patch
@@ -1505,7 +1519,8 @@ Copyright: *No copyright*
 License: UNKNOWN
  FIXME
 
-Files: test/cctest/test-circular-queue.cc
+Files: build/all.gyp
+ test/cctest/test-circular-queue.cc
  test/cctest/test-conversions.cc
  test/cctest/test-cpu-profiler.cc
  test/cctest/test-diy-fp.cc
@@ -1608,7 +1623,7 @@ Copyright:
 License: BSD (3 clause)
  FIXME
 
-Files: src/scanner-base.cc
+Files: src/scanner.cc
 Copyright: && IsCarriageReturn(c0_)) Advance();
  && IsLineFeed(c0_)) Advance();
  2011, the V8 project authors.
@@ -1625,7 +1640,7 @@ Copyright: * kJsonQuotesCharactersPerEntry;
 License: BSD (3 clause)
  FIXME
 
-Files: src/scanner-base.h
+Files: src/scanner.h
 Copyright: 2011, the V8 project authors.
  <= 5) return c + 10;
  <= 9) return c;
@@ -1692,11 +1707,6 @@ License: UNKNOWN
 
 Files: benchmarks/raytrace.js
 Copyright: 2005-2007, Sam Stephenson
-License: UNKNOWN
- FIXME
-
-Files: build/all.gyp
-Copyright: 2011, The Chromium Authors.
 License: UNKNOWN
  FIXME
 
