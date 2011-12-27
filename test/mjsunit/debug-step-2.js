@@ -25,15 +25,65 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Calling Array.sort on an external array is not supposed to crash.
+// Flags: --expose-debug-as debug
 
-var array = new Int16Array(23);
-array[7] = 7; array[9] = 9;
-assertEquals(23, array.length);
-assertEquals(7, array[7]);
-assertEquals(9, array[9]);
+// This test tests that full code compiled without debug break slots
+// is recompiled with debug break slots when debugging is started.
 
-Array.prototype.sort.call(array);
-assertEquals(23, array.length);
-assertEquals(7, array[21]);
-assertEquals(9, array[22]);
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
+
+var bp;
+var done = false;
+var step_count = 0;
+
+// Debug event listener which steps until the global variable done is true.
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.Break) {
+    if (!done) exec_state.prepareStep(Debug.StepAction.StepNext);
+    step_count++;
+  }
+};
+
+// Set the global variables state to prpare the stepping test.
+function prepare_step_test() {
+  done = false;
+  step_count = 0;
+}
+
+// Test function to step through.
+function f() {
+  var i = 1;
+  var j = 2;
+  done = true;
+};
+
+prepare_step_test();
+f();
+
+// Add the debug event listener.
+Debug.setListener(listener);
+
+bp = Debug.setBreakPoint(f, 1);
+
+prepare_step_test();
+f();
+assertEquals(4, step_count);
+Debug.clearBreakPoint(bp);
+
+// Set a breakpoint on the first var statement (line 1).
+bp = Debug.setBreakPoint(f, 1);
+
+// Step through the function ensuring that the var statements are hit as well.
+prepare_step_test();
+f();
+assertEquals(4, step_count);
+
+// Clear the breakpoint and check that no stepping happens.
+Debug.clearBreakPoint(bp);
+prepare_step_test();
+f();
+assertEquals(0, step_count);
+
+// Get rid of the debug event listener.
+Debug.setListener(null);
