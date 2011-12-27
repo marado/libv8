@@ -533,7 +533,7 @@ Last-Update: 2011-10-25
  
 --- a/tools/gyp/v8.gyp
 +++ b/tools/gyp/v8.gyp
-@@ -89,10 +89,10 @@
+@@ -96,10 +96,10 @@
            'conditions': [
              ['want_separate_host_toolset==1', {
                'toolsets': ['host', 'target'],
@@ -546,7 +546,7 @@ Last-Update: 2011-10-25
              }],
              ['component=="shared_library"', {
                'conditions': [
-@@ -127,6 +127,7 @@
+@@ -134,6 +134,7 @@
            'sources': [
              '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
              '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
@@ -554,7 +554,7 @@ Last-Update: 2011-10-25
              '<(INTERMEDIATE_DIR)/snapshot.cc',
            ],
            'actions': [
-@@ -197,15 +198,16 @@
+@@ -204,15 +205,16 @@
            'sources': [
              '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
              '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
@@ -573,7 +573,7 @@ Last-Update: 2011-10-25
              }],
              ['component=="shared_library"', {
                'defines': [
-@@ -221,6 +223,11 @@
+@@ -228,6 +230,11 @@
            'include_dirs+': [
              '../../src',
            ],
@@ -585,7 +585,7 @@ Last-Update: 2011-10-25
            'sources': [
              '../../src/accessors.cc',
              '../../src/accessors.h',
-@@ -470,6 +477,23 @@
+@@ -477,6 +484,23 @@
              '../../src/extensions/externalize-string-extension.h',
              '../../src/extensions/gc-extension.cc',
              '../../src/extensions/gc-extension.h',
@@ -609,7 +609,7 @@ Last-Update: 2011-10-25
            ],
            'conditions': [
              ['want_separate_host_toolset==1', {
-@@ -731,6 +755,40 @@
+@@ -740,6 +764,40 @@
            ],
          },
          {
@@ -650,7 +650,7 @@ Last-Update: 2011-10-25
            'target_name': 'mksnapshot',
            'type': 'executable',
            'dependencies': [
-@@ -779,6 +837,9 @@
+@@ -788,6 +846,9 @@
                  '-lbz2',
                ]}],
            ],

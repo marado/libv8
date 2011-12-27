@@ -4,7 +4,7 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-10-22
 --- a/Makefile
 +++ b/Makefile
-@@ -145,17 +145,17 @@
+@@ -151,17 +151,17 @@
  
  # GYP file generation targets.
  $(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
