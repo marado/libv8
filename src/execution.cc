@@ -149,29 +149,12 @@ Handle<Object> Execution::Call(Handle<Object> callable,
                                Handle<Object> receiver,
                                int argc,
                                Object*** args,
-                               bool* pending_exception,
-                               bool convert_receiver) {
+                               bool* pending_exception) {
   if (!callable->IsJSFunction()) {
     callable = TryGetFunctionDelegate(callable, pending_exception);
     if (*pending_exception) return callable;
   }
   Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
-
-  // In non-strict mode, convert receiver.
-  if (convert_receiver && !receiver->IsJSReceiver() &&
-      !func->shared()->native() && !func->shared()->strict_mode()) {
-    if (receiver->IsUndefined() || receiver->IsNull()) {
-      Object* global = func->context()->global()->global_receiver();
-      // Under some circumstances, 'global' can be the JSBuiltinsObject
-      // In that case, don't rewrite.
-      // (FWIW, the same holds for GetIsolate()->global()->global_receiver().)
-      if (!global->IsJSBuiltinsObject()) receiver = Handle<Object>(global);
-    } else {
-      receiver = ToObject(receiver, pending_exception);
-    }
-    if (*pending_exception) return callable;
-  }
-
   return Invoke(false, func, receiver, argc, args, pending_exception);
 }
 
@@ -227,17 +210,10 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a function.
 
-  // If object is a function proxy, get its handler. Iterate if necessary.
-  Object* fun = *object;
-  while (fun->IsJSFunctionProxy()) {
-    fun = JSFunctionProxy::cast(fun)->call_trap();
-  }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
-
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
-  if (fun->IsHeapObject() &&
-      HeapObject::cast(fun)->map()->has_instance_call_handler()) {
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
         isolate->global_context()->call_as_function_delegate());
   }
@@ -251,17 +227,10 @@ Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
   ASSERT(!object->IsJSFunction());
   Isolate* isolate = Isolate::Current();
 
-  // If object is a function proxy, get its handler. Iterate if necessary.
-  Object* fun = *object;
-  while (fun->IsJSFunctionProxy()) {
-    fun = JSFunctionProxy::cast(fun)->call_trap();
-  }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
-
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
-  if (fun->IsHeapObject() &&
-      HeapObject::cast(fun)->map()->has_instance_call_handler()) {
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
         isolate->global_context()->call_as_function_delegate());
   }
@@ -284,17 +253,10 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
 
-  // If object is a function proxies, get its handler. Iterate if necessary.
-  Object* fun = *object;
-  while (fun->IsJSFunctionProxy()) {
-    fun = JSFunctionProxy::cast(fun)->call_trap();
-  }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
-
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
-  if (fun->IsHeapObject() &&
-      HeapObject::cast(fun)->map()->has_instance_call_handler()) {
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
         isolate->global_context()->call_as_constructor_delegate());
   }
@@ -312,17 +274,10 @@ Handle<Object> Execution::TryGetConstructorDelegate(
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
 
-  // If object is a function proxies, get its handler. Iterate if necessary.
-  Object* fun = *object;
-  while (fun->IsJSFunctionProxy()) {
-    fun = JSFunctionProxy::cast(fun)->call_trap();
-  }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
-
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
-  if (fun->IsHeapObject() &&
-      HeapObject::cast(fun)->map()->has_instance_call_handler()) {
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
         isolate->global_context()->call_as_constructor_delegate());
   }
@@ -598,7 +553,7 @@ Handle<Object> Execution::ToDetailString(Handle<Object> obj, bool* exc) {
 
 
 Handle<Object> Execution::ToObject(Handle<Object> obj, bool* exc) {
-  if (obj->IsSpecObject()) return obj;
+  if (obj->IsJSObject()) return obj;
   RETURN_NATIVE_CALL(to_object, 1, { obj.location() }, exc);
 }
 

@@ -53,9 +53,6 @@ def BuildOptions():
   result.add_option("--outdir",
                     help='Base output directory',
                     default='out')
-  result.add_option("--no-presubmit",
-                    help='Skip presubmit checks',
-                    default=False, action="store_true")
 
   # Flags this wrapper script handles itself:
   result.add_option("-m", "--mode",
@@ -205,31 +202,22 @@ def Main():
     return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-
-  if not options.no_presubmit:
-    print ">>> running presubmit tests"
-    subprocess.call([workspace + '/tools/presubmit.py'])
-
   args_for_children = [workspace + '/tools/test.py'] + PassOnOptions(options)
   args_for_children += ['--no-build', '--build-system=gyp']
   for arg in args:
     args_for_children += [arg]
   returncodes = 0
-  env = os.environ
 
   for mode in options.mode:
     for arch in options.arch:
       print ">>> running tests for %s.%s" % (arch, mode)
-      shellpath = workspace + '/' + options.outdir + '/' + arch + '.' + mode
-      env['LD_LIBRARY_PATH'] = shellpath + '/lib.target'
-      shell = shellpath + "/d8"
+      shell = workspace + '/' + options.outdir + '/' + arch + '.' + mode + "/d8"
       child = subprocess.Popen(' '.join(args_for_children +
                                         ['--arch=' + arch] +
                                         ['--mode=' + mode] +
                                         ['--shell=' + shell]),
                                shell=True,
-                               cwd=workspace,
-                               env=env)
+                               cwd=workspace)
       returncodes += child.wait()
 
   return returncodes

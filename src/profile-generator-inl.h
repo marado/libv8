@@ -78,6 +78,22 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
 }
 
 
+void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
+  CodeTree::Locator locator;
+  tree_.Insert(addr, &locator);
+  locator.set_value(CodeEntryInfo(entry, size));
+}
+
+
+void CodeMap::MoveCode(Address from, Address to) {
+  tree_.Move(from, to);
+}
+
+void CodeMap::DeleteCode(Address addr) {
+  tree_.Remove(addr);
+}
+
+
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
   switch (tag) {
     case GC:

@@ -142,7 +142,6 @@ class JoinableThread {
   }
 
   virtual void Run() = 0;
-
  private:
   class ThreadWithSemaphore : public i::Thread {
    public:
@@ -378,7 +377,6 @@ class LockerUnlockerThread : public JoinableThread {
       CalcFibAndCheck();
     }
   }
-
  private:
   v8::Isolate* isolate_;
 };
@@ -431,7 +429,6 @@ class LockTwiceAndUnlockThread : public JoinableThread {
       CalcFibAndCheck();
     }
   }
-
  private:
   v8::Isolate* isolate_;
 };
@@ -501,7 +498,6 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
       thread.Join();
     }
   }
-
  private:
   v8::Isolate* isolate1_;
   v8::Isolate* isolate2_;

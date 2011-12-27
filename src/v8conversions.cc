@@ -34,6 +34,7 @@
 #include "v8conversions.h"
 #include "dtoa.h"
 #include "factory.h"
+#include "scanner-base.h"
 #include "strtod.h"
 
 namespace v8 {

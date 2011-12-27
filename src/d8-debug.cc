@@ -221,14 +221,14 @@ void RemoteDebugger::Run() {
 }
 
 
-void RemoteDebugger::MessageReceived(i::SmartArrayPointer<char> message) {
+void RemoteDebugger::MessageReceived(i::SmartPointer<char> message) {
   RemoteDebuggerEvent* event =
       new RemoteDebuggerEvent(RemoteDebuggerEvent::kMessage, message);
   AddEvent(event);
 }
 
 
-void RemoteDebugger::KeyboardCommand(i::SmartArrayPointer<char> command) {
+void RemoteDebugger::KeyboardCommand(i::SmartPointer<char> command) {
   RemoteDebuggerEvent* event =
       new RemoteDebuggerEvent(RemoteDebuggerEvent::kKeyboard, command);
   AddEvent(event);
@@ -238,7 +238,7 @@ void RemoteDebugger::KeyboardCommand(i::SmartArrayPointer<char> command) {
 void RemoteDebugger::ConnectionClosed() {
   RemoteDebuggerEvent* event =
       new RemoteDebuggerEvent(RemoteDebuggerEvent::kDisconnect,
-                              i::SmartArrayPointer<char>());
+                              i::SmartPointer<char>());
   AddEvent(event);
 }
 
@@ -330,14 +330,14 @@ void RemoteDebugger::HandleKeyboardCommand(char* command) {
 
 void ReceiverThread::Run() {
   // Receive the connect message (with empty body).
-  i::SmartArrayPointer<char> message =
-      i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
+  i::SmartPointer<char> message =
+    i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
   ASSERT(*message == NULL);
 
   while (true) {
     // Receive a message.
-    i::SmartArrayPointer<char> message =
-        i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
+    i::SmartPointer<char> message =
+      i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
     if (*message == NULL) {
       remote_debugger_->ConnectionClosed();
       return;
@@ -361,7 +361,7 @@ void KeyboardThread::Run() {
 
     // Pass the keyboard command to the main thread.
     remote_debugger_->KeyboardCommand(
-        i::SmartArrayPointer<char>(i::StrDup(command)));
+        i::SmartPointer<char>(i::StrDup(command)));
   }
 }
 

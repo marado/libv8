@@ -465,13 +465,13 @@ Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::GetElementsTransitionMap(
+Handle<Map> Factory::GetExternalArrayElementsMap(
     Handle<Map> src,
-    ElementsKind elements_kind,
+    ExternalArrayType array_type,
     bool safe_to_add_transition) {
   CALL_HEAP_FUNCTION(isolate(),
-                     src->GetElementsTransitionMap(elements_kind,
-                                                   safe_to_add_transition),
+                     src->GetExternalArrayElementsMap(array_type,
+                                                      safe_to_add_transition),
                      Map);
 }
 
@@ -922,19 +922,10 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 }
 
 
-void Factory::BecomeJSObject(Handle<JSReceiver> object) {
+void Factory::BecomeJSObject(Handle<JSProxy> object) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
-      isolate()->heap()->ReinitializeJSReceiver(
-          *object, JS_OBJECT_TYPE, JSObject::kHeaderSize));
-}
-
-
-void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      isolate()->heap()->ReinitializeJSReceiver(
-          *object, JS_FUNCTION_TYPE, JSFunction::kSize));
+      isolate()->heap()->ReinitializeJSProxyAsJSObject(*object));
 }
 
 

@@ -28,14 +28,11 @@
 #ifndef V8_CONVERSIONS_H_
 #define V8_CONVERSIONS_H_
 
-#include <limits>
-
+#include "scanner-base.h"
 #include "utils.h"
 
 namespace v8 {
 namespace internal {
-
-class UnicodeCache;
 
 // Maximum number of significant digits in decimal representation.
 // The longest possible double in decimal representation is
@@ -47,14 +44,14 @@ class UnicodeCache;
 const int kMaxSignificantDigits = 772;
 
 
-static inline bool isDigit(int x, int radix) {
+static bool isDigit(int x, int radix) {
   return (x >= '0' && x <= '9' && x < '0' + radix)
       || (radix > 10 && x >= 'a' && x < 'a' + radix - 10)
       || (radix > 10 && x >= 'A' && x < 'A' + radix - 10);
 }
 
 
-static inline double SignedZero(bool negative) {
+static double SignedZero(bool negative) {
   return negative ? -0.0 : 0.0;
 }
 
@@ -126,8 +123,6 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       const char* str,
                       int flags,
                       double empty_string_val = 0);
-
-const int kDoubleToCStringMinBufferSize = 100;
 
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.

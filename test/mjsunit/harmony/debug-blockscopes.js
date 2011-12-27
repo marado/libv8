@@ -202,15 +202,17 @@ function local_block_1() {
 }
 
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Local,
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
+  CheckScopeContent({}, 1, exec_state);
 };
 local_block_1();
 EndTest();
 
 
-// Simple empty block scope in local scope with a parameter.
+// Local scope with a parameter.
 BeginTest("Local 2");
 
 function local_2(a) {
@@ -220,9 +222,10 @@ function local_2(a) {
 }
 
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Local,
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1}, 0, exec_state);
+  CheckScopeContent({a:1}, 1, exec_state);
 };
 local_2(1);
 EndTest();
@@ -263,72 +266,6 @@ local_4(1, 2);
 EndTest();
 
 
-// Single variable in a block scope.
-BeginTest("Local 5");
-
-function local_5(a) {
-  {
-    let x = 5;
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({x:5}, 0, exec_state);
-  CheckScopeContent({a:1}, 1, exec_state);
-};
-local_5(1);
-EndTest();
-
-
-// Two variables in a block scope.
-BeginTest("Local 6");
-
-function local_6(a) {
-  {
-    let x = 6;
-    let y = 7;
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({x:6,y:7}, 0, exec_state);
-  CheckScopeContent({a:1}, 1, exec_state);
-};
-local_6(1);
-EndTest();
-
-
-// Two variables in a block scope.
-BeginTest("Local 7");
-
-function local_7(a) {
-  {
-    {
-      let x = 8;
-      debugger;
-    }
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({x:8}, 0, exec_state);
-  CheckScopeContent({a:1}, 1, exec_state);
-};
-local_7(1);
-EndTest();
-
-
 // Single empty with block.
 BeginTest("With block 1");
 
@@ -339,7 +276,8 @@ function with_block_1() {
 }
 
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.With,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
@@ -361,13 +299,16 @@ function with_block_2() {
 }
 
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Block,
                    debug.ScopeType.With,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({}, 1, exec_state);
   CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({}, 3, exec_state);
 };
 with_block_2();
 EndTest();
@@ -383,10 +324,12 @@ function with_block_3() {
 }
 
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.With,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2}, 0, exec_state);
+  CheckScopeContent({}, 0, exec_state);
+  CheckScopeContent({a:1,b:2}, 1, exec_state);
 };
 with_block_3();
 EndTest();
@@ -404,36 +347,16 @@ function with_block_4() {
 }
 
 listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:2,b:1}, 0, exec_state);
-  CheckScopeContent({a:1,b:2}, 1, exec_state);
-};
-with_block_4();
-EndTest();
-
-
-// With block and a block local variable.
-BeginTest("With block 5");
-
-function with_block_5() {
-  with({a:1}) {
-    let a = 2;
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.With,
+                   debug.ScopeType.Block,
+                   debug.ScopeType.With,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:2}, 0, exec_state);
-  CheckScopeContent({a:1}, 1, exec_state);
+  CheckScopeContent({a:2,b:1}, 1, exec_state);
+  CheckScopeContent({a:1,b:2}, 3, exec_state);
 };
-with_block_5();
+with_block_4();
 EndTest();
 
 

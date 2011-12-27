@@ -169,8 +169,7 @@ void DebuggerAgentSession::Run() {
 
   while (true) {
     // Read data from the debugger front end.
-    SmartArrayPointer<char> message =
-        DebuggerAgentUtil::ReceiveMessage(client_);
+    SmartPointer<char> message = DebuggerAgentUtil::ReceiveMessage(client_);
 
     const char* msg = *message;
     bool is_closing_session = (msg == NULL);
@@ -233,7 +232,7 @@ const int DebuggerAgentUtil::kContentLengthSize =
     StrLength(kContentLength);
 
 
-SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
+SmartPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
   int received;
 
   // Read header.
@@ -251,7 +250,7 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
       received = conn->Receive(&c, 1);
       if (received <= 0) {
         PrintF("Error %d\n", Socket::LastError());
-        return SmartArrayPointer<char>();
+        return SmartPointer<char>();
       }
 
       // Add character to header buffer.
@@ -288,12 +287,12 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
     if (strcmp(key, kContentLength) == 0) {
       // Get the content length value if present and within a sensible range.
       if (value == NULL || strlen(value) > 7) {
-        return SmartArrayPointer<char>();
+        return SmartPointer<char>();
       }
       for (int i = 0; value[i] != '\0'; i++) {
         // Bail out if illegal data.
         if (value[i] < '0' || value[i] > '9') {
-          return SmartArrayPointer<char>();
+          return SmartPointer<char>();
         }
         content_length = 10 * content_length + (value[i] - '0');
       }
@@ -305,7 +304,7 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
 
   // Return now if no body.
   if (content_length == 0) {
-    return SmartArrayPointer<char>();
+    return SmartPointer<char>();
   }
 
   // Read body.
@@ -313,11 +312,11 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
   received = ReceiveAll(conn, buffer, content_length);
   if (received < content_length) {
     PrintF("Error %d\n", Socket::LastError());
-    return SmartArrayPointer<char>();
+    return SmartPointer<char>();
   }
   buffer[content_length] = '\0';
 
-  return SmartArrayPointer<char>(buffer);
+  return SmartPointer<char>(buffer);
 }
 
 

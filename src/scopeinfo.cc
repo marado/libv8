@@ -39,8 +39,12 @@ namespace internal {
 
 
 static int CompareLocal(Variable* const* v, Variable* const* w) {
-  int x = (*v)->index();
-  int y = (*w)->index();
+  Slot* s = (*v)->AsSlot();
+  Slot* t = (*w)->AsSlot();
+  // We may have rewritten parameters (that are in the arguments object)
+  // and which may have a NULL slot... - find a better solution...
+  int x = (s != NULL ? s->index() : 0);
+  int y = (t != NULL ? t->index() : 0);
   // Consider sorting them according to type as well?
   return x - y;
 }
@@ -82,24 +86,27 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
   for (int i = 0; i < locals.length(); i++) {
     Variable* var = locals[i];
     if (var->is_used()) {
-      switch (var->location()) {
-        case Variable::UNALLOCATED:
-        case Variable::PARAMETER:
-          break;
+      Slot* slot = var->AsSlot();
+      if (slot != NULL) {
+        switch (slot->type()) {
+          case Slot::PARAMETER:
+            // explicitly added to parameters_ above - ignore
+            break;
 
-        case Variable::LOCAL:
-          ASSERT(stack_slots_.length() == var->index());
-          stack_slots_.Add(var->name());
-          break;
+          case Slot::LOCAL:
+            ASSERT(stack_slots_.length() == slot->index());
+            stack_slots_.Add(var->name());
+            break;
 
-        case Variable::CONTEXT:
-          heap_locals.Add(var);
-          break;
+          case Slot::CONTEXT:
+            heap_locals.Add(var);
+            break;
 
-        case Variable::LOOKUP:
-          // We don't expect lookup variables in the locals list.
-          UNREACHABLE();
-          break;
+          case Slot::LOOKUP:
+            // This is currently not used.
+            UNREACHABLE();
+            break;
+        }
       }
     }
   }
@@ -108,9 +115,9 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
   if (scope->num_heap_slots() > 0) {
     // Add user-defined slots.
     for (int i = 0; i < heap_locals.length(); i++) {
-      ASSERT(heap_locals[i]->index() - Context::MIN_CONTEXT_SLOTS ==
+      ASSERT(heap_locals[i]->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_slots_.length());
-      ASSERT(heap_locals[i]->index() - Context::MIN_CONTEXT_SLOTS ==
+      ASSERT(heap_locals[i]->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
       context_slots_.Add(heap_locals[i]->name());
       context_modes_.Add(heap_locals[i]->mode());
@@ -124,18 +131,18 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
   // For now, this must happen at the very end because of the
   // ordering of the scope info slots and the respective slot indices.
   if (scope->is_function_scope()) {
-    VariableProxy* proxy = scope->function();
-    if (proxy != NULL &&
-        proxy->var()->is_used() &&
-        proxy->var()->IsContextSlot()) {
-      function_name_ = proxy->name();
+    Variable* var = scope->function();
+    if (var != NULL &&
+        var->is_used() &&
+        var->AsSlot()->type() == Slot::CONTEXT) {
+      function_name_ = var->name();
       // Note that we must not find the function name in the context slot
       // list - instead it must be handled separately in the
       // Contexts::Lookup() function. Thus record an empty symbol here so we
       // get the correct number of context slots.
-      ASSERT(proxy->var()->index() - Context::MIN_CONTEXT_SLOTS ==
+      ASSERT(var->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_slots_.length());
-      ASSERT(proxy->var()->index() - Context::MIN_CONTEXT_SLOTS ==
+      ASSERT(var->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
       context_slots_.Add(FACTORY->empty_symbol());
       context_modes_.Add(Variable::INTERNAL);

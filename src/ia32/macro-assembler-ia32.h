@@ -437,7 +437,7 @@ class MacroAssembler: public Assembler {
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.
-  void AllocateTwoByteConsString(Register result,
+  void AllocateConsString(Register result,
                           Register scratch1,
                           Register scratch2,
                           Label* gc_required);
@@ -448,7 +448,7 @@ class MacroAssembler: public Assembler {
 
   // Allocate a raw sliced string object. Only the map field of the result is
   // initialized.
-  void AllocateTwoByteSlicedString(Register result,
+  void AllocateSlicedString(Register result,
                             Register scratch1,
                             Register scratch2,
                             Label* gc_required);

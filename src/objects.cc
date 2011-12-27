@@ -41,6 +41,7 @@
 #include "objects-visiting.h"
 #include "macro-assembler.h"
 #include "safepoint-table.h"
+#include "scanner-base.h"
 #include "string-stream.h"
 #include "utils.h"
 #include "vm-state-inl.h"
@@ -84,7 +85,7 @@ MaybeObject* Object::ToObject(Context* global_context) {
 
 
 MaybeObject* Object::ToObject() {
-  if (IsJSReceiver()) {
+  if (IsJSObject()) {
     return this;
   } else if (IsNumber()) {
     Isolate* isolate = Isolate::Current();
@@ -237,7 +238,6 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("get");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
-  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     // Get the derived `get' property.
     trap = isolate->derived_get_trap();
@@ -592,7 +592,7 @@ MaybeObject* Object::GetProperty(Object* receiver,
       return holder->GetPropertyWithInterceptor(recvr, name, attributes);
     }
     case MAP_TRANSITION:
-    case ELEMENTS_TRANSITION:
+    case EXTERNAL_ARRAY_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       break;
@@ -628,7 +628,6 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
         } else if (heap_object->IsBoolean()) {
           holder = global_context->boolean_function()->instance_prototype();
         } else if (heap_object->IsJSProxy()) {
-          // TODO(rossberg): do something
           return heap->undefined_value();  // For now...
         } else {
           // Undefined and null have no indexed properties.
@@ -1049,7 +1048,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
-                accumulator->Put('>');
                 printed = true;
               }
             }
@@ -1175,12 +1173,6 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
-    case JS_PROXY_TYPE:
-      accumulator->Add("<JSProxy>");
-      break;
-    case JS_FUNCTION_PROXY_TYPE:
-      accumulator->Add("<JSFunctionProxy>");
-      break;
     case FOREIGN_TYPE:
       accumulator->Add("<Foreign>");
       break;
@@ -1258,9 +1250,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case JS_PROXY_TYPE:
       JSProxy::BodyDescriptor::IterateBody(this, v);
-      break;
-    case JS_FUNCTION_PROXY_TYPE:
-      JSFunctionProxy::BodyDescriptor::IterateBody(this, v);
       break;
     case FOREIGN_TYPE:
       reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
@@ -1446,12 +1435,13 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // it's unrelated to properties.
   int descriptor_index = old_descriptors->Search(name);
 
-  // Element transitions are stored in the descriptor for property "", which is
-  // not a identifier and should have forced a switch to slow properties above.
+  // External array transitions are stored in the descriptor for property "",
+  // which is not a identifier and should have forced a switch to slow
+  // properties above.
   ASSERT(descriptor_index == DescriptorArray::kNotFound ||
-      old_descriptors->GetType(descriptor_index) != ELEMENTS_TRANSITION);
+      old_descriptors->GetType(descriptor_index) != EXTERNAL_ARRAY_TRANSITION);
   bool can_insert_transition = descriptor_index == DescriptorArray::kNotFound ||
-      old_descriptors->GetType(descriptor_index) == ELEMENTS_TRANSITION;
+      old_descriptors->GetType(descriptor_index) == EXTERNAL_ARRAY_TRANSITION;
   bool allow_map_transition =
       can_insert_transition &&
       (isolate->context()->global_context()->object_function()->map() != map());
@@ -1999,25 +1989,61 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
-MaybeObject* Map::GetElementsTransitionMap(ElementsKind elements_kind,
-                                           bool safe_to_add_transition) {
+static JSObject::ElementsKind GetElementsKindFromExternalArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return JSObject::EXTERNAL_BYTE_ELEMENTS;
+      break;
+    case kExternalUnsignedByteArray:
+      return JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      break;
+    case kExternalShortArray:
+      return JSObject::EXTERNAL_SHORT_ELEMENTS;
+      break;
+    case kExternalUnsignedShortArray:
+      return JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      break;
+    case kExternalIntArray:
+      return JSObject::EXTERNAL_INT_ELEMENTS;
+      break;
+    case kExternalUnsignedIntArray:
+      return JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      break;
+    case kExternalFloatArray:
+      return JSObject::EXTERNAL_FLOAT_ELEMENTS;
+      break;
+    case kExternalDoubleArray:
+      return JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      break;
+    case kExternalPixelArray:
+      return JSObject::EXTERNAL_PIXEL_ELEMENTS;
+      break;
+  }
+  UNREACHABLE();
+  return JSObject::DICTIONARY_ELEMENTS;
+}
+
+
+MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
+                                              bool safe_to_add_transition) {
   Heap* current_heap = heap();
   DescriptorArray* descriptors = instance_descriptors();
-  String* elements_transition_sentinel_name = current_heap->empty_symbol();
+  String* external_array_sentinel_name = current_heap->empty_symbol();
 
   if (safe_to_add_transition) {
     // It's only safe to manipulate the descriptor array if it would be
     // safe to add a transition.
 
     ASSERT(!is_shared());  // no transitions can be added to shared maps.
-    // Check if the elements transition already exists.
+    // Check if the external array transition already exists.
     DescriptorLookupCache* cache =
         current_heap->isolate()->descriptor_lookup_cache();
-    int index = cache->Lookup(descriptors, elements_transition_sentinel_name);
+    int index = cache->Lookup(descriptors, external_array_sentinel_name);
     if (index == DescriptorLookupCache::kAbsent) {
-      index = descriptors->Search(elements_transition_sentinel_name);
+      index = descriptors->Search(external_array_sentinel_name);
       cache->Update(descriptors,
-                    elements_transition_sentinel_name,
+                    external_array_sentinel_name,
                     index);
     }
 
@@ -2025,8 +2051,8 @@ MaybeObject* Map::GetElementsTransitionMap(ElementsKind elements_kind,
     // return it.
     if (index != DescriptorArray::kNotFound) {
       PropertyDetails details(PropertyDetails(descriptors->GetDetails(index)));
-      if (details.type() == ELEMENTS_TRANSITION &&
-          details.elements_kind() == elements_kind) {
+      if (details.type() == EXTERNAL_ARRAY_TRANSITION &&
+          details.array_type() == array_type) {
         return descriptors->GetValue(index);
       } else {
         safe_to_add_transition = false;
@@ -2034,29 +2060,28 @@ MaybeObject* Map::GetElementsTransitionMap(ElementsKind elements_kind,
     }
   }
 
-  // No transition to an existing map for the given ElementsKind. Make a new
-  // one.
+  // No transition to an existing external array map. Make a new one.
   Object* obj;
   { MaybeObject* maybe_map = CopyDropTransitions();
     if (!maybe_map->ToObject(&obj)) return maybe_map;
   }
   Map* new_map = Map::cast(obj);
 
-  new_map->set_elements_kind(elements_kind);
+  new_map->set_elements_kind(GetElementsKindFromExternalArrayType(array_type));
   GetIsolate()->counters()->map_to_external_array_elements()->Increment();
 
   // Only remember the map transition if the object's map is NOT equal to the
   // global object_function's map and there is not an already existing
-  // non-matching element transition.
+  // non-matching external array transition.
   bool allow_map_transition =
       safe_to_add_transition &&
       (GetIsolate()->context()->global_context()->object_function()->map() !=
        map());
   if (allow_map_transition) {
     // Allocate new instance descriptors for the old map with map transition.
-    ElementsTransitionDescriptor desc(elements_transition_sentinel_name,
-                                      Map::cast(new_map),
-                                      elements_kind);
+    ExternalArrayTransitionDescriptor desc(external_array_sentinel_name,
+                                           Map::cast(new_map),
+                                           array_type);
     Object* new_descriptors;
     MaybeObject* maybe_new_descriptors = descriptors->CopyInsert(
         &desc,
@@ -2223,7 +2248,6 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("has");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
-  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     trap = isolate->derived_has_trap();
   }
@@ -2254,7 +2278,6 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("set");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
-  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     trap = isolate->derived_set_trap();
   }
@@ -2282,7 +2305,6 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
-  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2325,7 +2347,6 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   Handle<String> trap_name =
       isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
-  if (isolate->has_pending_exception()) return NONE;
   if (trap->IsUndefined()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2352,13 +2373,9 @@ void JSProxy::Fix() {
   HandleScope scope(isolate);
   Handle<JSProxy> self(this);
 
-  if (IsJSFunctionProxy()) {
-    isolate->factory()->BecomeJSFunction(self);
-    // Code will be set on the JavaScript side.
-  } else {
-    isolate->factory()->BecomeJSObject(self);
-  }
+  isolate->factory()->BecomeJSObject(self);
   ASSERT(self->IsJSObject());
+  // TODO(rossberg): recognize function proxies.
 }
 
 
@@ -2481,7 +2498,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     }
     case NULL_DESCRIPTOR:
-    case ELEMENTS_TRANSITION:
+    case EXTERNAL_ARRAY_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
@@ -2569,7 +2586,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       // if the value is a function.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-    case ELEMENTS_TRANSITION:
+    case EXTERNAL_ARRAY_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
@@ -2850,7 +2867,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       case CONSTANT_TRANSITION:
       case NULL_DESCRIPTOR:
       case INTERCEPTOR:
-      case ELEMENTS_TRANSITION:
+      case EXTERNAL_ARRAY_TRANSITION:
         break;
       default:
         UNREACHABLE();
@@ -5083,13 +5100,13 @@ String::FlatContent String::GetFlatContent() {
 }
 
 
-SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                          RobustnessFlag robust_flag,
-                                          int offset,
-                                          int length,
-                                          int* length_return) {
+SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                     RobustnessFlag robust_flag,
+                                     int offset,
+                                     int length,
+                                     int* length_return) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartArrayPointer<char>(NULL);
+    return SmartPointer<char>(NULL);
   }
   Heap* heap = GetHeap();
 
@@ -5133,13 +5150,13 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
     character_position++;
   }
   result[utf8_byte_position] = 0;
-  return SmartArrayPointer<char>(result);
+  return SmartPointer<char>(result);
 }
 
 
-SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                          RobustnessFlag robust_flag,
-                                          int* length_return) {
+SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                     RobustnessFlag robust_flag,
+                                     int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 
@@ -5170,9 +5187,9 @@ const uc16* String::GetTwoByteData(unsigned start) {
 }
 
 
-SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
+SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartArrayPointer<uc16>();
+    return SmartPointer<uc16>();
   }
   Heap* heap = GetHeap();
 
@@ -5188,7 +5205,7 @@ SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
     result[i++] = character;
   }
   result[i] = 0;
-  return SmartArrayPointer<uc16>(result);
+  return SmartPointer<uc16>(result);
 }
 
 
@@ -6202,7 +6219,7 @@ void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
   for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
     if (descriptors->GetType(i) == MAP_TRANSITION ||
-        descriptors->GetType(i) == ELEMENTS_TRANSITION ||
+        descriptors->GetType(i) == EXTERNAL_ARRAY_TRANSITION ||
         descriptors->GetType(i) == CONSTANT_TRANSITION) {
       // Get target.
       Map* target = Map::cast(descriptors->GetValue(i));
@@ -6245,7 +6262,7 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
     // non-live object.
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
     if (details.type() == MAP_TRANSITION ||
-        details.type() == ELEMENTS_TRANSITION ||
+        details.type() == EXTERNAL_ARRAY_TRANSITION ||
         details.type() == CONSTANT_TRANSITION) {
       Map* target = reinterpret_cast<Map*>(contents->get(i));
       ASSERT(target->IsHeapObject());
@@ -6405,7 +6422,7 @@ Object* JSFunction::SetInstanceClassName(String* name) {
 
 
 void JSFunction::PrintName(FILE* out) {
-  SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
+  SmartPointer<char> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", *name);
 }
 
@@ -7009,7 +7026,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           JSFunction* function =
               JSFunction::cast(LiteralArray()->get(function_id));
           unsigned height = iterator.Next();
-          PrintF(out, "{ast_id=%d, function=", ast_id);
+          PrintF(out, "{ast_id=%d, \nfunction=", ast_id);
           function->PrintName(out);
           PrintF(out, ", height=%u}", height);
           break;
@@ -7134,7 +7151,7 @@ const char* Code::PropertyType2String(PropertyType type) {
     case HANDLER: return "HANDLER";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
-    case ELEMENTS_TRANSITION: return "ELEMENTS_TRANSITION";
+    case EXTERNAL_ARRAY_TRANSITION: return "EXTERNAL_ARRAY_TRANSITION";
     case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
     case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
   }
@@ -7173,6 +7190,7 @@ void Code::Disassemble(const char* name, FILE* out) {
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
     PrintExtraICState(out, kind(), extra_ic_state());
+    PrintF(out, "ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));
     }
@@ -7523,7 +7541,7 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
   if (maybe_smi_length->ToObject(&smi_length) && smi_length->IsSmi()) {
     const int value = Smi::cast(smi_length)->value();
     if (value < 0) return ArrayLengthRangeError(GetHeap());
-    ElementsKind elements_kind = GetElementsKind();
+    JSObject::ElementsKind elements_kind = GetElementsKind();
     switch (elements_kind) {
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS: {
@@ -10133,8 +10151,6 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
 MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
-  ASSERT(!HasExternalArrayElements());
-
   Heap* heap = GetHeap();
 
   if (HasDictionaryElements()) {
@@ -10164,6 +10180,9 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
 
     set_map(new_map);
     set_elements(fast_elements);
+  } else if (HasExternalArrayElements()) {
+    // External arrays cannot have holes or undefined elements.
+    return Smi::FromInt(ExternalArray::cast(elements())->length());
   } else if (!HasFastDoubleElements()) {
     Object* obj;
     { MaybeObject* maybe_obj = EnsureWritableFastElements();

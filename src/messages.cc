@@ -41,13 +41,13 @@ namespace internal {
 // by default.
 void MessageHandler::DefaultMessageReport(const MessageLocation* loc,
                                           Handle<Object> message_obj) {
-  SmartArrayPointer<char> str = GetLocalizedMessage(message_obj);
+  SmartPointer<char> str = GetLocalizedMessage(message_obj);
   if (loc == NULL) {
     PrintF("%s\n", *str);
   } else {
     HandleScope scope;
     Handle<Object> data(loc->script()->name());
-    SmartArrayPointer<char> data_str;
+    SmartPointer<char> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
     PrintF("%s:%i: %s\n", *data_str ? *data_str : "<unknown>",
@@ -170,8 +170,7 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
 }
 
 
-SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
-    Handle<Object> data) {
+SmartPointer<char> MessageHandler::GetLocalizedMessage(Handle<Object> data) {
   HandleScope scope;
   return GetMessage(data)->ToCString(DISALLOW_NULLS);
 }

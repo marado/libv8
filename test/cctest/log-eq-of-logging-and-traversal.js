@@ -43,7 +43,8 @@ function LogProcessor() {
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
-      'code-delete': null,
+      'code-delete': { parsers: [parseInt],
+          processor: this.processCodeDelete },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
       'shared-library': null,
@@ -70,6 +71,10 @@ LogProcessor.prototype.processCodeCreation = function(
 
 LogProcessor.prototype.processCodeMove = function(from, to) {
   this.profile.moveCode(from, to);
+};
+
+LogProcessor.prototype.processCodeDelete = function(start) {
+  this.profile.deleteCode(start);
 };
 
 LogProcessor.prototype.processFunctionMove = function(from, to) {
@@ -127,8 +132,8 @@ function RunTest() {
      "Script", "String", "RegExp", "Date", "Error"];
 
   function entitiesEqual(entityA, entityB) {
-    if ((entityA === null && entityB !== null) ||
-      (entityA !== null && entityB === null)) return true;
+    if (entityA === null && entityB !== null) return true;
+    if (entityA !== null && entityB === null) return false;
     return entityA.size === entityB.size && entityNamesEqual(entityA, entityB);
   }
 
@@ -140,8 +145,6 @@ function RunTest() {
   // find the same entries. We skip builtins during log parsing, but compiled
   // functions traversal may erroneously recognize them as functions, so we are
   // expecting more functions in traversal vs. logging.
-  // Since we don't track code deletions, logging can also report more entries
-  // than traversal.
   while (l_pos < l_len && t_pos < t_len) {
     var entryA = logging_entries[l_pos];
     var entryB = traversal_entries[t_pos];
@@ -162,6 +165,11 @@ function RunTest() {
     var entities_equal = entitiesEqual(entityA, entityB);
     if (!entities_equal) equal = false;
     comparison.push([entities_equal, address, entityA, entityB]);
+  }
+  if (l_pos < l_len) equal = false;
+  while (l_pos < l_len) {
+    var entryA = logging_entries[l_pos++];
+    comparison.push([false, entryA[0], entryA[1], null]);
   }
   return [equal, comparison];
 }

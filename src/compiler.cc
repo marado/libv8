@@ -41,7 +41,6 @@
 #include "parser.h"
 #include "rewriter.h"
 #include "runtime-profiler.h"
-#include "scanner-character-streams.h"
 #include "scopeinfo.h"
 #include "scopes.h"
 #include "vm-state-inl.h"

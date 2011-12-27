@@ -238,8 +238,9 @@ class CpuProfile {
 class CodeMap {
  public:
   CodeMap() : next_shared_id_(1) { }
-  void AddCode(Address addr, CodeEntry* entry, unsigned size);
-  void MoveCode(Address from, Address to);
+  INLINE(void AddCode(Address addr, CodeEntry* entry, unsigned size));
+  INLINE(void MoveCode(Address from, Address to));
+  INLINE(void DeleteCode(Address addr));
   CodeEntry* FindEntry(Address addr);
   int GetSharedId(Address addr);
 
@@ -268,8 +269,6 @@ class CodeMap {
    public:
     void Call(const Address& key, const CodeEntryInfo& value);
   };
-
-  void DeleteAllCoveredCode(Address start, Address end);
 
   // Fake CodeEntry pointer to distinguish shared function entries.
   static CodeEntry* const kSharedFunctionCodeEntry;

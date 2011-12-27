@@ -579,7 +579,6 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   virtual void Print(StringStream* accumulator,
                      PrintMode mode,
                      int index) const;
-
  protected:
   explicit ArgumentsAdaptorFrame(StackFrameIterator* iterator)
       : JavaScriptFrame(iterator) { }

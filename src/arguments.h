@@ -75,7 +75,6 @@ class Arguments BASE_EMBEDDED {
   int length() const { return length_; }
 
   Object** arguments() { return arguments_; }
-
  private:
   int length_;
   Object** arguments_;

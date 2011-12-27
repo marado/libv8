@@ -123,8 +123,8 @@ class SplayTree {
     Value value() { return value_; }
     Node* left() { return left_; }
     Node* right() { return right_; }
-
    private:
+
     friend class SplayTree;
     friend class Locator;
     Key key_;
@@ -143,7 +143,6 @@ class SplayTree {
     Value& value() { return node_->value_; }
     void set_value(const Value& value) { node_->value_ = value; }
     inline void bind(Node* node) { node_ = node; }
-
    private:
     Node* node_;
   };
@@ -152,6 +151,7 @@ class SplayTree {
   void ForEach(Callback* callback);
 
  protected:
+
   // Resets tree root. Existing nodes become unreachable.
   void ResetRoot() { root_ = NULL; }
 
@@ -187,6 +187,7 @@ class SplayTree {
     void Call(Node* node) { delete node; }
 
    private:
+
     DISALLOW_COPY_AND_ASSIGN(NodeDeleter);
   };
 

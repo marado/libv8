@@ -1164,7 +1164,6 @@ def ReadConfigurationInto(path, sections, defs):
 
 
 ARCH_GUESS = utils.GuessArchitecture()
-TIMEOUT_DEFAULT = 60;
 
 
 def BuildOptions():
@@ -1189,7 +1188,7 @@ def BuildOptions():
   result.add_option("-s", "--suite", help="A test suite",
       default=[], action="append")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
-      default=-1, type="int")
+      default=60, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
       default='none')
   result.add_option("--snapshot", help="Run the tests with snapshot turned on",
@@ -1263,12 +1262,6 @@ def ProcessOptions(options):
     if options.arch == 'none':
       options.arch = ARCH_GUESS
     options.scons_flags.append("arch=" + options.arch)
-  # Simulators are slow, therefore allow a longer default timeout.
-  if options.timeout == -1:
-    if options.arch == 'arm' or options.arch == 'mips':
-      options.timeout = 2 * TIMEOUT_DEFAULT;
-    else:
-      options.timeout = TIMEOUT_DEFAULT;
   if options.snapshot:
     options.scons_flags.append("snapshot=on")
   global VARIANT_FLAGS

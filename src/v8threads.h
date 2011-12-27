@@ -54,7 +54,6 @@ class ThreadState {
 
   // Get data area for archiving a thread.
   char* data() { return data_; }
-
  private:
   explicit ThreadState(ThreadManager* thread_manager);
 

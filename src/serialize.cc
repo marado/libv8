@@ -240,14 +240,13 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   // Top addresses
 
   const char* AddressNames[] = {
-#define BUILD_NAME_LITERAL(CamelName, hacker_name)      \
-    "Isolate::" #hacker_name "_address",
-    FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL)
+#define C(name) "Isolate::" #name,
+    ISOLATE_ADDRESS_LIST(C)
     NULL
 #undef C
   };
 
-  for (uint16_t i = 0; i < Isolate::kIsolateAddressCount; ++i) {
+  for (uint16_t i = 0; i < Isolate::k_isolate_address_count; ++i) {
     Add(isolate->get_address_from_id((Isolate::AddressId)i),
         TOP_ADDRESS, i, AddressNames[i]);
   }

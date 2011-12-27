@@ -72,9 +72,6 @@
     'v8_use_snapshot%': 'true',
     'host_os%': '<(OS)',
     'v8_use_liveobjectlist%': 'false',
-
-    # For a shared library build, results in "libv8-<(soname_version).so".
-    'soname_version%': '',
   },
   'target_defaults': {
     'conditions': [
@@ -175,14 +172,6 @@
             'GenerateMapFile': 'true',
           },
         },
-      }],
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-        'conditions': [
-          [ 'target_arch=="ia32"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
-        ],
       }],
     ],
     'configurations': {

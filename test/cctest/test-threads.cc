@@ -161,7 +161,6 @@ class ThreadIdValidationThread : public v8::internal::Thread {
     }
     semaphore_->Signal();
   }
-
  private:
   i::List<i::ThreadId>* refs_;
   int thread_no_;

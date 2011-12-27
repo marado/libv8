@@ -114,6 +114,7 @@ class LiveObjectList {
   static Object* PrintObj(int obj_id);
 
  private:
+
   struct Element {
     int id_;
     HeapObject* obj_;
@@ -223,6 +224,7 @@ class LiveObjectList {
 // Helper class for updating the LiveObjectList HeapObject pointers.
 class UpdateLiveObjectListVisitor: public ObjectVisitor {
  public:
+
   void VisitPointer(Object** p) { UpdatePointer(p); }
 
   void VisitPointers(Object** start, Object** end) {
@@ -317,3 +319,4 @@ class LiveObjectList {
 } }  // namespace v8::internal
 
 #endif  // V8_LIVEOBJECTLIST_H_
+

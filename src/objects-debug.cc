@@ -164,9 +164,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyVerify();
       break;
-    case JS_FUNCTION_PROXY_TYPE:
-      JSFunctionProxy::cast(this)->JSFunctionProxyVerify();
-      break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify();
       break;
@@ -260,9 +257,9 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
-  ASSERT_EQ(map()->has_fast_elements(),
-            (elements()->map() == GetHeap()->fixed_array_map() ||
-             elements()->map() == GetHeap()->fixed_cow_array_map()));
+  ASSERT(map()->has_fast_elements() ==
+         (elements()->map() == GetHeap()->fixed_array_map() ||
+          elements()->map() == GetHeap()->fixed_cow_array_map()));
   ASSERT(map()->has_fast_elements() == HasFastElements());
 }
 
@@ -538,15 +535,6 @@ void JSProxy::JSProxyVerify() {
   ASSERT(IsJSProxy());
   VerifyPointer(handler());
 }
-
-
-void JSFunctionProxy::JSFunctionProxyVerify() {
-  ASSERT(IsJSFunctionProxy());
-  JSProxyVerify();
-  VerifyPointer(call_trap());
-  VerifyPointer(construct_trap());
-}
-
 
 void Foreign::ForeignVerify() {
   ASSERT(IsForeign());

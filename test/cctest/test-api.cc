@@ -4254,7 +4254,7 @@ template <typename T> static void USE(T) { }
 
 
 // This test is not intended to be run, just type checked.
-static inline void PersistentHandles() {
+static void PersistentHandles() {
   USE(PersistentHandles);
   Local<String> str = v8_str("foo");
   v8::Persistent<String> p_str = v8::Persistent<String>::New(str);
@@ -11821,21 +11821,14 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(28, result->Int32Value());
 
   i::Handle<i::Smi> value(i::Smi::FromInt(2));
-  i::Handle<i::Object> no_failure;
-  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
-  ASSERT(!no_failure.is_null());
-  i::USE(no_failure);
+  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
   CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(256);
-  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
-  ASSERT(!no_failure.is_null());
-  i::USE(no_failure);
+  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
   CHECK_EQ(255,
            i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(-1);
-  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
-  ASSERT(!no_failure.is_null());
-  i::USE(no_failure);
+  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"

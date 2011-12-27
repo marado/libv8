@@ -112,7 +112,7 @@ class Decoder {
   void PrintUImm16(Instruction* instr);
   void PrintSImm16(Instruction* instr);
   void PrintXImm16(Instruction* instr);
-  void PrintXImm26(Instruction* instr);
+  void PrintImm26(Instruction* instr);
   void PrintCode(Instruction* instr);   // For break and trap instructions.
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
@@ -273,9 +273,9 @@ void Decoder::PrintXImm16(Instruction* instr) {
 
 
 // Print 26-bit immediate value.
-void Decoder::PrintXImm26(Instruction* instr) {
-  uint32_t imm = instr->Imm26Value() << kImmFieldShift;
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+void Decoder::PrintImm26(Instruction* instr) {
+  int32_t imm = instr->Imm26Value();
+  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 
@@ -383,9 +383,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         }
         return 6;
       } else {
-        ASSERT(STRING_STARTS_WITH(format, "imm26x"));
-        PrintXImm26(instr);
-        return 6;
+        ASSERT(STRING_STARTS_WITH(format, "imm26"));
+        PrintImm26(instr);
+        return 5;
       }
     }
     case 'r': {   // 'r: registers.
@@ -926,10 +926,10 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
 void Decoder::DecodeTypeJump(Instruction* instr) {
   switch (instr->OpcodeFieldRaw()) {
     case J:
-      Format(instr, "j       'imm26x");
+      Format(instr, "j       'imm26");
       break;
     case JAL:
-      Format(instr, "jal     'imm26x");
+      Format(instr, "jal     'imm26");
       break;
     default:
       UNREACHABLE();
@@ -958,7 +958,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       break;
     }
     default: {
-      Format(instr, "UNSUPPORTED");
       UNSUPPORTED_MIPS();
     }
   }

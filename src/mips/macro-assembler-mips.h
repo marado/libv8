@@ -362,16 +362,6 @@ class MacroAssembler: public Assembler {
                                Register scratch1,
                                Register scratch2,
                                Label* gc_required);
-  void AllocateTwoByteSlicedString(Register result,
-                                   Register length,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Label* gc_required);
-  void AllocateAsciiSlicedString(Register result,
-                                 Register length,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed. All registers are clobbered also
@@ -452,9 +442,6 @@ class MacroAssembler: public Assembler {
   void MultiPush(RegList regs);
   void MultiPushReversed(RegList regs);
 
-  void MultiPushFPU(RegList regs);
-  void MultiPushReversedFPU(RegList regs);
-
   // Lower case push() for compatibility with arch-independent code.
   void push(Register src) {
     Addu(sp, sp, Operand(-kPointerSize));
@@ -499,9 +486,6 @@ class MacroAssembler: public Assembler {
   // registers specified in regs. Pop order is the opposite as in MultiPush.
   void MultiPop(RegList regs);
   void MultiPopReversed(RegList regs);
-
-  void MultiPopFPU(RegList regs);
-  void MultiPopReversedFPU(RegList regs);
 
   // Lower case pop() for compatibility with arch-independent code.
   void pop(Register dst) {
@@ -1213,9 +1197,10 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 // Generate a MemOperand for storing arguments 5..N on the stack
 // when calling CallCFunction().
 static inline MemOperand CFunctionArgumentOperand(int index) {
-  ASSERT(index > kCArgSlotCount);
+  ASSERT(index > StandardFrameConstants::kCArgSlotCount);
   // Argument 5 takes the slot just past the four Arg-slots.
-  int offset = (index - 5) * kPointerSize + kCArgsSlotsSize;
+  int offset =
+      (index - 5) * kPointerSize + StandardFrameConstants::kCArgsSlotsSize;
   return MemOperand(sp, offset);
 }
 

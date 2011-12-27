@@ -25,37 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Extra POSIX/ANSI routines for Win32 when using Visual Studio C++. Please
-// refer to The Open Group Base Specification for specification of the correct
-// semantics for these functions.
-// (http://www.opengroup.org/onlinepubs/000095399/)
+// Calling Array.sort on an external array is not supposed to crash.
 
-#ifndef V8_WIN32_MATH_H_
-#define V8_WIN32_MATH_H_
+var array = new Int16Array(23);
+array[7] = 7; array[9] = 9;
+assertEquals(23, array.length);
+assertEquals(7, array[7]);
+assertEquals(9, array[9]);
 
-#ifndef _MSC_VER
-#error Wrong environment, expected MSVC.
-#endif  // _MSC_VER
-
-enum {
-  FP_NAN,
-  FP_INFINITE,
-  FP_ZERO,
-  FP_SUBNORMAL,
-  FP_NORMAL
-};
-
-namespace v8 {
-
-int isfinite(double x);
-
-}  // namespace v8
-
-int isnan(double x);
-int isinf(double x);
-int isless(double x, double y);
-int isgreater(double x, double y);
-int fpclassify(double x);
-int signbit(double x);
-
-#endif  // V8_WIN32_MATH_H_
+Array.prototype.sort.call(array);
+assertEquals(23, array.length);
+assertEquals(7, array[21]);
+assertEquals(9, array[22]);

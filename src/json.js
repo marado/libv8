@@ -54,7 +54,7 @@ function Revive(holder, name, reviver) {
 
 function JSONParse(text, reviver) {
   var unfiltered = %ParseJson(TO_STRING_INLINE(text));
-  if (IS_SPEC_FUNCTION(reviver)) {
+  if (IS_FUNCTION(reviver)) {
     return Revive({'': unfiltered}, '', reviver);
   } else {
     return unfiltered;
@@ -143,11 +143,11 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
   if (IS_SPEC_OBJECT(value)) {
     var toJSON = value.toJSON;
-    if (IS_SPEC_FUNCTION(toJSON)) {
+    if (IS_FUNCTION(toJSON)) {
       value = %_CallFunction(value, key, toJSON);
     }
   }
-  if (IS_SPEC_FUNCTION(replacer)) {
+  if (IS_FUNCTION(replacer)) {
     value = %_CallFunction(holder, key, value, replacer);
   }
   if (IS_STRING(value)) {
@@ -273,7 +273,7 @@ function BasicSerializeObject(value, stack, builder) {
 function BasicJSONSerialize(key, value, stack, builder) {
   if (IS_SPEC_OBJECT(value)) {
     var toJSON = value.toJSON;
-    if (IS_SPEC_FUNCTION(toJSON)) {
+    if (IS_FUNCTION(toJSON)) {
       value = %_CallFunction(value, ToString(key), toJSON);
     }
   }
@@ -337,12 +337,11 @@ function JSONStringify(value, replacer, space) {
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 
-function SetUpJSON() {
-  %CheckIsBootstrapping();
+function SetupJSON() {
   InstallFunctions($JSON, DONT_ENUM, $Array(
     "parse", JSONParse,
     "stringify", JSONStringify
   ));
 }
 
-SetUpJSON()
+SetupJSON();

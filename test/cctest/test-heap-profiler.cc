@@ -948,7 +948,7 @@ TEST(GetHeapValueForDeletedObject) {
 
 
 static int StringCmp(const char* ref, i::String* act) {
-  i::SmartArrayPointer<char> s_act = act->ToCString();
+  i::SmartPointer<char> s_act = act->ToCString();
   int result = strcmp(ref, *s_act);
   if (result != 0)
     fprintf(stderr, "Expected: \"%s\", Actual: \"%s\"\n", ref, *s_act);

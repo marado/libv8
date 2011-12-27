@@ -144,7 +144,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
-          Immediate(PropertyDetails::TypeField::kMask << kSmiTagSize));
+          Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
   __ j(not_zero, miss_label);
 
   // Get the value at the masked, scaled index.
@@ -198,9 +198,9 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
-  const int kTypeAndReadOnlyMask =
-      (PropertyDetails::TypeField::kMask |
-       PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
+  const int kTypeAndReadOnlyMask
+      = (PropertyDetails::TypeField::mask() |
+         PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
           Immediate(kTypeAndReadOnlyMask));
   __ j(not_zero, miss_label);
@@ -832,6 +832,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
                                          MONOMORPHIC,
                                          extra_ic_state,
                                          NORMAL,
@@ -1236,7 +1237,9 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC);
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, eax, ecx, ebx,
                                                   edx);
 
@@ -1336,8 +1339,10 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   //  -- esp[0] : return address
   // -----------------------------------
 
-  Code::Flags flags =
-      Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC, strict_mode);
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC,
+                                         strict_mode);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, edx, ecx, ebx,
                                                   no_reg);
 

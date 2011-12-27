@@ -860,7 +860,8 @@ class FunctionInfoListener {
       int j = 0;
       for (int i = 0; i < list.length(); i++) {
         Variable* var1 = list[i];
-        if (var1->IsContextSlot()) {
+        Slot* slot = var1->AsSlot();
+        if (slot != NULL && slot->type() == Slot::CONTEXT) {
           if (j != i) {
             list[j] = var1;
           }
@@ -872,7 +873,7 @@ class FunctionInfoListener {
       for (int k = 1; k < j; k++) {
         int l = k;
         for (int m = k + 1; m < j; m++) {
-          if (list[l]->index() > list[m]->index()) {
+          if (list[l]->AsSlot()->index() > list[m]->AsSlot()->index()) {
             l = m;
           }
         }
@@ -886,7 +887,7 @@ class FunctionInfoListener {
         SetElementNonStrict(
             scope_info_list,
             scope_info_length,
-            Handle<Smi>(Smi::FromInt(list[i]->index())));
+            Handle<Smi>(Smi::FromInt(list[i]->AsSlot()->index())));
         scope_info_length++;
       }
       SetElementNonStrict(scope_info_list,
@@ -1450,7 +1451,7 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
                                StackFrame* bottom_frame) {
   Address* pointer_address =
       &Memory::Address_at(Isolate::Current()->get_address_from_id(
-          Isolate::kHandlerAddress));
+          Isolate::k_handler_address));
 
   while (*pointer_address < top_frame->sp()) {
     pointer_address = &Memory::Address_at(*pointer_address);

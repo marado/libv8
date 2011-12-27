@@ -224,7 +224,7 @@ class LCodeGen BASE_EMBEDDED {
   int ToInteger32(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
-                                ElementsKind elements_kind,
+                                JSObject::ElementsKind elements_kind,
                                 uint32_t offset);
 
   // Specific math operations - used from DoUnaryMathOperation.

@@ -149,7 +149,8 @@ class IC {
   void TraceIC(const char* type,
                Handle<Object> name,
                State old_state,
-               Code* new_target);
+               Code* new_target,
+               const char* extra_info = "");
 #endif
 
   Failure* TypeError(const char* type,
@@ -347,7 +348,7 @@ class KeyedIC: public IC {
 
   virtual MaybeObject* GetElementStubWithoutMapCheck(
       bool is_js_array,
-      ElementsKind elements_kind) = 0;
+      JSObject::ElementsKind elements_kind) = 0;
 
  protected:
   virtual Code* string_stub() {
@@ -414,7 +415,7 @@ class KeyedLoadIC: public KeyedIC {
 
   virtual MaybeObject* GetElementStubWithoutMapCheck(
       bool is_js_array,
-      ElementsKind elements_kind);
+      JSObject::ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
@@ -565,7 +566,7 @@ class KeyedStoreIC: public KeyedIC {
 
   virtual MaybeObject* GetElementStubWithoutMapCheck(
       bool is_js_array,
-      ElementsKind elements_kind);
+      JSObject::ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }

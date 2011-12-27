@@ -163,9 +163,6 @@ var knownProblems = {
   "PromoteScheduledException": true,
   "DeleteHandleScopeExtensions": true,
 
-  // Requires integer arguments to be non-negative.
-  "Apply": true,
-
   // That can only be invoked on Array.prototype.
   "FinishArrayPrototypeSetup": true,
 

@@ -655,16 +655,15 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 2. Get the function to call (passed as receiver) from the stack, check
   //    if it is a function.
-  Label slow, non_function;
+  Label non_function;
   // The function to call is at position n+1 on the stack.
   __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
   __ JumpIfSmi(rdi, &non_function);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
+  __ j(not_equal, &non_function);
 
   // 3a. Patch the first argument if necessary when calling a function.
   Label shift_arguments;
-  __ Set(rdx, 0);  // indicate regular JS_FUNCTION
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
@@ -702,7 +701,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ push(rbx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ movq(rbx, rax);
-    __ Set(rdx, 0);  // indicate regular JS_FUNCTION
 
     __ pop(rax);
     __ SmiToInteger32(rax, rax);
@@ -727,19 +725,14 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ jmp(&shift_arguments);
   }
 
-  // 3b. Check for function proxy.
-  __ bind(&slow);
-  __ Set(rdx, 1);  // indicate function proxy
-  __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
-  __ j(equal, &shift_arguments);
-  __ bind(&non_function);
-  __ Set(rdx, 2);  // indicate non-function
 
-  // 3c. Patch the first argument when calling a non-function.  The
+  // 3b. Patch the first argument when calling a non-function.  The
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
   //     receiver, so overwrite the first argument which will ultimately
   //     become the receiver.
+  __ bind(&non_function);
   __ movq(Operand(rsp, rax, times_pointer_size, 0), rdi);
+  __ Set(rdi, 0);
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -756,26 +749,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ decq(rax);  // One fewer argument (first argument is new receiver).
   }
 
-  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin,
-  //     or a function proxy via CALL_FUNCTION_PROXY.
-  { Label function, non_proxy;
-    __ testq(rdx, rdx);
-    __ j(zero, &function);
+  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
+  { Label function;
+    __ testq(rdi, rdi);
+    __ j(not_zero, &function);
     __ Set(rbx, 0);
-    __ SetCallKind(rcx, CALL_AS_METHOD);
-    __ cmpq(rdx, Immediate(1));
-    __ j(not_equal, &non_proxy);
-
-    __ pop(rdx);   // return address
-    __ push(rdi);  // re-add proxy object as additional argument
-    __ push(rdx);
-    __ incq(rax);
-    __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
-    __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-           RelocInfo::CODE_TARGET);
-
-    __ bind(&non_proxy);
     __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+    __ SetCallKind(rcx, CALL_AS_METHOD);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -817,12 +797,11 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   static const int kArgumentsOffset = 2 * kPointerSize;
   static const int kReceiverOffset = 3 * kPointerSize;
   static const int kFunctionOffset = 4 * kPointerSize;
-
   __ push(Operand(rbp, kFunctionOffset));
   __ push(Operand(rbp, kArgumentsOffset));
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  // Check the stack for overflow. We are not trying to catch
+  // Check the stack for overflow. We are not trying need to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
@@ -852,20 +831,16 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(rax);  // limit
   __ push(Immediate(0));  // index
 
-  // Get the receiver.
-  __ movq(rbx, Operand(rbp, kReceiverOffset));
-
-  // Check that the function is a JS function (otherwise it must be a proxy).
-  Label push_receiver;
+  // Change context eagerly to get the right global object if
+  // necessary.
   __ movq(rdi, Operand(rbp, kFunctionOffset));
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &push_receiver);
-
-  // Change context eagerly to get the right global object if necessary.
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
+  // Compute the receiver.
+  Label call_to_object, use_global_receiver, push_receiver;
+  __ movq(rbx, Operand(rbp, kReceiverOffset));
+
   // Do not transform the receiver for strict mode functions.
-  Label call_to_object, use_global_receiver;
   __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
            Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
@@ -938,30 +913,14 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(not_equal, &loop);
 
   // Invoke the function.
-  Label call_proxy;
   ParameterCount actual(rax);
   __ SmiToInteger32(rax, rax);
   __ movq(rdi, Operand(rbp, kFunctionOffset));
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &call_proxy);
   __ InvokeFunction(rdi, actual, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
 
   __ LeaveInternalFrame();
-  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
-
-  // Invoke the function proxy.
-  __ bind(&call_proxy);
-  __ push(rdi);  // add function proxy as last argument
-  __ incq(rax);
-  __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_METHOD);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
-  __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
-
-  __ LeaveInternalFrame();
-  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+  __ ret(3 * kPointerSize);  // remove function, receiver, and arguments
 }
 
 

@@ -315,13 +315,13 @@ void LCallKeyed::PrintDataTo(StringStream* stream) {
 
 
 void LCallNamed::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name_string = name()->ToCString();
+  SmartPointer<char> name_string = name()->ToCString();
   stream->Add("%s #%d / ", *name_string, arity());
 }
 
 
 void LCallGlobal::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name_string = name()->ToCString();
+  SmartPointer<char> name_string = name()->ToCString();
   stream->Add("%s #%d / ", *name_string, arity());
 }
 
@@ -540,8 +540,7 @@ LChunk* LChunkBuilder::Build() {
 
 void LChunkBuilder::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartArrayPointer<char> name(
-        info()->shared_info()->DebugName()->ToCString());
+    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
     PrintF("Aborting LChunk building in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
@@ -707,7 +706,9 @@ LInstruction* LChunkBuilder::DefineFixedDouble(
 
 LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
-  instr->set_environment(CreateEnvironment(hydrogen_env));
+  int argument_index_accumulator = 0;
+  instr->set_environment(CreateEnvironment(hydrogen_env,
+                                           &argument_index_accumulator));
   return instr;
 }
 
@@ -994,10 +995,13 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 }
 
 
-LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
+LEnvironment* LChunkBuilder::CreateEnvironment(
+    HEnvironment* hydrogen_env,
+    int* argument_index_accumulator) {
   if (hydrogen_env == NULL) return NULL;
 
-  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer());
+  LEnvironment* outer =
+      CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator);
   int ast_id = hydrogen_env->ast_id();
   ASSERT(ast_id != AstNode::kNoNumber);
   int value_count = hydrogen_env->length();
@@ -1007,7 +1011,6 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
                                           argument_count_,
                                           value_count,
                                           outer);
-  int argument_index = 0;
   for (int i = 0; i < value_count; ++i) {
     if (hydrogen_env->is_special_index(i)) continue;
 
@@ -1016,7 +1019,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
     if (value->IsArgumentsObject()) {
       op = NULL;
     } else if (value->IsPushArgument()) {
-      op = new LArgument(argument_index++);
+      op = new LArgument((*argument_index_accumulator)++);
     } else {
       op = UseAny(value);
     }
@@ -1903,15 +1906,15 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
 
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
-  ElementsKind elements_kind = instr->elements_kind();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
   Representation representation(instr->representation());
   ASSERT(
       (representation.IsInteger32() &&
-       (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
-       (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
+       (elements_kind != JSObject::EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != JSObject::EXTERNAL_DOUBLE_ELEMENTS)) ||
       (representation.IsDouble() &&
-       ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
-       (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
+       ((elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) ||
+       (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
@@ -1921,7 +1924,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
   LInstruction* load_instr = DefineAsRegister(result);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
-  return (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS)
+  return (elements_kind == JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS)
       ? AssignEnvironment(load_instr)
       : load_instr;
 }
@@ -1973,23 +1976,23 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
 LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
   Representation representation(instr->value()->representation());
-  ElementsKind elements_kind = instr->elements_kind();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
     ASSERT(
       (representation.IsInteger32() &&
-       (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
-       (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
+       (elements_kind != JSObject::EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != JSObject::EXTERNAL_DOUBLE_ELEMENTS)) ||
       (representation.IsDouble() &&
-       ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
-       (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
+       ((elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) ||
+       (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* val = NULL;
-  if (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
-      elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-      elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
+  if (elements_kind == JSObject::EXTERNAL_BYTE_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
     // We need a byte register in this case for the value.
     val = UseFixed(instr->value(), eax);
   } else {

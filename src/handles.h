@@ -363,6 +363,8 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 
 bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 
+bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
+
 bool CompileOptimized(Handle<JSFunction> function,
                       int osr_ast_id,
                       ClearExceptionFlag flag);
