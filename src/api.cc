@@ -44,6 +44,7 @@
 #include "platform.h"
 #include "profile-generator-inl.h"
 #include "runtime-profiler.h"
+#include "scanner-character-streams.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"
@@ -1455,31 +1456,35 @@ Local<Script> Script::New(v8::Handle<String> source,
   ON_BAILOUT(isolate, "v8::Script::New()", return Local<Script>());
   LOG_API(isolate, "Script::New");
   ENTER_V8(isolate);
-  i::Handle<i::String> str = Utils::OpenHandle(*source);
-  i::Handle<i::Object> name_obj;
-  int line_offset = 0;
-  int column_offset = 0;
-  if (origin != NULL) {
-    if (!origin->ResourceName().IsEmpty()) {
-      name_obj = Utils::OpenHandle(*origin->ResourceName());
+  i::SharedFunctionInfo* raw_result = NULL;
+  { i::HandleScope scope(isolate);
+    i::Handle<i::String> str = Utils::OpenHandle(*source);
+    i::Handle<i::Object> name_obj;
+    int line_offset = 0;
+    int column_offset = 0;
+    if (origin != NULL) {
+      if (!origin->ResourceName().IsEmpty()) {
+        name_obj = Utils::OpenHandle(*origin->ResourceName());
+      }
+      if (!origin->ResourceLineOffset().IsEmpty()) {
+        line_offset = static_cast<int>(origin->ResourceLineOffset()->Value());
+      }
+      if (!origin->ResourceColumnOffset().IsEmpty()) {
+        column_offset =
+            static_cast<int>(origin->ResourceColumnOffset()->Value());
+      }
     }
-    if (!origin->ResourceLineOffset().IsEmpty()) {
-      line_offset = static_cast<int>(origin->ResourceLineOffset()->Value());
+    EXCEPTION_PREAMBLE(isolate);
+    i::ScriptDataImpl* pre_data_impl =
+        static_cast<i::ScriptDataImpl*>(pre_data);
+    // We assert that the pre-data is sane, even though we can actually
+    // handle it if it turns out not to be in release mode.
+    ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
+    // If the pre-data isn't sane we simply ignore it
+    if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
+      pre_data_impl = NULL;
     }
-    if (!origin->ResourceColumnOffset().IsEmpty()) {
-      column_offset = static_cast<int>(origin->ResourceColumnOffset()->Value());
-    }
-  }
-  EXCEPTION_PREAMBLE(isolate);
-  i::ScriptDataImpl* pre_data_impl = static_cast<i::ScriptDataImpl*>(pre_data);
-  // We assert that the pre-data is sane, even though we can actually
-  // handle it if it turns out not to be in release mode.
-  ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
-  // If the pre-data isn't sane we simply ignore it
-  if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
-    pre_data_impl = NULL;
-  }
-  i::Handle<i::SharedFunctionInfo> result =
+    i::Handle<i::SharedFunctionInfo> result =
       i::Compiler::Compile(str,
                            name_obj,
                            line_offset,
@@ -1488,8 +1493,11 @@ Local<Script> Script::New(v8::Handle<String> source,
                            pre_data_impl,
                            Utils::OpenHandle(*script_data),
                            i::NOT_NATIVES_CODE);
-  has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
+    has_pending_exception = result.is_null();
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
+    raw_result = *result;
+  }
+  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -3265,6 +3273,42 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 
 namespace {
 
+static i::ElementsKind GetElementsKindFromExternalArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return i::EXTERNAL_BYTE_ELEMENTS;
+      break;
+    case kExternalUnsignedByteArray:
+      return i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      break;
+    case kExternalShortArray:
+      return i::EXTERNAL_SHORT_ELEMENTS;
+      break;
+    case kExternalUnsignedShortArray:
+      return i::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      break;
+    case kExternalIntArray:
+      return i::EXTERNAL_INT_ELEMENTS;
+      break;
+    case kExternalUnsignedIntArray:
+      return i::EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      break;
+    case kExternalFloatArray:
+      return i::EXTERNAL_FLOAT_ELEMENTS;
+      break;
+    case kExternalDoubleArray:
+      return i::EXTERNAL_DOUBLE_ELEMENTS;
+      break;
+    case kExternalPixelArray:
+      return i::EXTERNAL_PIXEL_ELEMENTS;
+      break;
+  }
+  UNREACHABLE();
+  return i::DICTIONARY_ELEMENTS;
+}
+
+
 void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
                                   void* data,
                                   ExternalArrayType array_type,
@@ -3283,9 +3327,9 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
       elements->map() != isolate->heap()->MapForExternalArrayType(array_type);
   if (cant_reuse_map) {
     i::Handle<i::Map> external_array_map =
-        isolate->factory()->GetExternalArrayElementsMap(
+        isolate->factory()->GetElementsTransitionMap(
             i::Handle<i::Map>(object->map()),
-            array_type,
+            GetElementsKindFromExternalArrayType(array_type),
             object->HasFastProperties());
     object->set_map(*external_array_map);
   }
@@ -3346,6 +3390,7 @@ int v8::Object::GetIndexedPropertiesPixelDataLength() {
     return -1;
   }
 }
+
 
 void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,

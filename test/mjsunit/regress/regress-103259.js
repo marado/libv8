@@ -25,15 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Calling Array.sort on an external array is not supposed to crash.
+// Flags: --allow-natives-syntax
 
-var array = new Int16Array(23);
-array[7] = 7; array[9] = 9;
-assertEquals(23, array.length);
-assertEquals(7, array[7]);
-assertEquals(9, array[9]);
-
-Array.prototype.sort.call(array);
-assertEquals(23, array.length);
-assertEquals(7, array[21]);
-assertEquals(9, array[22]);
+var a = [];
+a[8192] = '';
+assertTrue(%HasDictionaryElements(a));
+var uc16 = '\u0094';
+var test = uc16;
+for (var i = 0; i < 13; i++) test += test;
+assertEquals(test, a.join(uc16));
