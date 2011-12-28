@@ -1,3 +1,9 @@
+libv8 (3.7.12.11-1) UNRELEASED; urgency=low
+
+  * Upstream update. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Dec 2011 01:11:39 +0100
+
 libv8 (3.6.6.14-1) UNRELEASED; urgency=low
 
   * Upstream update.
