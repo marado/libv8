@@ -16,7 +16,7 @@ Vcs-Git: git://git.debian.org/git/collab-maint/libv8.git
 
 Package: libv8-dev
 Section: libdevel
-Architecture: i386 amd64 armel armhf
+Architecture: i386 amd64 armel armhf mipsel
 Depends: libv8-3.7.12.11 (= ${binary:Version}), ${misc:Depends}
 Description: v8 JavaScript engine - development files
  V8 is a high performance JavaScript engine written in C++.  It is used
@@ -26,7 +26,7 @@ Description: v8 JavaScript engine - development files
  v8 JavaScript engine.
 
 Package: libv8-3.7.12.11
-Architecture: i386 amd64 armel armhf
+Architecture: i386 amd64 armel armhf mipsel
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: v8 JavaScript engine - runtime library
  V8 is a high performance JavaScript engine written in C++.  It is used
@@ -38,7 +38,7 @@ Description: v8 JavaScript engine - runtime library
 Package: libv8-dbg
 Priority: extra
 Section: debug
-Architecture: i386 amd64 armel armhf
+Architecture: i386 amd64 armel armhf mipsel
 Depends: libv8-3.7.12.11 (= ${binary:Version}), ${misc:Depends}
 Description: v8 JavaScript engine - debugging symbols
  V8 is a high performance JavaScript engine written in C++.  It is used
