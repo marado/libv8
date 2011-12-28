@@ -1,6 +1,12 @@
 libv8 (3.7.12.11-1) UNRELEASED; urgency=low
 
-  * Upstream update. 
+  * Upstream update.
+  * Enable mipsel arch.
+  * Refresh patches. Remove unnecessary patches:
+    + debian/patches/0010_fix_arm_bug.patch (applied upstream)
+    + debian/patches/0012_make_check_testsuites.patch
+      (uses TESTFLAGS instead of adding TESTSUITES variable)
+    + debian/patches/0013_enable_soname.patch (applied upstream).
 
  -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Dec 2011 01:11:39 +0100
 
