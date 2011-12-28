@@ -1,7 +1,4 @@
 0005-enable-i18n-extension.patch
 0008_mksnapshot_stdout.patch
-0010_fix_arm_bug.patch
 0011_use_system_gyp.patch
-0012_make_check_testsuites.patch
-0013_enable_soname.patch
-0014_disable_armv7_defaults.patch
+0014_disable_cross_build.patch
