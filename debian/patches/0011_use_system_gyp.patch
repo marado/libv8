@@ -4,7 +4,7 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-10-22
 --- a/Makefile
 +++ b/Makefile
-@@ -151,17 +151,17 @@
+@@ -182,27 +182,27 @@
  
  # GYP file generation targets.
  $(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
@@ -19,9 +19,21 @@ Last-Update: 2011-10-22
  	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
  	              -S-x64 $(GYPFLAGS)
  
- $(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE)
+ $(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE) build/armu.gypi
 -	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
  	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
  	              -S-arm $(GYPFLAGS)
  
+ $(OUTDIR)/Makefile-mips: $(GYPFILES) $(ENVFILE) build/mipsu.gypi
+-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
++	gyp --generator-output="$(OUTDIR)" build/all.gyp \
+ 	              -Ibuild/standalone.gypi --depth=. -Ibuild/mipsu.gypi \
+ 	              -S-mips $(GYPFLAGS)
+ 
+ $(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
+-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
++	gyp --generator-output="$(OUTDIR)" build/all.gyp \
+ 	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
+ 
+ # Replaces the old with the new environment file if they're different, which
