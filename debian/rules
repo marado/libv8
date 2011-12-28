@@ -78,7 +78,7 @@ v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
 #  * run only javascript tests, cctests are for development purposes
 DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	LD_PRELOAD=$(v8out) \
-	TESTSUITES="mjsunit message preparser" \
+	TESTFLAGS="mjsunit message preparser" \
 	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=120" \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
