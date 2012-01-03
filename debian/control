@@ -6,7 +6,9 @@ Uploaders: Jérémy Lal <kapouer@melix.org>,
 Build-Depends: cdbs (>= 0.4.69~),
  devscripts,
  debhelper,
- dh-buildinfo, libicu-dev, gyp
+ dh-buildinfo,
+ libicu-dev,
+ gyp
 Standards-Version: 3.9.2
 Section: libs
 Homepage: http://code.google.com/p/v8/
@@ -17,7 +19,8 @@ Vcs-Git: git://git.debian.org/git/collab-maint/libv8.git
 Package: libv8-dev
 Section: libdevel
 Architecture: i386 amd64 armel armhf
-Depends: libv8-3.6.6.14 (= ${binary:Version}), ${misc:Depends}
+Depends: libv8-3.6.6.14 (= ${binary:Version}),
+ ${misc:Depends}
 Description: v8 JavaScript engine - development files
  V8 is a high performance JavaScript engine written in C++.  It is used
  in the web browser Chromium.
@@ -27,7 +30,8 @@ Description: v8 JavaScript engine - development files
 
 Package: libv8-3.6.6.14
 Architecture: i386 amd64 armel armhf
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends},
+ ${misc:Depends}
 Description: v8 JavaScript engine - runtime library
  V8 is a high performance JavaScript engine written in C++.  It is used
  in the web browser Chromium.
@@ -39,7 +43,8 @@ Package: libv8-dbg
 Priority: extra
 Section: debug
 Architecture: i386 amd64 armel armhf
-Depends: libv8-3.6.6.14 (= ${binary:Version}), ${misc:Depends}
+Depends: libv8-3.6.6.14 (= ${binary:Version}),
+ ${misc:Depends}
 Description: v8 JavaScript engine - debugging symbols
  V8 is a high performance JavaScript engine written in C++.  It is used
  in the web browser Chromium.
