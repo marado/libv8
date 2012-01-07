@@ -1,0 +1,1207 @@
+Description: Land hash collision fix for V8 3.6
+Forwarded: not-needed, applied
+Authors: Bert Belder <bertbelder@gmail.com>,  Erik Corry <erik.corry@gmail.com>
+Last-Update: 2011-01-07
+---
+Backport hash collision workaround to 3.6.
+This is made up of 9956, 10351, 10338 and 10330.
+This change bakes the string hash key into the snapshot, so
+it is determined at build time for shapshot configs.
+Review URL: http://codereview.chromium.org/9124004
+---
+ src/arm/builtins-arm.cc                    |    5 +-
+ src/arm/code-stubs-arm.cc                  |   86 ++--------
+ src/arm/code-stubs-arm.h                   |   64 ++++++++
+ src/arm/deoptimizer-arm.cc                 |    4 +-
+ src/arm/macro-assembler-arm.cc             |    4 +-
+ src/arm/macro-assembler-arm.h              |    8 +-
+ src/d8.cc                                  |    7 +-
+ src/flag-definitions.h                     |    8 +
+ src/heap.cc                                |   11 ++
+ src/heap.h                                 |   10 +-
+ src/ia32/code-stubs-ia32.cc                |   35 +++-
+ src/ia32/macro-assembler-ia32.cc           |    2 -
+ src/mips/code-stubs-mips.cc                |   16 ++-
+ src/mips/macro-assembler-mips.h            |    5 +
+ src/objects-inl.h                          |   19 ++-
+ src/objects.cc                             |   82 ++++++----
+ src/objects.h                              |   13 ++-
+ src/profile-generator.cc                   |   10 +-
+ src/x64/code-stubs-x64.cc                  |   24 ++-
+ test/cctest/SConscript                     |    1 +
+ test/cctest/test-hashing.cc                |  172 ++++++++++++++++++++
+ .../debug-evaluate-locals-optimized-double.js      |   10 +-
+ .../mjsunit/debug-evaluate-locals-optimized.js     |   12 +-
+ 23 files changed, 446 insertions(+), 162 deletions(-)
+ create mode 100644 test/cctest/test-hashing.cc
+
+diff --git a/src/arm/builtins-arm.cc b/src/arm/builtins-arm.cc
+index 60d2081..ae8cb56 100644
+--- a/src/arm/builtins-arm.cc
++++ b/src/arm/builtins-arm.cc
+@@ -1006,10 +1006,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
+   // Set up the context from the function argument.
+   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+ 
+-  // Set up the roots register.
+-  ExternalReference roots_address =
+-      ExternalReference::roots_address(masm->isolate());
+-  __ mov(r10, Operand(roots_address));
++  __ InitializeRootRegister();
+ 
+   // Push the function and the receiver onto the stack.
+   __ push(r1);
+diff --git a/src/arm/code-stubs-arm.cc b/src/arm/code-stubs-arm.cc
+index e65f6d9..f07f20f 100644
+--- a/src/arm/code-stubs-arm.cc
++++ b/src/arm/code-stubs-arm.cc
+@@ -5043,70 +5043,6 @@ void StringCharAtGenerator::GenerateSlow(
+ }
+ 
+ 
+-class StringHelper : public AllStatic {
+- public:
+-  // Generate code for copying characters using a simple loop. This should only
+-  // be used in places where the number of characters is small and the
+-  // additional setup and checking in GenerateCopyCharactersLong adds too much
+-  // overhead. Copying of overlapping regions is not supported.
+-  // Dest register ends at the position after the last character written.
+-  static void GenerateCopyCharacters(MacroAssembler* masm,
+-                                     Register dest,
+-                                     Register src,
+-                                     Register count,
+-                                     Register scratch,
+-                                     bool ascii);
+-
+-  // Generate code for copying a large number of characters. This function
+-  // is allowed to spend extra time setting up conditions to make copying
+-  // faster. Copying of overlapping regions is not supported.
+-  // Dest register ends at the position after the last character written.
+-  static void GenerateCopyCharactersLong(MacroAssembler* masm,
+-                                         Register dest,
+-                                         Register src,
+-                                         Register count,
+-                                         Register scratch1,
+-                                         Register scratch2,
+-                                         Register scratch3,
+-                                         Register scratch4,
+-                                         Register scratch5,
+-                                         int flags);
+-
+-
+-  // Probe the symbol table for a two character string. If the string is
+-  // not found by probing a jump to the label not_found is performed. This jump
+-  // does not guarantee that the string is not in the symbol table. If the
+-  // string is found the code falls through with the string in register r0.
+-  // Contents of both c1 and c2 registers are modified. At the exit c1 is
+-  // guaranteed to contain halfword with low and high bytes equal to
+-  // initial contents of c1 and c2 respectively.
+-  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+-                                                   Register c1,
+-                                                   Register c2,
+-                                                   Register scratch1,
+-                                                   Register scratch2,
+-                                                   Register scratch3,
+-                                                   Register scratch4,
+-                                                   Register scratch5,
+-                                                   Label* not_found);
+-
+-  // Generate string hash.
+-  static void GenerateHashInit(MacroAssembler* masm,
+-                               Register hash,
+-                               Register character);
+-
+-  static void GenerateHashAddCharacter(MacroAssembler* masm,
+-                                       Register hash,
+-                                       Register character);
+-
+-  static void GenerateHashGetHash(MacroAssembler* masm,
+-                                  Register hash);
+-
+- private:
+-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
+-};
+-
+-
+ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
+                                           Register dest,
+                                           Register src,
+@@ -5359,9 +5295,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+   static const int kProbes = 4;
+   Label found_in_symbol_table;
+   Label next_probe[kProbes];
++  Register candidate = scratch5;  // Scratch register contains candidate.
+   for (int i = 0; i < kProbes; i++) {
+-    Register candidate = scratch5;  // Scratch register contains candidate.
+-
+     // Calculate entry in symbol table.
+     if (i > 0) {
+       __ add(candidate, hash, Operand(SymbolTable::GetProbeOffset(i)));
+@@ -5418,7 +5353,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+   __ jmp(not_found);
+ 
+   // Scratch register contains result when we fall through to here.
+-  Register result = scratch;
++  Register result = candidate;
+   __ bind(&found_in_symbol_table);
+   __ Move(r0, result);
+ }
+@@ -5428,9 +5363,13 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
+                                     Register hash,
+                                     Register character) {
+   // hash = character + (character << 10);
+-  __ add(hash, character, Operand(character, LSL, 10));
++  __ LoadRoot(hash, Heap::kStringHashSeedRootIndex);
++  // Untag smi seed and add the character.
++  __ add(hash, character, Operand(hash, LSR, kSmiTagSize));
++  // hash += hash << 10;
++  __ add(hash, hash, Operand(hash, LSL, 10));
+   // hash ^= hash >> 6;
+-  __ eor(hash, hash, Operand(hash, ASR, 6));
++  __ eor(hash, hash, Operand(hash, LSR, 6));
+ }
+ 
+ 
+@@ -5442,7 +5381,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
+   // hash += hash << 10;
+   __ add(hash, hash, Operand(hash, LSL, 10));
+   // hash ^= hash >> 6;
+-  __ eor(hash, hash, Operand(hash, ASR, 6));
++  __ eor(hash, hash, Operand(hash, LSR, 6));
+ }
+ 
+ 
+@@ -5451,12 +5390,15 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
+   // hash += hash << 3;
+   __ add(hash, hash, Operand(hash, LSL, 3));
+   // hash ^= hash >> 11;
+-  __ eor(hash, hash, Operand(hash, ASR, 11));
++  __ eor(hash, hash, Operand(hash, LSR, 11));
+   // hash += hash << 15;
+   __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
+ 
++  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
++  __ and_(hash, hash, Operand(kHashShiftCutOffMask));
++
+   // if (hash == 0) hash = 27;
+-  __ mov(hash, Operand(27), LeaveCC, ne);
++  __ mov(hash, Operand(27), LeaveCC, eq);
+ }
+ 
+ 
+diff --git a/src/arm/code-stubs-arm.h b/src/arm/code-stubs-arm.h
+index 557f7e6..cdea03e 100644
+--- a/src/arm/code-stubs-arm.h
++++ b/src/arm/code-stubs-arm.h
+@@ -225,6 +225,70 @@ class BinaryOpStub: public CodeStub {
+ };
+ 
+ 
++class StringHelper : public AllStatic {
++ public:
++  // Generate code for copying characters using a simple loop. This should only
++  // be used in places where the number of characters is small and the
++  // additional setup and checking in GenerateCopyCharactersLong adds too much
++  // overhead. Copying of overlapping regions is not supported.
++  // Dest register ends at the position after the last character written.
++  static void GenerateCopyCharacters(MacroAssembler* masm,
++                                     Register dest,
++                                     Register src,
++                                     Register count,
++                                     Register scratch,
++                                     bool ascii);
++
++  // Generate code for copying a large number of characters. This function
++  // is allowed to spend extra time setting up conditions to make copying
++  // faster. Copying of overlapping regions is not supported.
++  // Dest register ends at the position after the last character written.
++  static void GenerateCopyCharactersLong(MacroAssembler* masm,
++                                         Register dest,
++                                         Register src,
++                                         Register count,
++                                         Register scratch1,
++                                         Register scratch2,
++                                         Register scratch3,
++                                         Register scratch4,
++                                         Register scratch5,
++                                         int flags);
++
++
++  // Probe the symbol table for a two character string. If the string is
++  // not found by probing a jump to the label not_found is performed. This jump
++  // does not guarantee that the string is not in the symbol table. If the
++  // string is found the code falls through with the string in register r0.
++  // Contents of both c1 and c2 registers are modified. At the exit c1 is
++  // guaranteed to contain halfword with low and high bytes equal to
++  // initial contents of c1 and c2 respectively.
++  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
++                                                   Register c1,
++                                                   Register c2,
++                                                   Register scratch1,
++                                                   Register scratch2,
++                                                   Register scratch3,
++                                                   Register scratch4,
++                                                   Register scratch5,
++                                                   Label* not_found);
++
++  // Generate string hash.
++  static void GenerateHashInit(MacroAssembler* masm,
++                               Register hash,
++                               Register character);
++
++  static void GenerateHashAddCharacter(MacroAssembler* masm,
++                                       Register hash,
++                                       Register character);
++
++  static void GenerateHashGetHash(MacroAssembler* masm,
++                                  Register hash);
++
++ private:
++  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
++};
++
++
+ // Flag that indicates how to generate code for the stub StringAddStub.
+ enum StringAddFlags {
+   NO_STRING_ADD_FLAGS = 0,
+diff --git a/src/arm/deoptimizer-arm.cc b/src/arm/deoptimizer-arm.cc
+index 00357f7..21e2d0f 100644
+--- a/src/arm/deoptimizer-arm.cc
++++ b/src/arm/deoptimizer-arm.cc
+@@ -736,9 +736,7 @@ void Deoptimizer::EntryGenerator::Generate() {
+   __ pop(ip);  // remove sp
+   __ pop(ip);  // remove lr
+ 
+-  // Set up the roots register.
+-  ExternalReference roots_address = ExternalReference::roots_address(isolate);
+-  __ mov(r10, Operand(roots_address));
++  __ InitializeRootRegister();
+ 
+   __ pop(ip);  // remove pc
+   __ pop(r7);  // get continuation, leave pc on stack
+diff --git a/src/arm/macro-assembler-arm.cc b/src/arm/macro-assembler-arm.cc
+index f37f310..2f68eb9 100644
+--- a/src/arm/macro-assembler-arm.cc
++++ b/src/arm/macro-assembler-arm.cc
+@@ -395,14 +395,14 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
+ void MacroAssembler::LoadRoot(Register destination,
+                               Heap::RootListIndex index,
+                               Condition cond) {
+-  ldr(destination, MemOperand(roots, index << kPointerSizeLog2), cond);
++  ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
+ }
+ 
+ 
+ void MacroAssembler::StoreRoot(Register source,
+                                Heap::RootListIndex index,
+                                Condition cond) {
+-  str(source, MemOperand(roots, index << kPointerSizeLog2), cond);
++  str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
+ }
+ 
+ 
+diff --git a/src/arm/macro-assembler-arm.h b/src/arm/macro-assembler-arm.h
+index 6084fde..4f695ff 100644
+--- a/src/arm/macro-assembler-arm.h
++++ b/src/arm/macro-assembler-arm.h
+@@ -51,7 +51,7 @@ static inline Operand SmiUntagOperand(Register object) {
+ 
+ // Give alias names to registers
+ const Register cp = { 8 };  // JavaScript context pointer
+-const Register roots = { 10 };  // Roots array pointer.
++const Register kRootRegister = { 10 };  // Roots array pointer.
+ 
+ // Flags used for the AllocateInNewSpace functions.
+ enum AllocationFlags {
+@@ -350,6 +350,12 @@ class MacroAssembler: public Assembler {
+                                     Register map,
+                                     Register scratch);
+ 
++  void InitializeRootRegister() {
++    ExternalReference roots_address =
++        ExternalReference::roots_address(isolate());
++    mov(kRootRegister, Operand(roots_address));
++  }
++
+   // ---------------------------------------------------------------------------
+   // JavaScript invokes
+ 
+diff --git a/src/d8.cc b/src/d8.cc
+index 55f0d4c..63a7d15 100644
+--- a/src/d8.cc
++++ b/src/d8.cc
+@@ -760,8 +760,13 @@ void Shell::Initialize() {
+ #endif  // V8_SHARED
+   // Initialize the global objects
+   Handle<ObjectTemplate> global_template = CreateGlobalTemplate();
++
++  v8::TryCatch try_catch;
+   Persistent<Context> context = Context::New(NULL, global_template);
+-  ASSERT(!context.IsEmpty());
++  if (context.IsEmpty()) {
++    v8::Local<v8::Value> st = try_catch.StackTrace();
++    ASSERT(!context.IsEmpty());
++  }
+   Context::Scope scope(context);
+ 
+ #ifndef V8_SHARED
+diff --git a/src/flag-definitions.h b/src/flag-definitions.h
+index 7df2b0b..53cc485 100644
+--- a/src/flag-definitions.h
++++ b/src/flag-definitions.h
+@@ -319,6 +319,14 @@ struct JSArguments {
+             "print stack trace when throwing exceptions")
+ DEFINE_bool(preallocate_message_memory, false,
+             "preallocate some memory to build stack traces.")
++DEFINE_bool(randomize_string_hashes,
++            true,
++            "randomize string hashes to avoid predictable hash collisions "
++            "(with snapshots this option cannot override the baked-in seed)")
++DEFINE_int(string_hash_seed,
++           0,
++           "Fixed seed to use to string hashing (0 means random)"
++           "(with snapshots this option cannot override the baked-in seed)")
+ 
+ // v8.cc
+ DEFINE_bool(preemption, false,
+diff --git a/src/heap.cc b/src/heap.cc
+index d018593..6815c2d 100644
+--- a/src/heap.cc
++++ b/src/heap.cc
+@@ -5362,6 +5362,17 @@ bool Heap::Setup(bool create_heap_objects) {
+   if (lo_space_ == NULL) return false;
+   if (!lo_space_->Setup()) return false;
+ 
++  // Set up the seed that is used to randomize the string hash function.
++  ASSERT(string_hash_seed() == 0);
++  if (FLAG_randomize_string_hashes) {
++    if (FLAG_string_hash_seed == 0) {
++      set_string_hash_seed(
++          Smi::FromInt(V8::RandomPrivate(isolate()) & 0x3fffffff));
++    } else {
++      set_string_hash_seed(Smi::FromInt(FLAG_string_hash_seed));
++    }
++  }
++
+   if (create_heap_objects) {
+     // Create initial maps.
+     if (!CreateInitialMaps()) return false;
+diff --git a/src/heap.h b/src/heap.h
+index d81ff6c..26d8722 100644
+--- a/src/heap.h
++++ b/src/heap.h
+@@ -79,6 +79,7 @@
+   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+   V(FixedArray, string_split_cache, StringSplitCache)                          \
+   V(Object, termination_exception, TerminationException)                       \
++  V(Smi, string_hash_seed, StringHashSeed)                                     \
+   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
+   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+   V(FixedDoubleArray, empty_fixed_double_array, EmptyFixedDoubleArray)         \
+@@ -841,8 +842,7 @@ class Heap {
+   // Please note this function does not perform a garbage collection.
+   MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str);
+   MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str);
+-  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(
+-      Vector<const uc16> str);
++  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str);
+   MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(const char* str) {
+     return LookupSymbol(CStrVector(str));
+   }
+@@ -1301,6 +1301,12 @@ class Heap {
+     if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
+   }
+ 
++  uint32_t StringHashSeed() {
++    uint32_t seed = static_cast<uint32_t>(string_hash_seed()->value());
++    ASSERT(FLAG_randomize_string_hashes || seed == 0);
++    return seed;
++  }
++
+  private:
+   Heap();
+ 
+diff --git a/src/ia32/code-stubs-ia32.cc b/src/ia32/code-stubs-ia32.cc
+index 1009aaf..d67a9ba 100644
+--- a/src/ia32/code-stubs-ia32.cc
++++ b/src/ia32/code-stubs-ia32.cc
+@@ -5539,6 +5539,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+   static const int kProbes = 4;
+   Label found_in_symbol_table;
+   Label next_probe[kProbes], next_probe_pop_mask[kProbes];
++  Register candidate = scratch;  // Scratch register contains candidate.
+   for (int i = 0; i < kProbes; i++) {
+     // Calculate entry in symbol table.
+     __ mov(scratch, hash);
+@@ -5548,7 +5549,6 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+     __ and_(scratch, Operand(mask));
+ 
+     // Load the entry from the symbol table.
+-    Register candidate = scratch;  // Scratch register contains candidate.
+     STATIC_ASSERT(SymbolTable::kEntrySize == 1);
+     __ mov(candidate,
+            FieldOperand(symbol_table,
+@@ -5593,7 +5593,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+   __ jmp(not_found);
+ 
+   // Scratch register contains result when we fall through to here.
+-  Register result = scratch;
++  Register result = candidate;
+   __ bind(&found_in_symbol_table);
+   __ pop(mask);  // Pop saved mask from the stack.
+   if (!result.is(eax)) {
+@@ -5606,13 +5606,27 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
+                                     Register hash,
+                                     Register character,
+                                     Register scratch) {
+-  // hash = character + (character << 10);
+-  __ mov(hash, character);
+-  __ shl(hash, 10);
+-  __ add(hash, Operand(character));
++  // hash = (seed + character) + ((seed + character) << 10);
++  if (Serializer::enabled()) {
++    ExternalReference roots_address =
++        ExternalReference::roots_address(masm->isolate());
++    __ mov(scratch, Immediate(Heap::kStringHashSeedRootIndex));
++    __ mov(scratch, Operand::StaticArray(scratch,
++                                         times_pointer_size,
++                                         roots_address));
++    __ add(scratch, Operand(character));
++    __ mov(hash, scratch);
++    __ shl(scratch, 10);
++    __ add(hash, Operand(scratch));
++  } else {
++    int32_t seed = masm->isolate()->heap()->StringHashSeed();
++    __ lea(scratch, Operand(character, seed));
++    __ shl(scratch, 10);
++    __ lea(hash, Operand(scratch, character, times_1, seed));
++  }
+   // hash ^= hash >> 6;
+   __ mov(scratch, hash);
+-  __ sar(scratch, 6);
++  __ shr(scratch, 6);
+   __ xor_(hash, Operand(scratch));
+ }
+ 
+@@ -5629,7 +5643,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
+   __ add(hash, Operand(scratch));
+   // hash ^= hash >> 6;
+   __ mov(scratch, hash);
+-  __ sar(scratch, 6);
++  __ shr(scratch, 6);
+   __ xor_(hash, Operand(scratch));
+ }
+ 
+@@ -5643,13 +5657,16 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
+   __ add(hash, Operand(scratch));
+   // hash ^= hash >> 11;
+   __ mov(scratch, hash);
+-  __ sar(scratch, 11);
++  __ shr(scratch, 11);
+   __ xor_(hash, Operand(scratch));
+   // hash += hash << 15;
+   __ mov(scratch, hash);
+   __ shl(scratch, 15);
+   __ add(hash, Operand(scratch));
+ 
++  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
++  __ and_(hash, kHashShiftCutOffMask);
++
+   // if (hash == 0) hash = 27;
+   Label hash_not_zero;
+   __ test(hash, Operand(hash));
+diff --git a/src/ia32/macro-assembler-ia32.cc b/src/ia32/macro-assembler-ia32.cc
+index 837112a..5a3b983 100644
+--- a/src/ia32/macro-assembler-ia32.cc
++++ b/src/ia32/macro-assembler-ia32.cc
+@@ -2001,8 +2001,6 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
+ }
+ 
+ 
+-
+-
+ void MacroAssembler::Drop(int stack_elements) {
+   if (stack_elements > 0) {
+     add(Operand(esp), Immediate(stack_elements * kPointerSize));
+diff --git a/src/mips/code-stubs-mips.cc b/src/mips/code-stubs-mips.cc
+index 521b8e5..3500ba7 100644
+--- a/src/mips/code-stubs-mips.cc
++++ b/src/mips/code-stubs-mips.cc
+@@ -5577,11 +5577,15 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+ 
+ 
+ void StringHelper::GenerateHashInit(MacroAssembler* masm,
+-                                      Register hash,
+-                                      Register character) {
+-  // hash = character + (character << 10);
+-  __ sll(hash, character, 10);
++                                    Register hash,
++                                    Register character) {
++  // hash = seed + character + ((seed + character) << 10);
++  __ LoadRoot(hash, Heap::kStringHashSeedRootIndex);
++  // Untag smi seed and add the character.
++  __ SmiUntag(hash);
+   __ addu(hash, hash, character);
++  __ sll(at, hash, 10);
++  __ addu(hash, hash, at);
+   // hash ^= hash >> 6;
+   __ sra(at, hash, 6);
+   __ xor_(hash, hash, at);
+@@ -5589,8 +5593,8 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
+ 
+ 
+ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
+-                                              Register hash,
+-                                              Register character) {
++                                            Register hash,
++                                            Register character) {
+   // hash += character;
+   __ addu(hash, hash, character);
+   // hash += hash << 10;
+diff --git a/src/mips/macro-assembler-mips.h b/src/mips/macro-assembler-mips.h
+index 5dd012e..ce19a4e 100644
+--- a/src/mips/macro-assembler-mips.h
++++ b/src/mips/macro-assembler-mips.h
+@@ -671,6 +671,11 @@ class MacroAssembler: public Assembler {
+   void DebugBreak();
+ #endif
+ 
++  void InitializeRootRegister() {
++    ExternalReference roots_address =
++        ExternalReference::roots_address(isolate());
++    li(kRootRegister, Operand(roots_address));
++  }
+ 
+   // -------------------------------------------------------------------------
+   // Exception handling.
+diff --git a/src/objects-inl.h b/src/objects-inl.h
+index 8796865..bc4ce79 100644
+--- a/src/objects-inl.h
++++ b/src/objects-inl.h
+@@ -2082,8 +2082,9 @@ void DescriptorArray::Swap(int first, int second) {
+   // EnsureCapacity will guarantee the hash table is never full.
+   while (true) {
+     Object* element = KeyAt(entry);
+-    if (element == isolate->heap()->undefined_value()) break;  // Empty entry.
+-    if (element != isolate->heap()->null_value() &&
++    // Empty entry.
++    if (element == isolate->heap()->raw_unchecked_undefined_value()) break;
++    if (element != isolate->heap()->raw_unchecked_null_value() &&
+         Shape::IsMatch(key, element)) return entry;
+     entry = NextProbe(entry, count++, capacity);
+   }
+@@ -4235,13 +4236,15 @@ uint32_t String::Hash() {
+ }
+ 
+ 
+-StringHasher::StringHasher(int length)
++StringHasher::StringHasher(int length, uint32_t seed)
+   : length_(length),
+-    raw_running_hash_(0),
++    raw_running_hash_(seed),
+     array_index_(0),
+     is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
+     is_first_char_(true),
+-    is_valid_(true) { }
++    is_valid_(true) {
++  ASSERT(FLAG_randomize_string_hashes || raw_running_hash_ == 0);
++}
+ 
+ 
+ bool StringHasher::has_trivial_hash() {
+@@ -4293,7 +4296,7 @@ uint32_t StringHasher::GetHash() {
+   result += (result << 3);
+   result ^= (result >> 11);
+   result += (result << 15);
+-  if (result == 0) {
++  if ((result & String::kHashBitMask) == 0) {
+     result = 27;
+   }
+   return result;
+@@ -4301,8 +4304,8 @@ uint32_t StringHasher::GetHash() {
+ 
+ 
+ template <typename schar>
+-uint32_t HashSequentialString(const schar* chars, int length) {
+-  StringHasher hasher(length);
++uint32_t HashSequentialString(const schar* chars, int length, uint32_t seed) {
++  StringHasher hasher(length, seed);
+   if (!hasher.has_trivial_hash()) {
+     int i;
+     for (i = 0; hasher.is_array_index() && (i < length); i++) {
+diff --git a/src/objects.cc b/src/objects.cc
+index 6085b4e..5954596 100644
+--- a/src/objects.cc
++++ b/src/objects.cc
+@@ -5926,6 +5926,20 @@ bool String::SlowEquals(String* other) {
+   // Fast check: if hash code is computed for both strings
+   // a fast negative check can be performed.
+   if (HasHashCode() && other->HasHashCode()) {
++#ifdef DEBUG
++    if (FLAG_enable_slow_asserts) {
++      if (Hash() != other->Hash()) {
++        bool found_difference = false;
++        for (int i = 0; i < len; i++) {
++          if (Get(i) != other->Get(i)) {
++            found_difference = true;
++            break;
++          }
++        }
++        ASSERT(found_difference);
++      }
++    }
++#endif
+     if (Hash() != other->Hash()) return false;
+   }
+ 
+@@ -6061,12 +6075,16 @@ uint32_t String::ComputeAndSetHash() {
+   // Compute the hash code.
+   uint32_t field = 0;
+   if (StringShape(this).IsSequentialAscii()) {
+-    field = HashSequentialString(SeqAsciiString::cast(this)->GetChars(), len);
++    field = HashSequentialString(SeqAsciiString::cast(this)->GetChars(),
++                                 len,
++                                 GetHeap()->StringHashSeed());
+   } else if (StringShape(this).IsSequentialTwoByte()) {
+-    field = HashSequentialString(SeqTwoByteString::cast(this)->GetChars(), len);
++    field = HashSequentialString(SeqTwoByteString::cast(this)->GetChars(),
++                                 len,
++                                 GetHeap()->StringHashSeed());
+   } else {
+     StringInputBuffer buffer(this);
+-    field = ComputeHashField(&buffer, len);
++    field = ComputeHashField(&buffer, len, GetHeap()->StringHashSeed());
+   }
+ 
+   // Store the hash code in the object.
+@@ -6157,8 +6175,9 @@ uint32_t StringHasher::GetHashField() {
+ 
+ 
+ uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
+-                                  int length) {
+-  StringHasher hasher(length);
++                                  int length,
++                                  uint32_t seed) {
++  StringHasher hasher(length, seed);
+ 
+   // Very long strings have a trivial hash that doesn't inspect the
+   // string contents.
+@@ -9542,8 +9561,8 @@ class RegExpKey : public HashTableKey {
+ // Utf8SymbolKey carries a vector of chars as key.
+ class Utf8SymbolKey : public HashTableKey {
+  public:
+-  explicit Utf8SymbolKey(Vector<const char> string)
+-      : string_(string), hash_field_(0) { }
++  explicit Utf8SymbolKey(Vector<const char> string, uint32_t seed)
++      : string_(string), hash_field_(0), seed_(seed) { }
+ 
+   bool IsMatch(Object* string) {
+     return String::cast(string)->IsEqualTo(string_);
+@@ -9554,7 +9573,7 @@ class Utf8SymbolKey : public HashTableKey {
+     unibrow::Utf8InputBuffer<> buffer(string_.start(),
+                                       static_cast<unsigned>(string_.length()));
+     chars_ = buffer.Length();
+-    hash_field_ = String::ComputeHashField(&buffer, chars_);
++    hash_field_ = String::ComputeHashField(&buffer, chars_, seed_);
+     uint32_t result = hash_field_ >> String::kHashShift;
+     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+     return result;
+@@ -9573,17 +9592,18 @@ class Utf8SymbolKey : public HashTableKey {
+   Vector<const char> string_;
+   uint32_t hash_field_;
+   int chars_;  // Caches the number of characters when computing the hash code.
++  uint32_t seed_;
+ };
+ 
+ 
+ template <typename Char>
+ class SequentialSymbolKey : public HashTableKey {
+  public:
+-  explicit SequentialSymbolKey(Vector<const Char> string)
+-      : string_(string), hash_field_(0) { }
++  explicit SequentialSymbolKey(Vector<const Char> string, uint32_t seed)
++      : string_(string), hash_field_(0), seed_(seed) { }
+ 
+   uint32_t Hash() {
+-    StringHasher hasher(string_.length());
++    StringHasher hasher(string_.length(), seed_);
+ 
+     // Very long strings have a trivial hash that doesn't inspect the
+     // string contents.
+@@ -9619,14 +9639,15 @@ class SequentialSymbolKey : public HashTableKey {
+ 
+   Vector<const Char> string_;
+   uint32_t hash_field_;
++  uint32_t seed_;
+ };
+ 
+ 
+ 
+ class AsciiSymbolKey : public SequentialSymbolKey<char> {
+  public:
+-  explicit AsciiSymbolKey(Vector<const char> str)
+-      : SequentialSymbolKey<char>(str) { }
++  AsciiSymbolKey(Vector<const char> str, uint32_t seed)
++      : SequentialSymbolKey<char>(str, seed) { }
+ 
+   bool IsMatch(Object* string) {
+     return String::cast(string)->IsAsciiEqualTo(string_);
+@@ -9643,13 +9664,14 @@ class SubStringAsciiSymbolKey : public HashTableKey {
+  public:
+   explicit SubStringAsciiSymbolKey(Handle<SeqAsciiString> string,
+                                    int from,
+-                                   int length)
+-      : string_(string), from_(from), length_(length) { }
++                                   int length,
++                                   uint32_t seed)
++      : string_(string), from_(from), length_(length), seed_(seed) { }
+ 
+   uint32_t Hash() {
+     ASSERT(length_ >= 0);
+     ASSERT(from_ + length_ <= string_->length());
+-    StringHasher hasher(length_);
++    StringHasher hasher(length_, string_->GetHeap()->StringHashSeed());
+ 
+     // Very long strings have a trivial hash that doesn't inspect the
+     // string contents.
+@@ -9701,13 +9723,14 @@ class SubStringAsciiSymbolKey : public HashTableKey {
+   int from_;
+   int length_;
+   uint32_t hash_field_;
++  uint32_t seed_;
+ };
+ 
+ 
+ class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
+  public:
+-  explicit TwoByteSymbolKey(Vector<const uc16> str)
+-      : SequentialSymbolKey<uc16>(str) { }
++  explicit TwoByteSymbolKey(Vector<const uc16> str, uint32_t seed)
++      : SequentialSymbolKey<uc16>(str, seed) { }
+ 
+   bool IsMatch(Object* string) {
+     return String::cast(string)->IsTwoByteEqualTo(string_);
+@@ -10479,10 +10502,12 @@ int StringDictionary::FindEntry(String* key) {
+ // algorithm.
+ class TwoCharHashTableKey : public HashTableKey {
+  public:
+-  TwoCharHashTableKey(uint32_t c1, uint32_t c2)
++  TwoCharHashTableKey(uint32_t c1, uint32_t c2, uint32_t seed)
+     : c1_(c1), c2_(c2) {
+     // Char 1.
+-    uint32_t hash = c1 + (c1 << 10);
++    uint32_t hash = seed;
++    hash += c1;
++    hash += hash << 10;
+     hash ^= hash >> 6;
+     // Char 2.
+     hash += c2;
+@@ -10492,9 +10517,9 @@ class TwoCharHashTableKey : public HashTableKey {
+     hash += hash << 3;
+     hash ^= hash >> 11;
+     hash += hash << 15;
+-    if (hash == 0) hash = 27;
++    if ((hash & String::kHashBitMask) == 0) hash = 27;
+ #ifdef DEBUG
+-    StringHasher hasher(2);
++    StringHasher hasher(2, seed);
+     hasher.AddCharacter(c1);
+     hasher.AddCharacter(c2);
+     // If this assert fails then we failed to reproduce the two-character
+@@ -10551,7 +10576,7 @@ bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
+ bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
+                                                uint32_t c2,
+                                                String** symbol) {
+-  TwoCharHashTableKey key(c1, c2);
++  TwoCharHashTableKey key(c1, c2, GetHeap()->StringHashSeed());
+   int entry = FindEntry(&key);
+   if (entry == kNotFound) {
+     return false;
+@@ -10564,15 +10589,16 @@ bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
+ }
+ 
+ 
+-MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
+-  Utf8SymbolKey key(str);
++MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str,
++                                       Object** s) {
++  Utf8SymbolKey key(str, GetHeap()->StringHashSeed());
+   return LookupKey(&key, s);
+ }
+ 
+ 
+ MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
+                                             Object** s) {
+-  AsciiSymbolKey key(str);
++  AsciiSymbolKey key(str, GetHeap()->StringHashSeed());
+   return LookupKey(&key, s);
+ }
+ 
+@@ -10581,14 +10607,14 @@ bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
+                                                      int from,
+                                                      int length,
+                                                      Object** s) {
+-  SubStringAsciiSymbolKey key(str, from, length);
++  SubStringAsciiSymbolKey key(str, from, length, GetHeap()->StringHashSeed());
+   return LookupKey(&key, s);
+ }
+ 
+ 
+ MaybeObject* SymbolTable::LookupTwoByteSymbol(Vector<const uc16> str,
+                                               Object** s) {
+-  TwoByteSymbolKey key(str);
++  TwoByteSymbolKey key(str, GetHeap()->StringHashSeed());
+   return LookupKey(&key, s);
+ }
+ 
+diff --git a/src/objects.h b/src/objects.h
+index 48a76d3..2fb2e00 100644
+--- a/src/objects.h
++++ b/src/objects.h
+@@ -5734,7 +5734,7 @@ class PolymorphicCodeCacheHashTable
+ 
+ class StringHasher {
+  public:
+-  explicit inline StringHasher(int length);
++  explicit inline StringHasher(int length, uint32_t seed);
+ 
+   // Returns true if the hash of this string can be computed without
+   // looking at the contents.
+@@ -5785,7 +5785,9 @@ class StringHasher {
+ 
+ // Calculates string hash.
+ template <typename schar>
+-inline uint32_t HashSequentialString(const schar* chars, int length);
++inline uint32_t HashSequentialString(const schar* chars,
++                                     int length,
++                                     uint32_t seed);
+ 
+ 
+ // The characteristics of a string are stored in its map.  Retrieving these
+@@ -6007,7 +6009,8 @@ class String: public HeapObject {
+   inline uint32_t Hash();
+ 
+   static uint32_t ComputeHashField(unibrow::CharacterStream* buffer,
+-                                   int length);
++                                   int length,
++                                   uint32_t seed);
+ 
+   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
+                                 uint32_t* index,
+@@ -6072,6 +6075,10 @@ class String: public HeapObject {
+   // Shift constant retrieving hash code from hash field.
+   static const int kHashShift = kNofHashBitFields;
+ 
++  // Only these bits are relevant in the hash, since the top two are shifted
++  // out.
++  static const uint32_t kHashBitMask = 0xffffffffu >> kHashShift;
++
+   // Array index strings this short can keep their index in the hash
+   // field.
+   static const int kMaxCachedArrayIndexLength = 7;
+diff --git a/src/profile-generator.cc b/src/profile-generator.cc
+index adf55ad..ed1b90a 100644
+--- a/src/profile-generator.cc
++++ b/src/profile-generator.cc
+@@ -110,7 +110,8 @@ void TokenEnumerator::TokenRemoved(Object** token_location) {
+   Vector<char> dst = Vector<char>::New(len + 1);
+   OS::StrNCpy(dst, src, len);
+   dst[len] = '\0';
+-  uint32_t hash = HashSequentialString(dst.start(), len);
++  uint32_t hash =
++      HashSequentialString(dst.start(), len, HEAP->StringHashSeed());
+   return AddOrDisposeString(dst.start(), hash);
+ }
+ 
+@@ -143,7 +144,8 @@ void TokenEnumerator::TokenRemoved(Object** token_location) {
+     DeleteArray(str.start());
+     return format;
+   }
+-  uint32_t hash = HashSequentialString(str.start(), len);
++  uint32_t hash = HashSequentialString(
++      str.start(), len, HEAP->StringHashSeed());
+   return AddOrDisposeString(str.start(), hash);
+ }
+ 
+@@ -1462,7 +1464,9 @@ void HeapObjectsMap::RemoveDeadEntries() {
+ uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
+   uint64_t id = static_cast<uint64_t>(info->GetHash());
+   const char* label = info->GetLabel();
+-  id ^= HashSequentialString(label, static_cast<int>(strlen(label)));
++  id ^= HashSequentialString(label,
++                             static_cast<int>(strlen(label)),
++                             HEAP->StringHashSeed());
+   intptr_t element_count = info->GetElementCount();
+   if (element_count != -1)
+     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));
+diff --git a/src/x64/code-stubs-x64.cc b/src/x64/code-stubs-x64.cc
+index df4438b..947cda4 100644
+--- a/src/x64/code-stubs-x64.cc
++++ b/src/x64/code-stubs-x64.cc
+@@ -4542,6 +4542,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+   static const int kProbes = 4;
+   Label found_in_symbol_table;
+   Label next_probe[kProbes];
++  Register candidate = scratch;  // Scratch register contains candidate.
+   for (int i = 0; i < kProbes; i++) {
+     // Calculate entry in symbol table.
+     __ movl(scratch, hash);
+@@ -4551,7 +4552,6 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+     __ andl(scratch, mask);
+ 
+     // Load the entry from the symbol table.
+-    Register candidate = scratch;  // Scratch register contains candidate.
+     STATIC_ASSERT(SymbolTable::kEntrySize == 1);
+     __ movq(candidate,
+             FieldOperand(symbol_table,
+@@ -4597,7 +4597,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+   __ jmp(not_found);
+ 
+   // Scratch register contains result when we fall through to here.
+-  Register result = scratch;
++  Register result = candidate;
+   __ bind(&found_in_symbol_table);
+   if (!result.is(rax)) {
+     __ movq(rax, result);
+@@ -4609,13 +4609,16 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
+                                     Register hash,
+                                     Register character,
+                                     Register scratch) {
+-  // hash = character + (character << 10);
+-  __ movl(hash, character);
+-  __ shll(hash, Immediate(10));
+-  __ addl(hash, character);
++  // hash = (seed + character) + ((seed + character) << 10);
++  __ LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
++  __ SmiToInteger32(scratch, scratch);
++  __ addl(scratch, character);
++  __ movl(hash, scratch);
++  __ shll(scratch, Immediate(10));
++  __ addl(hash, scratch);
+   // hash ^= hash >> 6;
+   __ movl(scratch, hash);
+-  __ sarl(scratch, Immediate(6));
++  __ shrl(scratch, Immediate(6));
+   __ xorl(hash, scratch);
+ }
+ 
+@@ -4632,7 +4635,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
+   __ addl(hash, scratch);
+   // hash ^= hash >> 6;
+   __ movl(scratch, hash);
+-  __ sarl(scratch, Immediate(6));
++  __ shrl(scratch, Immediate(6));
+   __ xorl(hash, scratch);
+ }
+ 
+@@ -4644,13 +4647,16 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
+   __ leal(hash, Operand(hash, hash, times_8, 0));
+   // hash ^= hash >> 11;
+   __ movl(scratch, hash);
+-  __ sarl(scratch, Immediate(11));
++  __ shrl(scratch, Immediate(11));
+   __ xorl(hash, scratch);
+   // hash += hash << 15;
+   __ movl(scratch, hash);
+   __ shll(scratch, Immediate(15));
+   __ addl(hash, scratch);
+ 
++  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
++  __ andl(hash, Immediate(kHashShiftCutOffMask));
++
+   // if (hash == 0) hash = 27;
+   Label hash_not_zero;
+   __ j(not_zero, &hash_not_zero);
+diff --git a/test/cctest/SConscript b/test/cctest/SConscript
+index 621d8ec..5c92671 100644
+--- a/test/cctest/SConscript
++++ b/test/cctest/SConscript
+@@ -73,6 +73,7 @@ SOURCES = {
+     'test-fixed-dtoa.cc',
+     'test-flags.cc',
+     'test-func-name-inference.cc',
++    'test-hashing.cc',
+     'test-hashmap.cc',
+     'test-heap-profiler.cc',
+     'test-heap.cc',
+diff --git a/test/cctest/test-hashing.cc b/test/cctest/test-hashing.cc
+new file mode 100644
+index 0000000..9aa8461
+--- /dev/null
++++ b/test/cctest/test-hashing.cc
+@@ -0,0 +1,172 @@
++// Copyright 2011 the V8 project authors. All rights reserved.
++// Redistribution and use in source and binary forms, with or without
++// modification, are permitted provided that the following conditions are
++// met:
++//
++//     * Redistributions of source code must retain the above copyright
++//       notice, this list of conditions and the following disclaimer.
++//     * Redistributions in binary form must reproduce the above
++//       copyright notice, this list of conditions and the following
++//       disclaimer in the documentation and/or other materials provided
++//       with the distribution.
++//     * Neither the name of Google Inc. nor the names of its
++//       contributors may be used to endorse or promote products derived
++//       from this software without specific prior written permission.
++//
++// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++#include <stdlib.h>
++
++#include "v8.h"
++
++#include "factory.h"
++#include "macro-assembler.h"
++#include "cctest.h"
++#include "code-stubs.h"
++#include "objects.h"
++
++#ifdef USE_SIMULATOR
++#include "simulator.h"
++#endif
++
++using namespace v8::internal;
++
++
++typedef uint32_t (*HASH_FUNCTION)();
++
++static v8::Persistent<v8::Context> env;
++
++#define __ masm->
++
++
++void generate(MacroAssembler* masm, i::Vector<const char> string) {
++  // GenerateHashInit takes the first character as an argument so it can't
++  // handle the zero length string.
++  ASSERT(string.length() > 0);
++#ifdef V8_TARGET_ARCH_IA32
++  __ push(ebx);
++  __ push(ecx);
++  __ mov(eax, Immediate(0));
++  __ mov(ebx, Immediate(string.at(0)));
++  StringHelper::GenerateHashInit(masm, eax, ebx, ecx);
++  for (int i = 1; i < string.length(); i++) {
++    __ mov(ebx, Immediate(string.at(i)));
++    StringHelper::GenerateHashAddCharacter(masm, eax, ebx, ecx);
++  }
++  StringHelper::GenerateHashGetHash(masm, eax, ecx);
++  __ pop(ecx);
++  __ pop(ebx);
++  __ Ret();
++#elif V8_TARGET_ARCH_X64
++  __ push(kRootRegister);
++  __ InitializeRootRegister();
++  __ push(rbx);
++  __ push(rcx);
++  __ movq(rax, Immediate(0));
++  __ movq(rbx, Immediate(string.at(0)));
++  StringHelper::GenerateHashInit(masm, rax, rbx, rcx);
++  for (int i = 1; i < string.length(); i++) {
++    __ movq(rbx, Immediate(string.at(i)));
++    StringHelper::GenerateHashAddCharacter(masm, rax, rbx, rcx);
++  }
++  StringHelper::GenerateHashGetHash(masm, rax, rcx);
++  __ pop(rcx);
++  __ pop(rbx);
++  __ pop(kRootRegister);
++  __ Ret();
++#elif V8_TARGET_ARCH_ARM
++  __ push(kRootRegister);
++  __ InitializeRootRegister();
++
++  __ mov(r0, Operand(0));
++  __ mov(ip, Operand(string.at(0)));
++  StringHelper::GenerateHashInit(masm, r0, ip);
++  for (int i = 1; i < string.length(); i++) {
++    __ mov(ip, Operand(string.at(i)));
++    StringHelper::GenerateHashAddCharacter(masm, r0, ip);
++  }
++  StringHelper::GenerateHashGetHash(masm, r0);
++  __ pop(kRootRegister);
++  __ mov(pc, Operand(lr));
++#elif V8_TARGET_ARCH_MIPS
++  __ push(kRootRegister);
++  __ InitializeRootRegister();
++
++  __ li(v0, Operand(0));
++  __ li(t1, Operand(string.at(0)));
++  StringHelper::GenerateHashInit(masm, v0, t1);
++  for (int i = 1; i < string.length(); i++) {
++    __ li(t1, Operand(string.at(i)));
++    StringHelper::GenerateHashAddCharacter(masm, v0, t1);
++  }
++  StringHelper::GenerateHashGetHash(masm, v0);
++  __ pop(kRootRegister);
++  __ jr(ra);
++  __ nop();
++#endif
++}
++
++
++void check(i::Vector<const char> string) {
++  v8::HandleScope scope;
++  v8::internal::byte buffer[2048];
++  MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
++
++  generate(&masm, string);
++
++  CodeDesc desc;
++  masm.GetCode(&desc);
++  Code* code = Code::cast(HEAP->CreateCode(
++      desc,
++      Code::ComputeFlags(Code::STUB),
++      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
++  CHECK(code->IsCode());
++
++  HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
++  Handle<String> v8_string = FACTORY->NewStringFromAscii(string);
++  v8_string->set_hash_field(String::kEmptyHashField);
++#ifdef USE_SIMULATOR
++  uint32_t codegen_hash =
++      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
++#else
++  uint32_t codegen_hash = hash();
++#endif
++  uint32_t runtime_hash = v8_string->Hash();
++  CHECK(runtime_hash == codegen_hash);
++}
++
++
++void check_twochars(char a, char b) {
++  char ab[2] = {a, b};
++  check(i::Vector<const char>(ab, 2));
++}
++
++
++TEST(StringHash) {
++  if (env.IsEmpty()) env = v8::Context::New();
++  for (int a = 0; a < String::kMaxAsciiCharCode; a++) {
++    // Numbers are hashed differently.
++    if (a >= '0' && a <= '9') continue;
++    for (int b = 0; b < String::kMaxAsciiCharCode; b++) {
++      if (b >= '0' && b <= '9') continue;
++      check_twochars(static_cast<char>(a), static_cast<char>(b));
++    }
++  }
++  check(i::Vector<const char>("*",       1));
++  check(i::Vector<const char>(".zZ",     3));
++  check(i::Vector<const char>("muc",     3));
++  check(i::Vector<const char>("(>'_')>", 7));
++  check(i::Vector<const char>("-=[ vee eight ftw ]=-", 21));
++}
++
++#undef __
+-- 
+1.7.5.4
+
