@@ -1252,6 +1252,7 @@ index 683c139..c3cd5eb 100644
 +    exception = e.stack;
    };
  };
+ 
 -- 
 1.7.5.4
 
