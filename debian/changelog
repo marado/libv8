@@ -1,3 +1,9 @@
+libv8 (3.6.6.14-2) unstable; urgency=low
+
+  * Land hash collision fix for V8 3.6. Closes: bug#653962. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 07 Jan 2012 22:29:06 +0100
+
 libv8 (3.6.6.14-1) unstable; urgency=low
 
   [ Jérémy Lal ]
