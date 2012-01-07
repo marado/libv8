@@ -1,6 +1,8 @@
 libv8 (3.6.6.14-2) unstable; urgency=low
 
-  * Land hash collision fix for V8 3.6. Closes: bug#653962. 
+  * Land hash collision fix for V8 3.6. Closes: bug#653962.
+  * snapshot=off, because hash is randomized by a secret key that is
+    otherwise readable in the snapshot.
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 07 Jan 2012 22:29:06 +0100
 
