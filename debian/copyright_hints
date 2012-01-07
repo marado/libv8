@@ -17,6 +17,7 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
+ debian/patches/0015_hash-collision-fix-v8-3.6.patch
  debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
