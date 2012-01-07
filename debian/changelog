@@ -1,6 +1,7 @@
 libv8 (3.6.6.14-2) unstable; urgency=low
 
   * Land hash collision fix for V8 3.6. Closes: bug#653962.
+    This fixes CVE-2011-5037.
   * snapshot=off, because hash is randomized by a secret key that is
     otherwise readable in the snapshot.
 
