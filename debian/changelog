@@ -1,4 +1,4 @@
-libv8 (3.6.6.17-1) unstable; urgency=low
+libv8 (3.6.6.18-1) unstable; urgency=low
 
   * Upstream update.
   * Patch for hash collision is applied upstream. 
