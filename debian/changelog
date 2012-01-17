@@ -1,3 +1,10 @@
+libv8 (3.6.6.17-1) unstable; urgency=low
+
+  * Upstream update.
+  * Patch for hash collision is applied upstream. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Tue, 17 Jan 2012 14:03:42 +0100
+
 libv8 (3.6.6.14-2) unstable; urgency=low
 
   * Land hash collision fix for V8 3.6. Closes: bug#653962.
