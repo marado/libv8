@@ -1,9 +1,9 @@
-libv8 (3.6.6.18-1) unstable; urgency=low
+libv8 (3.6.6.20-1) unstable; urgency=low
 
   * Upstream update.
   * Patch for hash collision is applied upstream. 
 
- -- Jérémy Lal <kapouer@melix.org>  Tue, 17 Jan 2012 14:03:42 +0100
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 23 Jan 2012 14:37:51 +0100
 
 libv8 (3.6.6.14-2) unstable; urgency=low
 
