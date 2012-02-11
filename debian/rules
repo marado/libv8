@@ -60,7 +60,7 @@ DEB_MAKE_EXTRA_ARGS += vfp3=off
 # http://code.google.com/p/v8/issues/detail?id=590
 CXXFLAGS += -mno-thumb-interwork
 # disable armv7, use softfloat
-GYPFLAGS += -Darmv7=0 -Dv8_can_use_unaligned_accesses=false -Dv8_use_arm_eabi_hardfloat=false
+GYPFLAGS += -Darmv7=0 -Dv8_use_arm_eabi_hardfloat=false
 endif
 endif
 
