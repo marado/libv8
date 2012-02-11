@@ -1,9 +1,11 @@
 libv8 (3.6.6.20-1) unstable; urgency=low
 
   * Upstream update.
-  * Patch for hash collision is applied upstream. 
+  * Patch for hash collision is applied upstream.
+  * debian/rules: remove v8_can_use_unaligned_accesses=false,
+    it works without it - and it even may be triggering an alignment bug.
 
- -- Jérémy Lal <kapouer@melix.org>  Mon, 23 Jan 2012 14:37:51 +0100
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 11 Feb 2012 10:56:15 +0100
 
 libv8 (3.6.6.14-2) unstable; urgency=low
 
