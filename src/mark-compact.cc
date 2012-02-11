@@ -2100,6 +2100,24 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   PrepareForCodeFlushing();
 
+  if (was_marked_incrementally_) {
+    // There is no write barrier on cells so we have to scan them now at the end
+    // of the incremental marking.
+    {
+      HeapObjectIterator cell_iterator(heap()->cell_space());
+      HeapObject* cell;
+      while ((cell = cell_iterator.Next()) != NULL) {
+        ASSERT(cell->IsJSGlobalPropertyCell());
+        if (IsMarked(cell)) {
+          int offset = JSGlobalPropertyCell::kValueOffset;
+          StaticMarkingVisitor::VisitPointer(
+              heap(),
+              reinterpret_cast<Object**>(cell->address() + offset));
+        }
+      }
+    }
+  }
+
   RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
 
@@ -3602,14 +3620,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
       continue;
     }
 
-    if (lazy_sweeping_active) {
-      if (FLAG_gc_verbose) {
-        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
-               reinterpret_cast<intptr_t>(p));
-      }
-      continue;
-    }
-
     // One unused page is kept, all further are released before sweeping them.
     if (p->LiveBytes() == 0) {
       if (unused_page_present) {
@@ -3621,6 +3631,14 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         continue;
       }
       unused_page_present = true;
+    }
+
+    if (lazy_sweeping_active) {
+      if (FLAG_gc_verbose) {
+        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
+               reinterpret_cast<intptr_t>(p));
+      }
+      continue;
     }
 
     switch (sweeper) {

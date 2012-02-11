@@ -1289,3 +1289,219 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   new_capacity = new_space->Capacity();
   CHECK(old_capacity == new_capacity);
 }
+
+
+static int NumberOfGlobalObjects() {
+  int count = 0;
+  HeapIterator iterator;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    if (obj->IsGlobalObject()) count++;
+  }
+  return count;
+}
+
+
+// Test that we don't embed maps from foreign contexts into
+// optimized code.
+TEST(LeakGlobalContextViaMap) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = {x: 42}");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() { return o.x; }"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+// Test that we don't embed functions from foreign contexts into
+// optimized code.
+TEST(LeakGlobalContextViaFunction) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = function() { return 42; }");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f(x) { return x(); }"
+        "for (var i = 0; i < 10; ++i) f(o);"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f(o);");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+TEST(LeakGlobalContextViaMapKeyed) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = [42, 43]");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() { return o[0]; }"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+TEST(LeakGlobalContextViaMapProto) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = { y: 42}");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() {"
+        "  var p = {x: 42};"
+        "  p.__proto__ = o;"
+        "  return p.x;"
+        "}"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+TEST(InstanceOfStubWriteBarrier) {
+  if (!i::FLAG_crankshaft) return;
+  i::FLAG_allow_natives_syntax = true;
+#ifdef DEBUG
+  i::FLAG_verify_heap = true;
+#endif
+  InitializeVM();
+  v8::HandleScope outer_scope;
+
+  {
+    v8::HandleScope scope;
+    CompileRun(
+        "function foo () { }"
+        "function mkbar () { return new (new Function(\"\")) (); }"
+        "function f (x) { return (x instanceof foo); }"
+        "function g () { f(mkbar()); }"
+        "f(new foo()); f(new foo());"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f(new foo()); g();");
+  }
+
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  marking->Abort();
+  marking->Start();
+
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  CHECK(f->IsOptimized());
+
+  while (!Marking::IsBlack(Marking::MarkBitFrom(f->code())) &&
+         !marking->IsStopped()) {
+    marking->Step(MB);
+  }
+
+  CHECK(marking->IsMarking());
+
+  // Discard any pending GC requests otherwise we will get GC when we enter
+  // code below.
+  if (ISOLATE->stack_guard()->IsGCRequest()) {
+    ISOLATE->stack_guard()->Continue(GC_REQUEST);
+  }
+
+  {
+    v8::HandleScope scope;
+    v8::Handle<v8::Object> global = v8::Context::GetCurrent()->Global();
+    v8::Handle<v8::Function> g =
+        v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
+    g->Call(global, 0, NULL);
+  }
+
+  HEAP->incremental_marking()->set_should_hurry(true);
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+}
