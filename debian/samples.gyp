@@ -29,17 +29,15 @@
   'includes': [],
   'target_defaults': {
     'type': 'executable',
-    'dependencies': [
-      
-    ],
+    'dependencies': [],
     'include_dirs': [
      '/usr/include'
     ],
     'link_settings': {
-	   'libraries': [
-	      '-lv8',
-	   ],
-	},
+      'libraries': [
+        '-lv8',
+      ],
+    },
   },
   'targets': [
     {
