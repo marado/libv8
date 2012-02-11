@@ -12,10 +12,13 @@ Files: LICENSE
  benchmarks/regexp.js
  benchmarks/richards.js
  benchmarks/run.js
+ benchmarks/spinning-balls/splay-tree.js
+ benchmarks/spinning-balls/v.js
  benchmarks/splay.js
  build/armu.gypi
  build/common.gypi
  build/gyp_v8
+ build/mipsu.gypi
  build/standalone.gypi
  debian/samples.gyp
  include/v8-debug.h
@@ -73,7 +76,6 @@ Files: LICENSE
  src/arm/simulator-arm.h
  src/arm/stub-cache-arm.cc
  src/array.js
- src/ast-inl.h
  src/ast.cc
  src/ast.h
  src/atomicops.h
@@ -105,8 +107,10 @@ Files: LICENSE
  src/code.h
  src/codegen.cc
  src/codegen.h
+ src/collection.js
  src/compilation-cache.cc
  src/compilation-cache.h
+ src/compiler-intrinsics.h
  src/compiler.cc
  src/compiler.h
  src/contexts.cc
@@ -240,6 +244,9 @@ Files: LICENSE
  src/ic-inl.h
  src/ic.cc
  src/ic.h
+ src/incremental-marking-inl.h
+ src/incremental-marking.cc
+ src/incremental-marking.h
  src/inspector.cc
  src/inspector.h
  src/interpreter-irregexp.cc
@@ -271,6 +278,7 @@ Files: LICENSE
  src/log.h
  src/macro-assembler.h
  src/macros.py
+ src/mark-compact-inl.h
  src/mark-compact.cc
  src/mark-compact.h
  src/math.js
@@ -292,7 +300,11 @@ Files: LICENSE
  src/mips/frames-mips.h
  src/mips/full-codegen-mips.cc
  src/mips/ic-mips.cc
+ src/mips/lithium-codegen-mips.cc
  src/mips/lithium-codegen-mips.h
+ src/mips/lithium-gap-resolver-mips.cc
+ src/mips/lithium-gap-resolver-mips.h
+ src/mips/lithium-mips.cc
  src/mips/lithium-mips.h
  src/mips/macro-assembler-mips.cc
  src/mips/macro-assembler-mips.h
@@ -308,6 +320,7 @@ Files: LICENSE
  src/objects-debug.cc
  src/objects-inl.h
  src/objects-printer.cc
+ src/objects-visiting-inl.h
  src/objects-visiting.cc
  src/objects-visiting.h
  src/objects.cc
@@ -338,6 +351,7 @@ Files: LICENSE
  src/profile-generator-inl.h
  src/profile-generator.cc
  src/profile-generator.h
+ src/property-details.h
  src/property.cc
  src/property.h
  src/proxy.js
@@ -378,6 +392,9 @@ Files: LICENSE
  src/spaces.h
  src/splay-tree-inl.h
  src/splay-tree.h
+ src/store-buffer-inl.h
+ src/store-buffer.cc
+ src/store-buffer.h
  src/string-search.cc
  src/string-search.h
  src/string-stream.cc
@@ -422,7 +439,6 @@ Files: LICENSE
  src/version.h
  src/vm-state-inl.h
  src/vm-state.h
- src/weakmap.js
  src/win32-headers.h
  src/win32-math.cc
  src/win32-math.h
@@ -493,6 +509,7 @@ Files: LICENSE
  test/cctest/test-fixed-dtoa.cc
  test/cctest/test-flags.cc
  test/cctest/test-func-name-inference.cc
+ test/cctest/test-hashing.cc
  test/cctest/test-hashmap.cc
  test/cctest/test-list.cc
  test/cctest/test-liveedit.cc
@@ -574,6 +591,7 @@ Files: LICENSE
  test/mjsunit/array-join.js
  test/mjsunit/array-length-number-conversion.js
  test/mjsunit/array-length.js
+ test/mjsunit/array-literal-transitions.js
  test/mjsunit/array-pop.js
  test/mjsunit/array-push.js
  test/mjsunit/array-reduce.js
@@ -581,6 +599,7 @@ Files: LICENSE
  test/mjsunit/array-slice.js
  test/mjsunit/array-sort.js
  test/mjsunit/array-splice.js
+ test/mjsunit/array-tostring.js
  test/mjsunit/array-unshift.js
  test/mjsunit/ascii-regexp-subject.js
  test/mjsunit/assert-opt-and-deopt.js
@@ -639,11 +658,13 @@ Files: LICENSE
  test/mjsunit/compiler/inline-arguments.js
  test/mjsunit/compiler/inline-compare.js
  test/mjsunit/compiler/inline-conditional.js
+ test/mjsunit/compiler/inline-context-slots.js
  test/mjsunit/compiler/inline-global-access.js
  test/mjsunit/compiler/inline-param.js
  test/mjsunit/compiler/inline-throw.js
  test/mjsunit/compiler/inline-two.js
  test/mjsunit/compiler/jsnatives.js
+ test/mjsunit/compiler/lazy-const-lookup.js
  test/mjsunit/compiler/literals-assignment.js
  test/mjsunit/compiler/literals.js
  test/mjsunit/compiler/logical-and.js
@@ -676,15 +697,19 @@ Files: LICENSE
  test/mjsunit/compiler/regress-6.js
  test/mjsunit/compiler/regress-7.js
  test/mjsunit/compiler/regress-8.js
+ test/mjsunit/compiler/regress-96989.js
  test/mjsunit/compiler/regress-arguments.js
  test/mjsunit/compiler/regress-arrayliteral.js
  test/mjsunit/compiler/regress-closures-with-eval.js
  test/mjsunit/compiler/regress-const.js
+ test/mjsunit/compiler/regress-deopt-call-as-function.js
  test/mjsunit/compiler/regress-funarguments.js
  test/mjsunit/compiler/regress-funcaller.js
  test/mjsunit/compiler/regress-gap.js
  test/mjsunit/compiler/regress-gvn.js
+ test/mjsunit/compiler/regress-inline-callfunctionstub.js
  test/mjsunit/compiler/regress-intoverflow.js
+ test/mjsunit/compiler/regress-lazy-deopt.js
  test/mjsunit/compiler/regress-lbranch-double.js
  test/mjsunit/compiler/regress-loadfield.js
  test/mjsunit/compiler/regress-loop-deopt.js
@@ -704,6 +729,7 @@ Files: LICENSE
  test/mjsunit/compiler/simple-global-access.js
  test/mjsunit/compiler/simple-inlining.js
  test/mjsunit/compiler/simple-osr.js
+ test/mjsunit/compiler/strict-recompile.js
  test/mjsunit/compiler/switch-bailout.js
  test/mjsunit/compiler/this-property-refs.js
  test/mjsunit/compiler/thisfunction.js
@@ -717,13 +743,13 @@ Files: LICENSE
  test/mjsunit/context-variable-assignments.js
  test/mjsunit/copy-on-write-assert.js
  test/mjsunit/cyclic-array-to-string.js
- test/mjsunit/cyclic-error-to-string.js
  test/mjsunit/cyrillic.js
  test/mjsunit/d8-os.js
  test/mjsunit/date-parse.js
  test/mjsunit/date.js
  test/mjsunit/debug-backtrace-text.js
  test/mjsunit/debug-backtrace.js
+ test/mjsunit/debug-break-inline.js
  test/mjsunit/debug-breakpoints.js
  test/mjsunit/debug-changebreakpoint.js
  test/mjsunit/debug-clearbreakpoint.js
@@ -773,6 +799,7 @@ Files: LICENSE
  test/mjsunit/debug-sourceinfo.js
  test/mjsunit/debug-sourceslice.js
  test/mjsunit/debug-step-2.js
+ test/mjsunit/debug-step-3.js
  test/mjsunit/debug-step-stub-callfunction.js
  test/mjsunit/debug-step.js
  test/mjsunit/debug-stepin-accessor.js
@@ -782,6 +809,7 @@ Files: LICENSE
  test/mjsunit/debug-stepin-function-call.js
  test/mjsunit/debug-stepnext-do-while.js
  test/mjsunit/debug-stepout-recursive-function.js
+ test/mjsunit/debug-stepout-scope.js
  test/mjsunit/debug-stepout-to-builtin.js
  test/mjsunit/debug-suspend.js
  test/mjsunit/debug-version.js
@@ -800,9 +828,12 @@ Files: LICENSE
  test/mjsunit/dont-reinit-global-var.js
  test/mjsunit/double-equals.js
  test/mjsunit/dtoa.js
- test/mjsunit/element-kind.js
+ test/mjsunit/elements-kind-depends.js
+ test/mjsunit/elements-kind.js
+ test/mjsunit/elements-transition.js
  test/mjsunit/enumeration-order.js
  test/mjsunit/error-constructors.js
+ test/mjsunit/error-tostring.js
  test/mjsunit/escape.js
  test/mjsunit/eval-enclosing-function-name.js
  test/mjsunit/eval-typeof-non-existing.js
@@ -846,17 +877,23 @@ Files: LICENSE
  test/mjsunit/global-vars-with.js
  test/mjsunit/greedy.js
  test/mjsunit/harmony/block-conflicts.js
+ test/mjsunit/harmony/block-early-errors.js
+ test/mjsunit/harmony/block-for.js
  test/mjsunit/harmony/block-lazy-compile.js
  test/mjsunit/harmony/block-leave.js
  test/mjsunit/harmony/block-let-crankshaft.js
  test/mjsunit/harmony/block-let-declaration.js
  test/mjsunit/harmony/block-let-semantics.js
  test/mjsunit/harmony/block-scoping.js
+ test/mjsunit/harmony/collections.js
  test/mjsunit/harmony/debug-blockscopes.js
  test/mjsunit/harmony/debug-evaluate-blockscopes.js
+ test/mjsunit/harmony/proxies-example-membrane.js
+ test/mjsunit/harmony/proxies-for.js
+ test/mjsunit/harmony/proxies-function.js
+ test/mjsunit/harmony/proxies-hash.js
  test/mjsunit/harmony/proxies.js
  test/mjsunit/harmony/typeof.js
- test/mjsunit/harmony/weakmaps.js
  test/mjsunit/has-own-property.js
  test/mjsunit/hex-parsing.js
  test/mjsunit/html-comments.js
@@ -938,6 +975,7 @@ Files: LICENSE
  test/mjsunit/object-prevent-extensions.js
  test/mjsunit/object-seal.js
  test/mjsunit/object-toprimitive.js
+ test/mjsunit/optimized-typeof.js
  test/mjsunit/override-read-only-property.js
  test/mjsunit/parse-int-float.js
  test/mjsunit/polymorph-arrays.js
@@ -963,6 +1001,7 @@ Files: LICENSE
  test/mjsunit/regexp.js
  test/mjsunit/regress/bitops-register-alias.js
  test/mjsunit/regress/regress-100409.js
+ test/mjsunit/regress/regress-100702.js
  test/mjsunit/regress/regress-1015.js
  test/mjsunit/regress/regress-1017.js
  test/mjsunit/regress/regress-1020.js
@@ -977,6 +1016,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1079.js
  test/mjsunit/regress/regress-1081309.js
  test/mjsunit/regress/regress-1083.js
+ test/mjsunit/regress/regress-109195.js
  test/mjsunit/regress/regress-1092.js
  test/mjsunit/regress/regress-1099.js
  test/mjsunit/regress/regress-1102760.js
@@ -1042,6 +1082,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1213575.js
  test/mjsunit/regress/regress-1215.js
  test/mjsunit/regress/regress-1215653.js
+ test/mjsunit/regress/regress-1217.js
  test/mjsunit/regress/regress-1218.js
  test/mjsunit/regress/regress-1229.js
  test/mjsunit/regress/regress-1233.js
@@ -1070,6 +1111,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1401.js
  test/mjsunit/regress/regress-1403.js
  test/mjsunit/regress/regress-1412.js
+ test/mjsunit/regress/regress-1415.js
  test/mjsunit/regress/regress-1419.js
  test/mjsunit/regress/regress-1423.js
  test/mjsunit/regress/regress-1434.js
@@ -1098,10 +1140,17 @@ Files: LICENSE
  test/mjsunit/regress/regress-1592.js
  test/mjsunit/regress/regress-1620.js
  test/mjsunit/regress/regress-1625.js
+ test/mjsunit/regress/regress-1639-2.js
  test/mjsunit/regress/regress-1639.js
  test/mjsunit/regress/regress-1647.js
  test/mjsunit/regress/regress-1650.js
+ test/mjsunit/regress/regress-1692.js
+ test/mjsunit/regress/regress-1708.js
  test/mjsunit/regress/regress-171.js
+ test/mjsunit/regress/regress-1711.js
+ test/mjsunit/regress/regress-1713.js
+ test/mjsunit/regress/regress-1748.js
+ test/mjsunit/regress/regress-1757.js
  test/mjsunit/regress/regress-176.js
  test/mjsunit/regress/regress-186.js
  test/mjsunit/regress/regress-187.js
@@ -1114,7 +1163,6 @@ Files: LICENSE
  test/mjsunit/regress/regress-201.js
  test/mjsunit/regress/regress-219.js
  test/mjsunit/regress/regress-220.js
- test/mjsunit/regress/regress-221.js
  test/mjsunit/regress/regress-2249423.js
  test/mjsunit/regress/regress-225.js
  test/mjsunit/regress/regress-227.js
@@ -1254,7 +1302,6 @@ Files: LICENSE
  test/mjsunit/regress/regress-91010.js
  test/mjsunit/regress/regress-91013.js
  test/mjsunit/regress/regress-91120.js
- test/mjsunit/regress/regress-91517.js
  test/mjsunit/regress/regress-91787.js
  test/mjsunit/regress/regress-918.js
  test/mjsunit/regress/regress-925537.js
@@ -1263,6 +1310,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-937896.js
  test/mjsunit/regress/regress-944.js
  test/mjsunit/regress/regress-94425.js
+ test/mjsunit/regress/regress-94873.js
  test/mjsunit/regress/regress-95113.js
  test/mjsunit/regress/regress-95485.js
  test/mjsunit/regress/regress-955.js
@@ -1273,7 +1321,9 @@ Files: LICENSE
  test/mjsunit/regress/regress-97116.js
  test/mjsunit/regress/regress-974.js
  test/mjsunit/regress/regress-982.js
+ test/mjsunit/regress/regress-98773.js
  test/mjsunit/regress/regress-990205.js
+ test/mjsunit/regress/regress-99167.js
  test/mjsunit/regress/regress-992.js
  test/mjsunit/regress/regress-992733.js
  test/mjsunit/regress/regress-995.js
@@ -1282,6 +1332,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-arguments-gc.js
  test/mjsunit/regress/regress-bind-receiver.js
  test/mjsunit/regress/regress-conditional-position.js
+ test/mjsunit/regress/regress-crbug-107996.js
  test/mjsunit/regress/regress-crbug-18639.js
  test/mjsunit/regress/regress-crbug-3184.js
  test/mjsunit/regress/regress-crbug-37853.js
@@ -1300,6 +1351,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-r4998.js
  test/mjsunit/regress/regress-regexp-codeflush.js
  test/mjsunit/regress/regress-swapelements.js
+ test/mjsunit/regress/short-circuit.js
  test/mjsunit/regress/splice-missing-wb.js
  test/mjsunit/samevalue.js
  test/mjsunit/scanner.js
@@ -1315,6 +1367,7 @@ Files: LICENSE
  test/mjsunit/smi-ops.js
  test/mjsunit/sparse-array-reverse.js
  test/mjsunit/sparse-array.js
+ test/mjsunit/stack-traces-2.js
  test/mjsunit/stack-traces.js
  test/mjsunit/store-dictionary.js
  test/mjsunit/str-to-num.js
@@ -1329,6 +1382,7 @@ Files: LICENSE
  test/mjsunit/string-charat.js
  test/mjsunit/string-charcodeat.js
  test/mjsunit/string-compare-alignment.js
+ test/mjsunit/string-external-cached.js
  test/mjsunit/string-externalize.js
  test/mjsunit/string-flatten.js
  test/mjsunit/string-fromcharcode.js
@@ -1462,6 +1516,7 @@ Copyright: 2006-2008, the V8 project authors.
  2009-2010, the V8 project authors.
  2010, the V8 project authors.
  2011, the V8 project authors.
+ 2012, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
@@ -1471,6 +1526,7 @@ Files: AUTHORS
  benchmarks/README.txt
  benchmarks/revisions.html
  benchmarks/run.html
+ benchmarks/spinning-balls/index.html
  benchmarks/style.css
  build/README.txt
  debian/README.source
@@ -1486,11 +1542,8 @@ Files: AUTHORS
  debian/libv8.install
  debian/patches/0005-enable-i18n-extension.patch
  debian/patches/0008_mksnapshot_stdout.patch
- debian/patches/0010_fix_arm_bug.patch
  debian/patches/0011_use_system_gyp.patch
- debian/patches/0012_make_check_testsuites.patch
- debian/patches/0013_enable_soname.patch
- debian/patches/0014_disable_armv7_defaults.patch
+ debian/patches/0014_disable_cross_build.patch
  debian/patches/series
  debian/rules
  debian/source/format
@@ -1581,8 +1634,8 @@ Files: src/arm/assembler-arm-inl.h
  src/arm/assembler-arm.h
  src/ia32/assembler-ia32.cc
 Copyright: 1994-2006, Sun Microsystems Inc
- 2006-2008, the V8 project authors.
  2011, the V8 project authors.
+ 2012, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
 License: BSD (2 clause)
@@ -1636,7 +1689,7 @@ Copyright: * kJsonQuotesCharactersPerEntry;
  2011, the V8 project authors.
  >= kQuoteTableLength) {
  HOLDERS AND CONTRIBUTORS
- || c == 0x200b;
+ || c == 0x200b || c == 0xfeff;
 License: BSD (3 clause)
  FIXME
 
@@ -1671,7 +1724,7 @@ License: BSD (3 clause)
  FIXME
 
 Files: src/char-predicates-inl.h
-Copyright: 2006-2008, the V8 project authors.
+Copyright: 2011, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
  || IsInRange(AsciiAlphaToLower, 'a', 'f');
 License: BSD (3 clause)
