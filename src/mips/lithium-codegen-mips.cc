@@ -1986,7 +1986,10 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch with
   // the cached map.
-  __ li(at, Operand(factory()->the_hole_value()), true);
+  Handle<JSGlobalPropertyCell> cell =
+      factory()->NewJSGlobalPropertyCell(factory()->the_hole_value());
+  __ li(at, Operand(Handle<Object>(cell)));
+  __ lw(at, FieldMemOperand(at, JSGlobalPropertyCell::kValueOffset));
   __ Branch(&cache_miss, ne, map, Operand(at));
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch
@@ -2141,21 +2144,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 
   // Store the value.
   __ sw(value, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
-
-  // Cells are always in the remembered set.
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
-    HType type = instr->hydrogen()->value()->type();
-    SmiCheck check_needed =
-        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-    __ RecordWriteField(scratch,
-                        JSGlobalPropertyCell::kValueOffset,
-                        value,
-                        scratch2,
-                        kRAHasBeenSaved,
-                        kSaveFPRegs,
-                        OMIT_REMEMBERED_SET,
-                        check_needed);
-  }
+  // Cells are always rescanned, so no write barrier here.
 }
 
 

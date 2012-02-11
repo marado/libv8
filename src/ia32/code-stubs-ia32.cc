@@ -4540,7 +4540,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // megamorphic.
     __ cmp(ecx, Immediate(UninitializedSentinel(isolate)));
     __ j(equal, &initialize, Label::kNear);
-    // MegamorphicSentinel is a root so no write-barrier is needed.
+    // MegamorphicSentinel is an immortal immovable object (undefined) so no
+    // write-barrier is needed.
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
            Immediate(MegamorphicSentinel(isolate)));
     __ jmp(&call, Label::kNear);
@@ -4548,14 +4549,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // An uninitialized cache is patched with the function.
     __ bind(&initialize);
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
-    __ mov(ecx, edi);
-    __ RecordWriteField(ebx,
-                        JSGlobalPropertyCell::kValueOffset,
-                        ecx,
-                        edx,
-                        kDontSaveFPRegs,
-                        OMIT_REMEMBERED_SET,  // Cells are rescanned.
-                        OMIT_SMI_CHECK);
+    // No need for a write barrier here - cells are rescanned.
 
     __ bind(&call);
   }
@@ -4587,6 +4581,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // non-function case.
     __ mov(ebx, Operand(esp, 0));
     __ mov(ebx, Operand(ebx, 1));
+    // MegamorphicSentinel is an immortal immovable object (undefined) so no
+    // write barrier is needed.
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
            Immediate(MegamorphicSentinel(isolate)));
   }
@@ -4979,8 +4975,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int kDeltaToCmpImmediate = 2;
   static const int kDeltaToMov = 8;
   static const int kDeltaToMovImmediate = 9;
-  static const int8_t kCmpEdiImmediateByte1 = BitCast<int8_t, uint8_t>(0x81);
-  static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
+  static const int8_t kCmpEdiOperandByte1 = BitCast<int8_t, uint8_t>(0x3b);
+  static const int8_t kCmpEdiOperandByte2 = BitCast<int8_t, uint8_t>(0x3d);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
   ExternalReference roots_array_start =
@@ -5045,12 +5041,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ mov(scratch, Operand(esp, 0 * kPointerSize));
     __ sub(scratch, Operand(esp, 1 * kPointerSize));
     if (FLAG_debug_code) {
-      __ cmpb(Operand(scratch, 0), kCmpEdiImmediateByte1);
+      __ cmpb(Operand(scratch, 0), kCmpEdiOperandByte1);
       __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 1)");
-      __ cmpb(Operand(scratch, 1), kCmpEdiImmediateByte2);
+      __ cmpb(Operand(scratch, 1), kCmpEdiOperandByte2);
       __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 2)");
     }
-    __ mov(Operand(scratch, kDeltaToCmpImmediate), map);
+    __ mov(scratch, Operand(scratch, kDeltaToCmpImmediate));
+    __ mov(Operand(scratch, 0), map);
   }
 
   // Loop through the prototype chain of the object looking for the function
