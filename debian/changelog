@@ -1,4 +1,4 @@
-libv8 (3.7.12.11-1) UNRELEASED; urgency=low
+libv8 (3.7.12.22-1) UNRELEASED; urgency=low
 
   * Upstream update.
   * Enable mipsel arch.
@@ -10,15 +10,37 @@ libv8 (3.7.12.11-1) UNRELEASED; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Wed, 28 Dec 2011 01:11:39 +0100
 
-libv8 (3.6.6.14-1) UNRELEASED; urgency=low
+libv8 (3.6.6.20-1) unstable; urgency=low
 
+  * Upstream update.
+  * Patch for hash collision is applied upstream.
+  * debian/rules: remove v8_can_use_unaligned_accesses=false,
+    it works without it - and it even may be triggering an alignment bug.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 11 Feb 2012 10:56:15 +0100
+
+libv8 (3.6.6.14-2) unstable; urgency=low
+
+  * Land hash collision fix for V8 3.6. Closes: bug#653962.
+    This fixes CVE-2011-5037.
+  * snapshot=off, because hash is randomized by a secret key that is
+    otherwise readable in the snapshot.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 07 Jan 2012 22:29:06 +0100
+
+libv8 (3.6.6.14-1) unstable; urgency=low
+
+  [ Jérémy Lal ]
   * Upstream update.
   * Refresh patches. Remove unused 0009_unaligned_access_armel.patch.
   * Add samples/*.cc, samples/*.js and provide usable samples.gyp
     to libv8-dev examples. Closes: bug#612362.
   * Update watch file: Track 3.6.x releases.
 
- -- Jérémy Lal <kapouer@melix.org>  Mon, 05 Dec 2011 16:24:17 +0100
+  [ Jonas Smedegaard ]
+  * Newline-separate package relations in control file.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 03 Jan 2012 22:00:29 +0100
 
 libv8 (3.5.10.24-4) unstable; urgency=low
 
