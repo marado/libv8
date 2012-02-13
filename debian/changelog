@@ -1,23 +1,17 @@
-libv8 (3.7.12.22-1) UNRELEASED; urgency=low
+libv8 (3.7.12.22-1) unstable; urgency=low
 
-  * Upstream update.
-  * Enable mipsel arch.
-  * Refresh patches. Remove unnecessary patches:
-    + debian/patches/0010_fix_arm_bug.patch (applied upstream)
-    + debian/patches/0012_make_check_testsuites.patch
-      (uses TESTFLAGS instead of adding TESTSUITES variable)
-    + debian/patches/0013_enable_soname.patch (applied upstream).
-  * Fix tabs and whitespaces in debian/samples.gyp.
-
- -- Jérémy Lal <kapouer@melix.org>  Sat, 11 Feb 2012 11:59:46 +0100
-
-libv8 (3.6.6.20-1) UNRELEASED; urgency=low
+  * New upstream release.
 
   [ Jérémy Lal ]
-  * Upstream update.
-  * Patch for hash collision is applied upstream.
-  * debian/rules: remove v8_can_use_unaligned_accesses=false,
-    it works without it - and it even may be triggering an alignment bug.
+  * Enable mipsel arch.
+  * Refresh patches. Remove unnecessary patches:
+    + 0010_fix_arm_bug.patch (applied upstream).
+    + 0012_make_check_testsuites.patch (uses TESTFLAGS, not TESTSUITES).
+    + 0013_enable_soname.patch (applied upstream).
+    + 0015_hash-collision-fix-v8-3.6.patch (applied upstream.
+  * Fix tabs and whitespaces in debian/samples.gyp.
+  * Stop setting v8_can_use_unaligned_accesses=false during build: works
+    without it - and it even may be triggering an alignment bug.
 
   [ Jonas Smedegaard ]
   * Update copyright file:
@@ -25,7 +19,7 @@ libv8 (3.6.6.20-1) UNRELEASED; urgency=low
     + Fix paths of a few files.
     + Rewrap comments at 72 chars.
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 11 Feb 2012 10:56:15 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 13 Feb 2012 20:18:39 +0100
 
 libv8 (3.6.6.14-2) unstable; urgency=low
 
