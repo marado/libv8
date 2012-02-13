@@ -1,4 +1,4 @@
-libv8 (3.7.12.22-1) experimental; urgency=low
+libv8 (3.7.12.22-1) UNRELEASED; urgency=low
 
   * Upstream update.
   * Enable mipsel arch.
