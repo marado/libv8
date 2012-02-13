@@ -11,12 +11,19 @@ libv8 (3.7.12.22-1) experimental; urgency=low
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 11 Feb 2012 11:59:46 +0100
 
-libv8 (3.6.6.20-1) unstable; urgency=low
+libv8 (3.6.6.20-1) UNRELEASED; urgency=low
 
+  [ Jérémy Lal ]
   * Upstream update.
   * Patch for hash collision is applied upstream.
   * debian/rules: remove v8_can_use_unaligned_accesses=false,
     it works without it - and it even may be triggering an alignment bug.
+
+  [ Jonas Smedegaard ]
+  * Update copyright file:
+    + Extend (and shorten) some copyright years.
+    + Fix paths of a few files.
+    + Rewrap comments at 72 chars.
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 11 Feb 2012 10:56:15 +0100
 
