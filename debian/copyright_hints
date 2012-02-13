@@ -17,7 +17,6 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
- debian/patches/0015_hash-collision-fix-v8-3.6.patch
  debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
@@ -494,6 +493,7 @@ Files: LICENSE
  test/cctest/test-fixed-dtoa.cc
  test/cctest/test-flags.cc
  test/cctest/test-func-name-inference.cc
+ test/cctest/test-hashing.cc
  test/cctest/test-hashmap.cc
  test/cctest/test-list.cc
  test/cctest/test-liveedit.cc
@@ -686,6 +686,7 @@ Files: LICENSE
  test/mjsunit/compiler/regress-gap.js
  test/mjsunit/compiler/regress-gvn.js
  test/mjsunit/compiler/regress-intoverflow.js
+ test/mjsunit/compiler/regress-lazy-deopt.js
  test/mjsunit/compiler/regress-lbranch-double.js
  test/mjsunit/compiler/regress-loadfield.js
  test/mjsunit/compiler/regress-loop-deopt.js
@@ -1463,6 +1464,7 @@ Copyright: 2006-2008, the V8 project authors.
  2009-2010, the V8 project authors.
  2010, the V8 project authors.
  2011, the V8 project authors.
+ 2012, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
@@ -1582,8 +1584,8 @@ Files: src/arm/assembler-arm-inl.h
  src/arm/assembler-arm.h
  src/ia32/assembler-ia32.cc
 Copyright: 1994-2006, Sun Microsystems Inc
- 2006-2008, the V8 project authors.
  2011, the V8 project authors.
+ 2012, the V8 project authors.
  HOLDERS AND CONTRIBUTORS
  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
 License: BSD (2 clause)
