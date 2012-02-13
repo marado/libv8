@@ -4,24 +4,23 @@ Source: http://code.google.com/p/v8
 Upstream-Name: v8
 
 Files: *
-Copyright: 2006-2011 the V8 project authors
+Copyright: 2006-2012 the V8 project authors
 License: BSD-3-clause~Google
 
 Files: src/arm/assembler-arm*
- src/arm/assembler-thumb2*
  src/assembler.*
  src/ia32/assembler-ia32*
  src/mips/assembler-mips*
  src/x64/assembler-x64.h
-Copyright: 1994-2006, Sun Microsystems Inc.
- 2006-2010, the V8 Project Authors
+Copyright: 1994-2006,2011, Sun Microsystems Inc.
+ 2011-2012, the V8 Project Authors
 License: BSD-3-clause~SUN
 
 Files: test/mjsunit/third_party/*
 Copyright: 2006,2009, Apple Computer, Inc.
 License: BSD-3-clause
 
-Files: src/third-party/valgrind/valgrind.h
+Files: src/third_party/valgrind/valgrind.h
 Copyright: 2000-2010, Julian Seward
 License: BSD-4-clause
 
@@ -30,7 +29,7 @@ Copyright: 1997-2007, University of Cambridge
  2007, Google Inc
 License: BSD-3-clause~Cambridge
 
-Files: benchmark/deltablue.js
+Files: benchmarks/deltablue.js
 Copyright: 1996, John Maloney
  1996, Mario Wolczko
  2008, the V8 project authors
@@ -44,8 +43,9 @@ Files: benchmarks/raytrace.js
 Copyright: 2005-2007, Sam Stephenson
 License: MIT~Prototype
 Comment:
- Prototype is freely distributable under the terms of an MIT-style license.
- For details, see the Prototype web site: http://prototype.conio.net/
+ Prototype is freely distributable under the terms of an MIT-style
+ license.  For details, see the Prototype web site:
+ http://prototype.conio.net/
 
 Files: debian/*
 Copyright: 2008-2009, Fabien Tassin <fta@sofaraway.org>
