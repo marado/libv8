@@ -1,3 +1,10 @@
+libv8 (3.7.12.22-2) UNRELEASED; urgency=low
+
+  * Adjust tests timeout from 120 to 180 seconds, to really make
+    sure build does not fail.
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 17 Feb 2012 00:51:23 +0100
+
 libv8 (3.7.12.22-1) unstable; urgency=low
 
   * New upstream release.
