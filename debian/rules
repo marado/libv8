@@ -79,7 +79,7 @@ v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
 DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	LD_PRELOAD=$(v8out) \
 	TESTFLAGS="mjsunit message preparser" \
-	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=120" \
+	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=180" \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
 
