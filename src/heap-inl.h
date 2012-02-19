@@ -125,7 +125,8 @@ MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<HeapObject*>(result)->set_map(map);
+  // String maps are all immortal immovable objects.
+  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());
@@ -462,7 +463,7 @@ MaybeObject* Heap::PrepareForCompare(String* str) {
 
 
 int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
-  ASSERT(HasBeenSetup());
+  ASSERT(HasBeenSetUp());
   int amount = amount_of_external_allocated_memory_ + change_in_bytes;
   if (change_in_bytes >= 0) {
     // Avoid overflow.
@@ -503,7 +504,6 @@ Isolate* Heap::isolate() {
 #else
 #define GC_GREEDY_CHECK() { }
 #endif
-
 
 // Calls the FUNCTION_CALL function and retries it up to three times
 // to guarantee that any allocations performed during the call will
