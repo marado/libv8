@@ -1,3 +1,9 @@
+libv8 (3.8.9.7-1) UNRELEASED; urgency=low
+
+  * New upstream release. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 19 Feb 2012 17:56:24 +0100
+
 libv8 (3.7.12.22-2) UNRELEASED; urgency=low
 
   * Adjust tests timeout from 120 to 180 seconds, to really make
