@@ -1,9 +1,9 @@
 libv8 (3.7.12.22-2) UNRELEASED; urgency=low
 
-  * Adjust tests timeout from 120 to 180 seconds, to really make
-    sure build does not fail.
-  * debian/patches/0015_enable_mips_tests.patch:
-    fix failing "make check" for mips arch.
+  * Adjust tests timeout from 120 to 180 seconds because build server
+    can be busy sometimes.
+  * Fix failing "make check" for mips arch in:
+    + debian/patches/0015_enable_mips_tests.patch
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 17 Feb 2012 00:51:23 +0100
 
