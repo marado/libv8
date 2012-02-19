@@ -2,3 +2,4 @@
 0008_mksnapshot_stdout.patch
 0011_use_system_gyp.patch
 0014_disable_cross_build.patch
+0015_enable_mips_tests.patch
