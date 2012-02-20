@@ -1,3 +1,9 @@
+libv8 (3.7.12.22-3) unstable; urgency=low
+
+  * Fix mipsel build, allow test debug-step-3 to fail (non-crucial)
+
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 20 Feb 2012 14:08:17 +0100
+
 libv8 (3.7.12.22-2) unstable; urgency=low
 
   * Adjust tests timeout from 120 to 180 seconds because build server
