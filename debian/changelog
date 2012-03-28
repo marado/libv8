@@ -3,10 +3,10 @@ libv8 (3.8.9.16-1) UNRELEASED; urgency=low
   * Upstream update.
   * Removed patches :
     + 0005-enable-i18n-extension, because libv8-i18n package will
-      provide those features. As a consequence, libv8 won't depend
-      on icu.
+      provide those features.
     + 0015_enable_mips_tests.patch, applied upstream.
       A failing test has been reenabled : debug-step-3.
+  * Remove Build-Depend on libicu-dev, libv8-i18n does.
   * Update copyright file:
     + add a copyright to build/android.gypi.
 
