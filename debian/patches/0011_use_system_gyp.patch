@@ -4,7 +4,7 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-10-22
 --- a/Makefile
 +++ b/Makefile
-@@ -182,27 +182,27 @@
+@@ -207,27 +207,27 @@
  
  # GYP file generation targets.
  $(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
@@ -36,4 +36,4 @@ Last-Update: 2011-10-22
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
  	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
  
- # Replaces the old with the new environment file if they're different, which
+ $(OUTDIR)/Makefile-android: $(GYPFILES) $(ENVFILE) build/android.gypi \

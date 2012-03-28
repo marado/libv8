@@ -4,7 +4,7 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-12-28
 --- a/Makefile
 +++ b/Makefile
-@@ -191,14 +191,14 @@
+@@ -216,14 +216,14 @@
  	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
  	              -S-x64 $(GYPFLAGS)
  
