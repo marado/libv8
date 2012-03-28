@@ -1,4 +1,4 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: FIXME
 Upstream-Contact: FIXME
 Source: FIXME
@@ -15,6 +15,7 @@ Files: LICENSE
  benchmarks/spinning-balls/splay-tree.js
  benchmarks/spinning-balls/v.js
  benchmarks/splay.js
+ build/android.gypi
  build/armu.gypi
  build/common.gypi
  build/gyp_v8
@@ -158,25 +159,6 @@ Files: LICENSE
  src/elements.h
  src/execution.cc
  src/execution.h
- src/extensions/experimental/break-iterator.cc
- src/extensions/experimental/break-iterator.h
- src/extensions/experimental/collator.cc
- src/extensions/experimental/collator.h
- src/extensions/experimental/datetime-format.cc
- src/extensions/experimental/datetime-format.h
- src/extensions/experimental/experimental.gyp
- src/extensions/experimental/i18n-extension.cc
- src/extensions/experimental/i18n-extension.h
- src/extensions/experimental/i18n-locale.cc
- src/extensions/experimental/i18n-locale.h
- src/extensions/experimental/i18n-natives.h
- src/extensions/experimental/i18n-utils.cc
- src/extensions/experimental/i18n-utils.h
- src/extensions/experimental/i18n.js
- src/extensions/experimental/language-matcher.cc
- src/extensions/experimental/language-matcher.h
- src/extensions/experimental/number-format.cc
- src/extensions/experimental/number-format.h
  src/extensions/externalize-string-extension.cc
  src/extensions/externalize-string-extension.h
  src/extensions/gc-extension.cc
@@ -505,6 +487,7 @@ Files: LICENSE
  test/cctest/test-disasm-arm.cc
  test/cctest/test-disasm-ia32.cc
  test/cctest/test-disasm-mips.cc
+ test/cctest/test-disasm-x64.cc
  test/cctest/test-dtoa.cc
  test/cctest/test-fixed-dtoa.cc
  test/cctest/test-flags.cc
@@ -580,6 +563,7 @@ Files: LICENSE
  test/mjsunit/arguments-read-and-assignment.js
  test/mjsunit/arguments.js
  test/mjsunit/array-concat.js
+ test/mjsunit/array-construct-transition.js
  test/mjsunit/array-constructor.js
  test/mjsunit/array-elements-from-array-prototype-chain.js
  test/mjsunit/array-elements-from-array-prototype.js
@@ -656,6 +640,7 @@ Files: LICENSE
  test/mjsunit/compiler/global-accessors.js
  test/mjsunit/compiler/globals.js
  test/mjsunit/compiler/inline-arguments.js
+ test/mjsunit/compiler/inline-arity-mismatch.js
  test/mjsunit/compiler/inline-compare.js
  test/mjsunit/compiler/inline-conditional.js
  test/mjsunit/compiler/inline-context-slots.js
@@ -853,6 +838,7 @@ Files: LICENSE
  test/mjsunit/function-bind.js
  test/mjsunit/function-call.js
  test/mjsunit/function-caller.js
+ test/mjsunit/function-named-self-reference.js
  test/mjsunit/function-names.js
  test/mjsunit/function-property.js
  test/mjsunit/function-prototype.js
@@ -877,6 +863,7 @@ Files: LICENSE
  test/mjsunit/global-vars-with.js
  test/mjsunit/greedy.js
  test/mjsunit/harmony/block-conflicts.js
+ test/mjsunit/harmony/block-const-assign.js
  test/mjsunit/harmony/block-early-errors.js
  test/mjsunit/harmony/block-for.js
  test/mjsunit/harmony/block-lazy-compile.js
@@ -1015,6 +1002,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1066899.js
  test/mjsunit/regress/regress-1079.js
  test/mjsunit/regress/regress-1081309.js
+ test/mjsunit/regress/regress-108296.js
  test/mjsunit/regress/regress-1083.js
  test/mjsunit/regress/regress-109195.js
  test/mjsunit/regress/regress-1092.js
@@ -1022,6 +1010,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1102760.js
  test/mjsunit/regress/regress-1103.js
  test/mjsunit/regress/regress-1104.js
+ test/mjsunit/regress/regress-110509.js
  test/mjsunit/regress/regress-1106.js
  test/mjsunit/regress/regress-1107.js
  test/mjsunit/regress/regress-1110.js
@@ -1063,6 +1052,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1176.js
  test/mjsunit/regress/regress-1177518.js
  test/mjsunit/regress/regress-1177809.js
+ test/mjsunit/regress/regress-117794.js
  test/mjsunit/regress/regress-1178598.js
  test/mjsunit/regress/regress-1181.js
  test/mjsunit/regress/regress-1182832.js
@@ -1128,6 +1118,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1523.js
  test/mjsunit/regress/regress-1528.js
  test/mjsunit/regress/regress-1529.js
+ test/mjsunit/regress/regress-1530.js
  test/mjsunit/regress/regress-1531.js
  test/mjsunit/regress/regress-1546.js
  test/mjsunit/regress/regress-1548.js
@@ -1152,13 +1143,17 @@ Files: LICENSE
  test/mjsunit/regress/regress-1748.js
  test/mjsunit/regress/regress-1757.js
  test/mjsunit/regress/regress-176.js
+ test/mjsunit/regress/regress-1849.js
  test/mjsunit/regress/regress-186.js
  test/mjsunit/regress/regress-187.js
+ test/mjsunit/regress/regress-1878.js
  test/mjsunit/regress/regress-189.js
+ test/mjsunit/regress/regress-1898.js
  test/mjsunit/regress/regress-191.js
  test/mjsunit/regress/regress-1919169.js
  test/mjsunit/regress/regress-192.js
  test/mjsunit/regress/regress-193.js
+ test/mjsunit/regress/regress-1945.js
  test/mjsunit/regress/regress-20070207.js
  test/mjsunit/regress/regress-201.js
  test/mjsunit/regress/regress-219.js
@@ -1332,6 +1327,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-arguments-gc.js
  test/mjsunit/regress/regress-bind-receiver.js
  test/mjsunit/regress/regress-conditional-position.js
+ test/mjsunit/regress/regress-crbug-100859.js
  test/mjsunit/regress/regress-crbug-107996.js
  test/mjsunit/regress/regress-crbug-18639.js
  test/mjsunit/regress/regress-crbug-3184.js
@@ -1343,6 +1339,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-84186.js
  test/mjsunit/regress/regress-crbug-87478.js
  test/mjsunit/regress/regress-create-exception.js
+ test/mjsunit/regress/regress-debug-code-recompilation.js
  test/mjsunit/regress/regress-deopt-gc.js
  test/mjsunit/regress/regress-fundecl.js
  test/mjsunit/regress/regress-lazy-deopt-reloc.js
@@ -1393,6 +1390,7 @@ Files: LICENSE
  test/mjsunit/string-localecompare.js
  test/mjsunit/string-match.js
  test/mjsunit/string-replace-gc.js
+ test/mjsunit/string-replace-one-char.js
  test/mjsunit/string-replace-with-empty.js
  test/mjsunit/string-replace.js
  test/mjsunit/string-search.js
@@ -1504,20 +1502,21 @@ Files: LICENSE
  tools/tickprocessor.js
  tools/utils.py
 Copyright: 2006-2008, the V8 project authors.
- 2006-2009, the V8 project authors.
- 2006-2010, the V8 project authors.
- 2006-2011, the V8 project authors.
- 2007-2008, the V8 project authors.
- 2007-2010, the V8 project authors.
- 2007-2011, the V8 project authors.
- 2008, the V8 project authors.
- 2008-2009, the V8 project authors.
- 2009, the V8 project authors.
- 2009-2010, the V8 project authors.
- 2010, the V8 project authors.
- 2011, the V8 project authors.
- 2012, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
+  2006-2009, the V8 project authors.
+  2006-2010, the V8 project authors.
+  2006-2011, the V8 project authors.
+  2006-2012, the V8 project authors.
+  2007-2008, the V8 project authors.
+  2007-2010, the V8 project authors.
+  2007-2011, the V8 project authors.
+  2008, the V8 project authors.
+  2008-2009, the V8 project authors.
+  2009, the V8 project authors.
+  2009-2010, the V8 project authors.
+  2010, the V8 project authors.
+  2011, the V8 project authors.
+  2012, the V8 project authors.
+  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
 
@@ -1595,10 +1594,10 @@ Files: build/all.gyp
  test/cctest/test-strtod.cc
  test/cctest/test-unbound-queue.cc
 Copyright: 2006-2008, the V8 project authors.
- 2006-2009, the V8 project authors.
- 2009, the V8 project authors.
- 2010, the V8 project authors.
- 2011, the V8 project authors.
+  2006-2009, the V8 project authors.
+  2009, the V8 project authors.
+  2010, the V8 project authors.
+  2011, the V8 project authors.
 License: UNKNOWN
  FIXME
 
@@ -1611,10 +1610,10 @@ Files: src/assembler.cc
  src/mips/assembler-mips.h
  src/x64/assembler-x64.h
 Copyright: 1994-2006, Sun Microsystems Inc
- 2011, Sun Microsystems Inc
- 2011, the V8 project authors.
- HOLDERS AND CONTRIBUTORS "AS
- OWNER OR
+  2011, the V8 project authors.
+  2012, the V8 project authors.
+  HOLDERS AND CONTRIBUTORS "AS
+  OWNER OR
 License: BSD (2 clause)
  FIXME
 
@@ -1623,10 +1622,10 @@ Files: test/mjsunit/third_party/array-isarray.js
  test/mjsunit/third_party/object-keys.js
  test/mjsunit/third_party/string-trim.js
 Copyright: 2006, Apple Computer, Inc.
- 2009, Apple Computer, Inc.
- HOLDERS AND CONTRIBUTORS
- OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
- holder(s) nor the names of any
+  2009, Apple Computer, Inc.
+  HOLDERS AND CONTRIBUTORS
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
+  holder(s) nor the names of any
 License: BSD (2 clause)
  FIXME
 
@@ -1635,127 +1634,125 @@ Files: src/arm/assembler-arm-inl.h
  src/arm/assembler-arm.h
  src/ia32/assembler-ia32.cc
 Copyright: 1994-2006, Sun Microsystems Inc
- 2011, the V8 project authors.
- 2012, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
- OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
+  2011, the V8 project authors.
+  2012, the V8 project authors.
+  HOLDERS AND CONTRIBUTORS
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
 License: BSD (2 clause)
- FIXME
-
-Files: src/extensions/experimental/i18n-js2c.py
- tools/js2c.py
-Copyright: 2006-2008, the V8 project authors.
- 2011, Google Inc.
- 2011, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
-License: BSD (3 clause)
  FIXME
 
 Files: LICENSE.valgrind
  src/third_party/valgrind/valgrind.h
 Copyright: 2000-2007, Julian Seward.
- 2000-2010, Julian Seward.
+  2000-2010, Julian Seward.
 License: BSD (3 clause)
  FIXME
 
 Files: tools/gcmole/gccause.lua
  tools/gcmole/gcmole.lua
 Copyright: 2011, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
+  HOLDERS AND CONTRIBUTORS
 License: UNKNOWN
  FIXME
 
 Files: LICENSE.strongtalk
 Copyright: 1994-2006, Sun Microsystems Inc
- HOLDERS AND CONTRIBUTORS "AS
- OWNER OR
+  HOLDERS AND CONTRIBUTORS "AS
+  OWNER OR
 License: BSD (2 clause)
- FIXME
-
-Files: tools/presubmit.py
-Copyright: 
-License: BSD (3 clause)
  FIXME
 
 Files: src/scanner.cc
 Copyright: && IsCarriageReturn(c0_)) Advance();
- && IsLineFeed(c0_)) Advance();
- 2011, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
+  && IsLineFeed(c0_)) Advance();
+  2011, the V8 project authors.
+  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
 
 Files: src/runtime.cc
 Copyright: * kJsonQuotesCharactersPerEntry;
- 2011, the V8 project authors.
- >= kQuoteTableLength) {
- HOLDERS AND CONTRIBUTORS
- || c == 0x200b || c == 0xfeff;
+  2012, the V8 project authors.
+  >= kQuoteTableLength) {
+  HOLDERS AND CONTRIBUTORS
+  || c == 0x200b || c == 0xfeff;
 License: BSD (3 clause)
  FIXME
 
 Files: src/scanner.h
 Copyright: 2011, the V8 project authors.
- <= 5) return c + 10;
- <= 9) return c;
- HOLDERS AND CONTRIBUTORS
+  <= 5) return c + 10;
+  <= 9) return c;
+  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
 
 Files: test/mjsunit/instanceof-2.js
 Copyright: 2010, the V8 project authors.
- Foo.prototype = 12;
- HOLDERS AND CONTRIBUTORS
+  Foo.prototype = 12;
+  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
 
 Files: test/mjsunit/third_party/regexp-pcre.js
 Copyright: 1997-2007, University of Cambridge
- 2007, Google Inc
- HOLDERS AND CONTRIBUTORS "AS IS"
- OWNER OR CONTRIBUTORS BE
+  2007, Google Inc
+  HOLDERS AND CONTRIBUTORS "AS IS"
+  OWNER OR CONTRIBUTORS BE
+License: BSD (3 clause)
+ FIXME
+
+Files: tools/js2c.py
+Copyright: 2006-2008, the V8 project authors.
+  2011, Google Inc.
+  HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
 
 Files: src/hydrogen.cc
-Copyright: 2011, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
- Reachable only normally
+Copyright: 2012, the V8 project authors.
+  HOLDERS AND CONTRIBUTORS
+  Reachable only normally
 License: BSD (3 clause)
  FIXME
 
 Files: src/char-predicates-inl.h
 Copyright: 2011, the V8 project authors.
- HOLDERS AND CONTRIBUTORS
- || IsInRange(AsciiAlphaToLower, 'a', 'f');
+  HOLDERS AND CONTRIBUTORS
+  || IsInRange(AsciiAlphaToLower, 'a', 'f');
+License: BSD (3 clause)
+ FIXME
+
+Files: tools/presubmit.py
+Copyright: 2012, the V8 project authors.
 License: BSD (3 clause)
  FIXME
 
 Files: benchmarks/deltablue.js
 Copyright: 1996, John Maloney and Mario Wolczko
- 2008, the V8 project authors.
+  2008, the V8 project authors.
 License: GPL-2+
  FIXME
 
 Files: benchmarks/crypto.js
 Copyright: 2003-2005, Tom Wu
- 2005, Tom Wu
+  2005, Tom Wu
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: benchmarks/earley-boyer.js
 Copyright: != -1 || // ID-char
- { return c.val; }
- { return sc_SYMBOL_PREFIX + c.val; }
- || c === SC_EOF_OBJECT;
- || needing == "")
+  { return c.val; }
+  { return sc_SYMBOL_PREFIX + c.val; }
+  || c === SC_EOF_OBJECT;
+  || needing == "")
 License: UNKNOWN
  FIXME
 
 Files: tools/generate-ten-powers.scm
 Copyright: 2010, the V8 project authors.
- 2010, the V8 project authors.")
- HOLDERS AND CONTRIBUTORS
+  2010, the V8 project authors.")
+  HOLDERS AND CONTRIBUTORS
 License: UNKNOWN
  FIXME
 
