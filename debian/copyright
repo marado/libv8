@@ -47,6 +47,11 @@ Comment:
  license.  For details, see the Prototype web site:
  http://prototype.conio.net/
 
+Files: build/android.gypi
+Copyright: 2012, The Chromium Authors
+ 2012, the V8 project authors
+License: BSD-3-clause~Google
+
 Files: debian/*
 Copyright: 2008-2009, Fabien Tassin <fta@sofaraway.org>
 License: BSD-3-clause
