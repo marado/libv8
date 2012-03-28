@@ -1,3 +1,15 @@
+libv8 (3.8.9.16-1) UNRELEASED; urgency=low
+
+  * Upstream update.
+  * Removed patches :
+    + 0005-enable-i18n-extension, because libv8-i18n package will
+      provide those features. As a consequence, libv8 won't depend
+      on icu.
+    + 0015_enable_mips_tests.patch, applied upstream.
+      A failing test has been reenabled : debug-step-3.
+
+ -- Jérémy Lal <kapouer@melix.org>  Thu, 29 Mar 2012 00:59:26 +0200
+
 libv8 (3.7.12.22-3) unstable; urgency=low
 
   * Fix mipsel build, allow test debug-step-3 to fail (non-crucial)
