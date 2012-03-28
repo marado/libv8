@@ -388,7 +388,7 @@ void ConsString::ConsStringVerify() {
   CHECK(this->first()->IsString());
   CHECK(this->second() == GetHeap()->empty_string() ||
         this->second()->IsString());
-  CHECK(this->length() >= String::kMinNonFlatLength);
+  CHECK(this->length() >= ConsString::kMinLength);
   if (this->IsFlat()) {
     // A flat cons can only be created by String::SlowTryFlatten.
     // Afterwards, the first part may be externalized.
@@ -468,8 +468,9 @@ void Oddball::OddballVerify() {
   } else {
     ASSERT(number->IsSmi());
     int value = Smi::cast(number)->value();
-    ASSERT(value <= 1);
     // Hidden oddballs have negative smis.
+    const int kLeastHiddenOddballNumber = -4;
+    ASSERT(value <= 1);
     ASSERT(value >= kLeastHiddenOddballNumber);
   }
 }
@@ -599,6 +600,13 @@ void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(data());
   VerifyPointer(flag());
+}
+
+
+void AccessorPair::AccessorPairVerify() {
+  CHECK(IsAccessorPair());
+  VerifyPointer(getter());
+  VerifyPointer(setter());
 }
 
 
@@ -739,7 +747,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dict = element_dictionary();
+      SeededNumberDictionary* dict = element_dictionary();
       info->number_of_slow_used_elements_ += dict->NumberOfElements();
       info->number_of_slow_unused_elements_ +=
           dict->Capacity() - dict->NumberOfElements();

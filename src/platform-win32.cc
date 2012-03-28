@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -198,7 +198,7 @@ double modulo(double x, double y) {
 
 // ----------------------------------------------------------------------------
 // The Time class represents time on win32. A timestamp is represented as
-// a 64-bit integer in 100 nano-seconds since January 1, 1601 (UTC). JavaScript
+// a 64-bit integer in 100 nanoseconds since January 1, 1601 (UTC). JavaScript
 // timestamps are represented as a doubles in milliseconds since 00:00:00 UTC,
 // January 1, 1970.
 
@@ -528,7 +528,7 @@ char* Time::LocalTimezone() {
 }
 
 
-void OS::Setup() {
+void OS::SetUp() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
   // to an unsigned. Going directly can cause an overflow and the seed to be
@@ -776,7 +776,7 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
-// and verification).  The estimate is conservative, ie, not all addresses in
+// and verification).  The estimate is conservative, i.e., not all addresses in
 // 'allocated' space are actually allocated to our heap.  The range is
 // [lowest, highest), inclusive on the low and and exclusive on the high end.
 static void* lowest_ever_allocated = reinterpret_cast<void*>(-1);
@@ -831,43 +831,62 @@ size_t OS::AllocateAlignment() {
 }
 
 
+static void* GetRandomAddr() {
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  // Note that the current isolate isn't set up in a call path via
+  // CpuFeatures::Probe. We don't care about randomization in this case because
+  // the code page is immediately freed.
+  if (isolate != NULL) {
+    // The address range used to randomize RWX allocations in OS::Allocate
+    // Try not to map pages into the default range that windows loads DLLs
+    // Use a multiple of 64k to prevent committing unused memory.
+    // Note: This does not guarantee RWX regions will be within the
+    // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
+#ifdef V8_HOST_ARCH_64_BIT
+    static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
+    static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
+#else
+    static const intptr_t kAllocationRandomAddressMin = 0x04000000;
+    static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
+#endif
+    uintptr_t address = (V8::RandomPrivate(isolate) << kPageSizeBits)
+        | kAllocationRandomAddressMin;
+    address &= kAllocationRandomAddressMax;
+    return reinterpret_cast<void *>(address);
+  }
+  return NULL;
+}
+
+
+static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
+  LPVOID base = NULL;
+
+  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
+    // For exectutable pages try and randomize the allocation address
+    for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
+      base = VirtualAlloc(GetRandomAddr(), size, action, protection);
+    }
+  }
+
+  // After three attempts give up and let the OS find an address to use.
+  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
+
+  return base;
+}
+
+
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
-  // The address range used to randomize RWX allocations in OS::Allocate
-  // Try not to map pages into the default range that windows loads DLLs
-  // Use a multiple of 64k to prevent committing unused memory.
-  // Note: This does not guarantee RWX regions will be within the
-  // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
-#ifdef V8_HOST_ARCH_64_BIT
-  static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
-#else
-  static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
-#endif
-
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, static_cast<int>(GetPageSize()));
-  intptr_t address = 0;
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
   int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
 
-  // For exectutable pages try and randomize the allocation address
-  if (prot == PAGE_EXECUTE_READWRITE &&
-      msize >= static_cast<size_t>(Page::kPageSize)) {
-    address = (V8::RandomPrivate(Isolate::Current()) << kPageSizeBits)
-      | kAllocationRandomAddressMin;
-    address &= kAllocationRandomAddressMax;
-  }
-
-  LPVOID mbase = VirtualAlloc(reinterpret_cast<void *>(address),
-                              msize,
-                              MEM_COMMIT | MEM_RESERVE,
-                              prot);
-  if (mbase == NULL && address != 0)
-    mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
+  LPVOID mbase = RandomizedVirtualAlloc(msize,
+                                        MEM_COMMIT | MEM_RESERVE,
+                                        prot);
 
   if (mbase == NULL) {
     LOG(ISOLATE, StringEvent("OS::Allocate", "VirtualAlloc failed"));
@@ -886,6 +905,11 @@ void OS::Free(void* address, const size_t size) {
   // TODO(1240712): VirtualFree has a return value which is ignored here.
   VirtualFree(address, 0, MEM_RELEASE);
   USE(size);
+}
+
+
+intptr_t OS::CommitPageSize() {
+  return 4096;
 }
 
 
@@ -1466,7 +1490,7 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 
 void* VirtualMemory::ReserveRegion(size_t size) {
-  return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS);
 }
 
 
@@ -1481,6 +1505,17 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
 }
 
 
+bool VirtualMemory::Guard(void* address) {
+  if (NULL == VirtualAlloc(address,
+                           OS::CommitPageSize(),
+                           MEM_COMMIT,
+                           PAGE_READONLY | PAGE_GUARD)) {
+    return false;
+  }
+  return true;
+}
+
+
 bool VirtualMemory::UncommitRegion(void* base, size_t size) {
   return VirtualFree(base, size, MEM_DECOMMIT) != 0;
 }
@@ -1489,7 +1524,6 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return VirtualFree(base, 0, MEM_RELEASE) != 0;
 }
-
 
 
 // ----------------------------------------------------------------------------
@@ -1521,16 +1555,9 @@ class Thread::PlatformData : public Malloced {
 // handle until it is started.
 
 Thread::Thread(const Options& options)
-    : stack_size_(options.stack_size) {
+    : stack_size_(options.stack_size()) {
   data_ = new PlatformData(kNoThread);
-  set_name(options.name);
-}
-
-
-Thread::Thread(const char* name)
-    : stack_size_(0) {
-  data_ = new PlatformData(kNoThread);
-  set_name(name);
+  set_name(options.name());
 }
 
 
@@ -1820,7 +1847,7 @@ bool Win32Socket::SetReuseAddress(bool reuse_address) {
 }
 
 
-bool Socket::Setup() {
+bool Socket::SetUp() {
   // Initialize Winsock32
   int err;
   WSADATA winsock_data;
@@ -1896,8 +1923,10 @@ class Sampler::PlatformData : public Malloced {
 
 class SamplerThread : public Thread {
  public:
+  static const int kSamplerThreadStackSize = 32 * KB;
+
   explicit SamplerThread(int interval)
-      : Thread("SamplerThread"),
+      : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {
@@ -2001,6 +2030,7 @@ class SamplerThread : public Thread {
   static Mutex* mutex_;
   static SamplerThread* instance_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
 
