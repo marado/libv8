@@ -7,6 +7,8 @@ libv8 (3.8.9.16-1) UNRELEASED; urgency=low
       on icu.
     + 0015_enable_mips_tests.patch, applied upstream.
       A failing test has been reenabled : debug-step-3.
+  * Update copyright file:
+    + add a copyright to build/android.gypi.
 
  -- Jérémy Lal <kapouer@melix.org>  Thu, 29 Mar 2012 00:59:26 +0200
 
