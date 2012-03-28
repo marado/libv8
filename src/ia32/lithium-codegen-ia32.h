@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -58,7 +58,6 @@ class LCodeGen BASE_EMBEDDED {
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
-        dynamic_frame_alignment_(false),
         deferred_(8),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
@@ -78,7 +77,13 @@ class LCodeGen BASE_EMBEDDED {
   Operand ToOperand(LOperand* op) const;
   Register ToRegister(LOperand* op) const;
   XMMRegister ToDoubleRegister(LOperand* op) const;
-  Immediate ToImmediate(LOperand* op);
+
+  bool IsInteger32(LConstantOperand* op) const;
+  Immediate ToInteger32Immediate(LOperand* op) const {
+    return Immediate(ToInteger32(LConstantOperand::cast(op)));
+  }
+
+  Handle<Object> ToHandle(LConstantOperand* op) const;
 
   // The operand denoting the second word (the one with a higher address) of
   // a double stack slot.
@@ -103,6 +108,9 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
+
+  void DoCheckMapCommon(Register reg, Handle<Map> map,
+                        CompareMapMode mode, LEnvironment* env);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -133,10 +141,6 @@ class LCodeGen BASE_EMBEDDED {
 
   StrictModeFlag strict_mode_flag() const {
     return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
-  }
-  bool dynamic_frame_alignment() const { return dynamic_frame_alignment_; }
-  void set_dynamic_frame_alignment(bool value) {
-    dynamic_frame_alignment_ = value;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -207,8 +211,6 @@ class LCodeGen BASE_EMBEDDED {
                          LInstruction* instr,
                          CallKind call_kind);
 
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
-
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
 
@@ -227,6 +229,7 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   int ToInteger32(LConstantOperand* op) const;
+
   double ToDouble(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
@@ -239,7 +242,6 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
-  void DoMathPowHalf(LUnaryMathOperation* instr);
   void DoMathLog(LUnaryMathOperation* instr);
   void DoMathTan(LUnaryMathOperation* instr);
   void DoMathCos(LUnaryMathOperation* instr);
@@ -261,8 +263,10 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block);
   void EmitBranch(int left_block, int right_block, Condition cc);
   void EmitNumberUntagD(Register input,
+                        Register temp,
                         XMMRegister result,
                         bool deoptimize_on_undefined,
+                        bool deoptimize_on_minus_zero,
                         LEnvironment* env);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
@@ -306,6 +310,10 @@ class LCodeGen BASE_EMBEDDED {
 
   void EnsureSpaceForLazyDeopt();
 
+  // Emits code for pushing either a tagged constant, a (non-double)
+  // register, or a stack slot operand.
+  void EmitPushTaggedOperand(LOperand* operand);
+
   LChunk* const chunk_;
   MacroAssembler* const masm_;
   CompilationInfo* const info_;
@@ -318,7 +326,6 @@ class LCodeGen BASE_EMBEDDED {
   int inlined_function_count_;
   Scope* const scope_;
   Status status_;
-  bool dynamic_frame_alignment_;
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   int osr_pc_offset_;
@@ -372,7 +379,7 @@ class LDeferredCode: public ZoneObject {
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 
-  void SetExit(Label *exit) { external_exit_ = exit; }
+  void SetExit(Label* exit) { external_exit_ = exit; }
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
   int instruction_index() const { return instruction_index_; }

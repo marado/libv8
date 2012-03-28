@@ -125,14 +125,14 @@ class TestMemoryAllocatorScope {
 
 
 TEST(MemoryAllocator) {
-  OS::Setup();
+  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(isolate->heap()->ConfigureHeapDefault());
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->Setup(heap->MaxReserved(),
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
 
   int total_pages = 0;
@@ -175,25 +175,26 @@ TEST(MemoryAllocator) {
 
 
 TEST(NewSpace) {
-  OS::Setup();
+  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->Setup(heap->MaxReserved(),
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   NewSpace new_space(heap);
 
-  CHECK(new_space.Setup(HEAP->ReservedSemiSpaceSize(),
+  CHECK(new_space.SetUp(HEAP->ReservedSemiSpaceSize(),
                         HEAP->ReservedSemiSpaceSize()));
-  CHECK(new_space.HasBeenSetup());
+  CHECK(new_space.HasBeenSetUp());
 
-  while (new_space.Available() >= Page::kMaxHeapObjectSize) {
+  while (new_space.Available() >= Page::kMaxNonCodeHeapObjectSize) {
     Object* obj =
-        new_space.AllocateRaw(Page::kMaxHeapObjectSize)->ToObjectUnchecked();
+        new_space.AllocateRaw(Page::kMaxNonCodeHeapObjectSize)->
+        ToObjectUnchecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
 
@@ -204,13 +205,13 @@ TEST(NewSpace) {
 
 
 TEST(OldSpace) {
-  OS::Setup();
+  OS::SetUp();
   Isolate* isolate = Isolate::Current();
   isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
   CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->Setup(heap->MaxReserved(),
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
@@ -220,10 +221,10 @@ TEST(OldSpace) {
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
 
-  CHECK(s->Setup());
+  CHECK(s->SetUp());
 
   while (s->Available() > 0) {
-    s->AllocateRaw(Page::kMaxHeapObjectSize)->ToObjectUnchecked();
+    s->AllocateRaw(Page::kMaxNonCodeHeapObjectSize)->ToObjectUnchecked();
   }
 
   s->TearDown();

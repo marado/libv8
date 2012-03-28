@@ -70,6 +70,12 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
+intptr_t OS::CommitPageSize() {
+  static intptr_t page_size = getpagesize();
+  return page_size;
+}
+
+
 #ifndef __CYGWIN__
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {
@@ -455,7 +461,7 @@ bool POSIXSocket::SetReuseAddress(bool reuse_address) {
 }
 
 
-bool Socket::Setup() {
+bool Socket::SetUp() {
   // Nothing to do on POSIX.
   return true;
 }

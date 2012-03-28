@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -123,6 +123,7 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
+  V(MathPowHalf)                                \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -134,6 +135,7 @@ class LCodeGen;
   V(OuterContext)                               \
   V(Parameter)                                  \
   V(Power)                                      \
+  V(Random)                                     \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -582,6 +584,24 @@ class LUnaryMathOperation: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LMathPowHalf: public LTemplateInstruction<1, 2, 1> {
+ public:
+  LMathPowHalf(LOperand* context, LOperand* value, LOperand* temp) {
+    inputs_[1] = context;
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* context() { return inputs_[1]; }
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathPowHalf, "math-pow-half")
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
 class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
  public:
   LCmpObjectEqAndBranch(LOperand* left, LOperand* right) {
@@ -1024,6 +1044,17 @@ class LPower: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LRandom: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LRandom(LOperand* global_object) {
+    inputs_[0] = global_object;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Random, "random")
+  DECLARE_HYDROGEN_ACCESSOR(Random)
+};
+
+
 class LArithmeticD: public LTemplateInstruction<1, 2, 0> {
  public:
   LArithmeticD(Token::Value op, LOperand* left, LOperand* right)
@@ -1250,16 +1281,16 @@ class LLoadGlobalGeneric: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LStoreGlobalCell: public LTemplateInstruction<0, 1, 2> {
+class LStoreGlobalCell: public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LStoreGlobalCell(LOperand* value, LOperand* temp1, LOperand* temp2) {
+  explicit LStoreGlobalCell(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
+
+  LOperand* value() { return inputs_[0]; }
 };
 
 
@@ -1593,10 +1624,11 @@ class LSmiTag: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LNumberUntagD: public LTemplateInstruction<1, 1, 0> {
+class LNumberUntagD: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LNumberUntagD(LOperand* value) {
+  explicit LNumberUntagD(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
@@ -2133,7 +2165,6 @@ class LChunk: public ZoneObject {
       graph_(graph),
       instructions_(32),
       pointer_maps_(8),
-      num_double_slots_(0),
       inlined_closures_(1) { }
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
@@ -2147,8 +2178,6 @@ class LChunk: public ZoneObject {
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
   int spill_slot_count() const { return spill_slot_count_; }
-  int num_double_slots() const { return num_double_slots_; }
-
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
@@ -2190,7 +2219,6 @@ class LChunk: public ZoneObject {
   HGraph* const graph_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
-  int num_double_slots_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
 };
 
