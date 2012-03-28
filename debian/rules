@@ -37,7 +37,7 @@ v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 GYPFLAGS += -Dhost_arch=$(v8arch)
 
 # still not compatible with GCC 4.6 defaults (at 3.5.10.24)
-CXXFLAGS += -Wno-unused-but-set-variable
+# CXXFLAGS += -Wno-unused-but-set-variable
 
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
