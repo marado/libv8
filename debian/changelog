@@ -1,12 +1,12 @@
-libv8 (3.8.9.16-2) UNRELEASED; urgency=low
+libv8 (3.8.9.16-2) unstable; urgency=low
 
   [ Jonas Smedegaard ]
   * Bump standards-version to 3.9.3.
 
   [ Jérémy Lal ]
-  * Reenable -Wno-unused-but-set-variable, fails on mipsel otherwise.
+  * Re-enable -Wno-unused-but-set-variable, fails on mipsel otherwise.
 
- -- Jérémy Lal <kapouer@melix.org>  Sun, 01 Apr 2012 08:45:16 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Sun, 01 Apr 2012 09:14:23 +0200
 
 libv8 (3.8.9.16-1) unstable; urgency=low
 
