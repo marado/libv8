@@ -5,6 +5,8 @@ libv8 (3.8.9.16-2) unstable; urgency=low
 
   [ Jérémy Lal ]
   * Re-enable -Wno-unused-but-set-variable, fails on mipsel otherwise.
+  * Upstream patch for failing armel smi arrays, closes:bug#666906.
+    + debian/patches/issue9316131_5001.diff
 
  -- Jérémy Lal <kapouer@melix.org>  Sun, 01 Apr 2012 09:14:23 +0200
 
