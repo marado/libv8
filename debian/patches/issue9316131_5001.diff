@@ -1,0 +1,28 @@
+Description: Properly initialize element-transitioning array literals on ARM
+ Closes: http://bugs.debian.org/666906
+Origin:upstream,https://chromiumcodereview.appspot.com/9316131
+Forwarded: not-needed
+Last-Update: 2012-04-02
+--- a/src/arm/code-stubs-arm.cc
++++ b/src/arm/code-stubs-arm.cc
+@@ -7311,7 +7311,7 @@
+   // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+   __ bind(&double_elements);
+   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
+-  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r10,
++  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r2,
+                                  &slow_elements);
+   __ Ret();
+ }
+--- a/src/arm/macro-assembler-arm.h
++++ b/src/arm/macro-assembler-arm.h
+@@ -787,7 +787,8 @@
+ 
+   // Check to see if maybe_number can be stored as a double in
+   // FastDoubleElements. If it can, store it at the index specified by key in
+-  // the FastDoubleElements array elements, otherwise jump to fail.
++  // the FastDoubleElements array elements. Otherwise jump to fail, in which
++  // case scratch2, scratch3 and scratch4 are unmodified.
+   void StoreNumberToDoubleElements(Register value_reg,
+                                    Register key_reg,
+                                    Register receiver_reg,
