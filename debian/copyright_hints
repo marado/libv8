@@ -1539,11 +1539,10 @@ Files: AUTHORS
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
- debian/patches/0005-enable-i18n-extension.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0011_use_system_gyp.patch
  debian/patches/0014_disable_cross_build.patch
- debian/patches/0015_enable_mips_tests.patch
+ debian/patches/issue9316131_5001.diff
  debian/patches/series
  debian/rules
  debian/source/format
