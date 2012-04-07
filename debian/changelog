@@ -1,3 +1,12 @@
+libv8 (3.8.9.16-3) unstable; urgency=low
+
+  * mipsel build fixes :
+    + v8_use_mips_abi_hardfloat=false, this lowers EABI requirements.
+    + v8_can_use_fpu_instructions=false, detect if FPU is present.
+    + set -Wno-unused-but-set-variable only on mipsel.
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 07 Apr 2012 16:26:13 +0200
+
 libv8 (3.8.9.16-2) unstable; urgency=low
 
   [ Jonas Smedegaard ]
