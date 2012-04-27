@@ -2,11 +2,9 @@ libv8 (3.8.9.20-1) unstable; urgency=low
 
   * Upstream update.
   * Remove mipsel from Architecture list.
-    v8 3.8 branch supports only mips32r2, not mips3 variant.
-    That's why it builds on SWARM but not on Loongson.
-    Closes:bug#667991.
-  * Revert added mipsel build flags, unneeded when mipsel support
-    will be reenabled in a later branch.
+    v8 3.8 branch only supports mips32r2 cpu variant. This excludes
+    Loongson 2E (mips3). Closes:bug#667991.
+  * Unset specific mipsel build flags set in 3.8.9.16-3, now unneeded.
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 27 Apr 2012 15:33:02 +0200
 
