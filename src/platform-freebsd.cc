@@ -54,6 +54,7 @@
 #include "v8.h"
 #include "v8threads.h"
 
+#include "platform-posix.h"
 #include "platform.h"
 #include "vm-state-inl.h"
 
@@ -88,6 +89,13 @@ void OS::SetUp() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
+}
+
+
+void OS::PostSetUp() {
+  // Math functions depend on CPU features therefore they are initialized after
+  // CPU.
+  MathSetup();
 }
 
 
@@ -716,14 +724,14 @@ class SignalSender : public Thread {
     FULL_INTERVAL
   };
 
-  static const int kSignalSenderStackSize = 32 * KB;
+  static const int kSignalSenderStackSize = 64 * KB;
 
   explicit SignalSender(int interval)
       : Thread(Thread::Options("SignalSender", kSignalSenderStackSize)),
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       // Install a signal handler.
@@ -743,7 +751,7 @@ class SignalSender : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -836,7 +844,7 @@ class SignalSender : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static LazyMutex mutex_;
   static SignalSender* instance_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
@@ -845,7 +853,7 @@ class SignalSender : public Thread {
   DISALLOW_COPY_AND_ASSIGN(SignalSender);
 };
 
-Mutex* SignalSender::mutex_ = OS::CreateMutex();
+LazyMutex SignalSender::mutex_ = LAZY_MUTEX_INITIALIZER;
 SignalSender* SignalSender::instance_ = NULL;
 struct sigaction SignalSender::old_signal_handler_;
 bool SignalSender::signal_handler_installed_ = false;
