@@ -974,6 +974,7 @@ Files: LICENSE
  test/mjsunit/regexp-UC16.js
  test/mjsunit/regexp-cache-replace.js
  test/mjsunit/regexp-call-as-function.js
+ test/mjsunit/regexp-capture-3.js
  test/mjsunit/regexp-capture.js
  test/mjsunit/regexp-captures.js
  test/mjsunit/regexp-compile.js
@@ -1058,6 +1059,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1182832.js
  test/mjsunit/regress/regress-1184.js
  test/mjsunit/regress/regress-1187524.js
+ test/mjsunit/regress/regress-119429.js
  test/mjsunit/regress/regress-1199401.js
  test/mjsunit/regress/regress-1199637.js
  test/mjsunit/regress/regress-1200351.js
@@ -1156,6 +1158,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1945.js
  test/mjsunit/regress/regress-20070207.js
  test/mjsunit/regress/regress-201.js
+ test/mjsunit/regress/regress-2056.js
  test/mjsunit/regress/regress-219.js
  test/mjsunit/regress/regress-220.js
  test/mjsunit/regress/regress-2249423.js
