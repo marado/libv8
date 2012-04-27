@@ -9,7 +9,7 @@ Standards-Version: 3.9.3
 Section: libs
 Homepage: http://code.google.com/p/v8/
 DM-Upload-Allowed: yes
-Vcs-Browser: http://git.debian.org/?p=collab-maint/libv8.git
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/libv8.git
 Vcs-Git: git://git.debian.org/git/collab-maint/libv8.git
 
 Package: libv8-dev
