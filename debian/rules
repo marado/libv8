@@ -36,12 +36,8 @@ v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
 GYPFLAGS += -Dhost_arch=$(v8arch)
 
-ifeq (mipsel, $(DEB_HOST_ARCH))
-# still not compatible with GCC 4.6 defaults - at version 3.8.9.16
+# still not compatible with GCC 4.6 defaults (at 3.8.9.16 mipsel)
 CXXFLAGS += -Wno-unused-but-set-variable
-# ensure maximum compatibility with various mipsel CPU
-GYPFLAGS += -Dv8_can_use_fpu_instructions=false -Dv8_use_mips_abi_hardfloat=false
-endif
 
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
