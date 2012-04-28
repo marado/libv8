@@ -36,8 +36,11 @@ v8os := $(or $(v8os),$(DEB_HOST_ARCH_OS))
 
 GYPFLAGS += -Dhost_arch=$(v8arch)
 
-# still not compatible with GCC 4.6 defaults (at 3.8.9.16 mipsel)
+# GCC 4.6 support (left for convenience, as mipsel still needs it)
 CXXFLAGS += -Wno-unused-but-set-variable
+
+# GCC 4.7 support, http://bugs.debian.org/667257
+CXXFLAGS += -Wno-strict-overflow
 
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
