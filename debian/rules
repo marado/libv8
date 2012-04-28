@@ -42,6 +42,11 @@ CXXFLAGS += -Wno-unused-but-set-variable
 # GCC 4.7 support, http://bugs.debian.org/667257
 CXXFLAGS += -Wno-strict-overflow
 
+# build for loongson, a subset of mips32r2
+ifeq (mipsel, $(DEB_HOST_ARCH))
+GYPFLAGS += -Dmips_arch_variant=loongson
+endif
+
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
