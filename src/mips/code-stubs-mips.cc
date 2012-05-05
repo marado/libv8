@@ -2754,7 +2754,6 @@ void BinaryOpStub::GenerateSmiCode(
   Register left = a1;
   Register right = a0;
   Register scratch1 = t3;
-  Register scratch2 = t5;
 
   // Perform combined smi check on both operands.
   __ Or(scratch1, left, Operand(right));
@@ -3459,7 +3458,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     Label no_update;
     Label skip_cache;
-    const Register heap_number_map = t2;
 
     // Call C function to calculate the result and update the cache.
     // Register a0 holds precalculated cache entry address; preserve
@@ -5402,9 +5400,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Branch(&call, ne, t0, Operand(at));
     // Patch the receiver on the stack with the global receiver object.
-    __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
-    __ sw(a2, MemOperand(sp, argc_ * kPointerSize));
+    __ lw(a3, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ lw(a3, FieldMemOperand(a3, GlobalObject::kGlobalReceiverOffset));
+    __ sw(a3, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);
   }
 
@@ -5412,8 +5410,12 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1: pushed function (to be verified)
   __ JumpIfSmi(a1, &non_function);
   // Get the map of the function object.
-  __ GetObjectType(a1, a2, a2);
-  __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
+  __ GetObjectType(a1, a3, a3);
+  __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
+
+  if (RecordCallTarget()) {
+    GenerateRecordCallTarget(masm);
+  }
 
   // Fast-case: Invoke the function now.
   // a1: pushed function
@@ -5438,8 +5440,17 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  if (RecordCallTarget()) {
+    // If there is a call target cache, mark it megamorphic in the
+    // non-function case.  MegamorphicSentinel is an immortal immovable
+    // object (undefined) so no write barrier is needed.
+    ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
+              masm->isolate()->heap()->undefined_value());
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ sw(at, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+  }
   // Check for function proxy.
-  __ Branch(&non_function, ne, a2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ Branch(&non_function, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
   __ push(a1);  // Put proxy as additional argument.
   __ li(a0, Operand(argc_ + 1, RelocInfo::NONE));
   __ li(a2, Operand(0, RelocInfo::NONE));
@@ -6095,37 +6106,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // a2: result string length
   __ lw(t0, FieldMemOperand(v0, String::kLengthOffset));
   __ sra(t0, t0, 1);
+  // Return original string.
   __ Branch(&return_v0, eq, a2, Operand(t0));
-
-
-  Label result_longer_than_two;
-  // Check for special case of two character ASCII string, in which case
-  // we do a lookup in the symbol table first.
-  __ li(t0, 2);
-  __ Branch(&result_longer_than_two, gt, a2, Operand(t0));
-  __ Branch(&runtime, lt, a2, Operand(t0));
-
-  __ JumpIfInstanceTypeIsNotSequentialAscii(a1, a1, &runtime);
-
-  // Get the two characters forming the sub string.
-  __ Addu(v0, v0, Operand(a3));
-  __ lbu(a3, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
-  __ lbu(t0, FieldMemOperand(v0, SeqAsciiString::kHeaderSize + 1));
-
-  // Try to lookup two character string in symbol table.
-  Label make_two_character_string;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, a3, t0, a1, t1, t2, t3, t4, &make_two_character_string);
-  __ jmp(&return_v0);
-
-  // a2: result string length.
-  // a3: two characters combined into halfword in little endian byte order.
-  __ bind(&make_two_character_string);
-  __ AllocateAsciiString(v0, a2, t0, t1, t4, &runtime);
-  __ sh(a3, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
-  __ jmp(&return_v0);
-
-  __ bind(&result_longer_than_two);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ Branch(&runtime, hi, a2, Operand(t0));
+  // Shorter than original string's length: an actual substring.
 
   // Deal with different string types: update the index if necessary
   // and put the underlying string into t1.
