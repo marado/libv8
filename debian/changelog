@@ -1,3 +1,10 @@
+libv8 (3.10.8.3-1) unstable; urgency=low
+
+  * Upstream update.
+  * Removed 0014_disable_cross_build.patch, applied upstream. 
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 05 May 2012 11:46:30 +0200
+
 libv8 (3.9.24.17-1) unstable; urgency=low
 
   * Upstream update.
