@@ -4,36 +4,28 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-10-22
 --- a/Makefile
 +++ b/Makefile
-@@ -211,27 +211,27 @@
- 
- # GYP file generation targets.
- $(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
+@@ -208,21 +208,21 @@
+ MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
+ $(MAKEFILES): $(GYPFILES) $(ENVFILE)
+ 	GYP_GENERATORS=make \
 -	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
- 	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=ia32 \
- 	              -S-ia32 $(GYPFLAGS)
+ 	              -Ibuild/standalone.gypi --depth=. \
+ 	              -Dv8_target_arch=$(subst .,,$(suffix $@)) \
+ 	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS)
  
- $(OUTDIR)/Makefile-x64: $(GYPFILES) $(ENVFILE)
+ $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
+ 	GYP_GENERATORS=make \
 -	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
- 	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
- 	              -S-x64 $(GYPFLAGS)
+ 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
  
- $(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE) build/armu.gypi
+ $(OUTDIR)/Makefile.android: $(GYPFILES) $(ENVFILE) build/android.gypi \
+                             must-set-ANDROID_NDK_ROOT
+ 	GYP_GENERATORS=make \
+ 	CC="${ANDROID_TOOL_PREFIX}-gcc" \
 -	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
- 	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
- 	              -S-arm $(GYPFLAGS)
+ 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
+ 	              -S.android $(GYPFLAGS)
  
- $(OUTDIR)/Makefile-mips: $(GYPFILES) $(ENVFILE) build/mipsu.gypi
--	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-+	gyp --generator-output="$(OUTDIR)" build/all.gyp \
- 	              -Ibuild/standalone.gypi --depth=. -Ibuild/mipsu.gypi \
- 	              -S-mips $(GYPFLAGS)
- 
- $(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
--	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-+	gyp --generator-output="$(OUTDIR)" build/all.gyp \
- 	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
- 
- $(OUTDIR)/Makefile-android: $(GYPFILES) $(ENVFILE) build/android.gypi \
