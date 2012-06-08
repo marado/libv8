@@ -4,6 +4,11 @@ libv8 (3.10.8.15-1) UNRELEASED; urgency=low
   * SONAME is libv8.so.3.10.8
   * debian/README.source: details about how SONAME is chosen.
   * debian/rules: extract the soname version from upstream version.
+  * debian/patches:
+    + refresh
+    + remove 0014_disable_cross_build.patch, applied upstream
+    + remove issue9316131_5001.diff, applied upstream.
+  * debian/copyright: add MIT license for benchmarks/navier-stokes.js
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 08 Jun 2012 18:04:07 +0200
 
