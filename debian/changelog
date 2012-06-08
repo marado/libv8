@@ -1,3 +1,12 @@
+libv8 (3.10.8.15-1) UNRELEASED; urgency=low
+
+  * Upstream update.
+  * SONAME is libv8.so.3.10.8
+  * debian/README.source: details about how SONAME is chosen.
+  * debian/rules: extract the soname version from upstream version.
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 08 Jun 2012 18:04:07 +0200
+
 libv8 (3.8.9.20-1) unstable; urgency=low
 
   [ Jérémy Lal ]
