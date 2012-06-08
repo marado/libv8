@@ -1,33 +1,70 @@
-Import a new version using git-buildpackage layout:
-=====
-# the new version you want to import
-VERSION=2.4.7
-# the dir where you keep your debian git packaging archive 
-GITDIR=collab-maint
+Branches, versions, SONAME
+==========================
 
-# download and repackage the upstream source
-svn export http://v8.googlecode.com/svn/tags/$VERSION import/libv8-$VERSION
-cd import
-tar zcvf libv8-$VERSION.tar.gz libv8-$VERSION
-cd ..
+v8 upstream releases versions as major.minor.build.patch.
+A branch matches a major.minor version (like the 3.8 branch).
+Given a branch, when the build number stays constant it means it can
+be considered stable, meaning API/ABI won't change.
 
-# import into upstream/$VERSION and automatically merge to master
-cd $GITDIR
-git checkout master
-git-import-orig --pristine-tar ../import/libv8-$VERSION.tar.gz
+Examples from http://v8.googlecode.com/svn/tags/ :
+3.6.6.4  -  3.6.6.25
+3.7.12.7 -  3.7.12.30
+3.8.9.1  -  3.8.9.23
+3.9.24.1 -  3.9.24.29
+3.10.8.1 -  3.10.8.13
+
+To reflect that upstream practice, the debian package use a SONAME built
+upon major.minor.build version, since version 3.10.8. This gives :
+libv8.so.3.10.8
+
+This allows easier "patch" updates to libv8, avoiding the need to
+rebuild all libv8 reverse dependencies. Previous soname would have been
+libv8.so.3.10.8.14.
+Important: it is certain that a change in minor version introduces
+API and ABI breakage. Never define a libv8.so.3 soname !
+
+However, upstream doesn't *guarantee* ABI compatibility, so each
+patch-level update should be uploaded to experimental first, to make
+sure any accidental ABI break does not happen.
+
+Side note: http://www.upstream-tracker.org/versions/v8.html gives
+valuable information about upstream involuntarily breaking API/ABI, like
+what happened with 3.7.12.31, fixed in 3.7.12.32.
 
 
-To update to a new version:
-=====
+Import a new version using git-buildpackage layout
+==================================================
 
-1) generate debian/control.in and debian/control :
+   # the new version you want to import
+   VERSION=3.8.10.14
+   # the dir where you keep your debian git packaging archive 
+   GITDIR=collab-maint
+
+   # download and repackage the upstream source
+   svn export http://v8.googlecode.com/svn/tags/$VERSION import/libv8-$VERSION
+   cd import
+   tar zcvf libv8-$VERSION.tar.gz libv8-$VERSION
+   cd ..
+
+   # import into upstream/$VERSION and automatically merge to master
+   cd $GITDIR
+   git checkout master
+   git-import-orig --pristine-tar ../import/libv8-$VERSION.tar.gz
+
+
+Update and building gotchas
+===========================
+
+* generate debian/control.in and debian/control :
+
    DEB_MAINTAINER_MODE=1 ./debian/rules debian/control
    
-2) if this is a new v8 branch, don't forget to update debian/watch
+
+* if this is a new v8 branch, don't forget to update debian/watch
 
 
 gbp.conf and branched versions
-=====
+==============================
 
 v8 stable versions (upstream /branches/), are maintained in git-buildpackage,
 and are mapped to :
@@ -38,3 +75,6 @@ and are mapped to :
 * (master-stable, upstream-stable) for libv8 in debian/stable.
 
 debian/gbp.conf is configured for each debian branch.
+When moving experimental to unstable layout, gbp.conf is typically
+overwritten by merge. It needs to be restored, until #671791 feature
+is implemented.
