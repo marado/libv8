@@ -69,6 +69,9 @@ js1_5/Array/regress-465980-02: SKIP
 ecma_3/Date/15.9.3.2-1: SKIP
 js1_2/function/Number: SKIP
 
+# TODO(2018): Temporarily allow timeout in debug mode.
+js1_5/GC/regress-203278-2: PASS || TIMEOUT if $mode == debug
+
 ##################### SLOW TESTS #####################
 
 # This takes a long time to run (~100 seconds). It should only be run
@@ -212,6 +215,10 @@ js1_5/Array/regress-101964: PASS || FAIL if $mode == debug
 # Fail because it calls builtins as functions and do not expect the
 # builtin to have undefined as the receiver.
 ecma/String/15.5.4.6-2: FAIL_OK
+
+# Fail because it expects String.prototype.split to distinguish whether
+# separator was undefined or not passed at all.
+ecma/String/15.5.4.8-2: FAIL_OK
 
 # Fail because of toLowerCase and toUpperCase conversion.
 ecma/String/15.5.4.11-2: FAIL_OK
@@ -583,6 +590,20 @@ js1_5/Regress/regress-417893: FAIL_OK
 # Unsupported use of "[]" as function parameter. We match JSC.
 js1_5/Regress/regress-416737-01: FAIL_OK
 js1_5/Regress/regress-416737-02: FAIL_OK
+
+
+# Illegal escape-sequences in string literals. Has already been fixed
+# by most engines (i.e. V8, JSC, Opera and FF).
+ecma/Array/15.4.5.1-1: FAIL_OK
+ecma/LexicalConventions/7.7.4: FAIL_OK
+ecma_2/RegExp/hex-001: FAIL_OK
+js1_2/regexp/hexadecimal: FAIL_OK
+
+
+# The source field of RegExp objects is properly escaped. We match JSC.
+ecma_2/RegExp/constructor-001: FAIL_OK
+ecma_2/RegExp/function-001: FAIL_OK
+ecma_2/RegExp/properties-001: FAIL_OK
 
 
 ##################### FAILING TESTS #####################
