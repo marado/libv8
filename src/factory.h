@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -75,6 +75,8 @@ class Factory {
       PretenureFlag pretenure);
   // Allocates a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
+
+  Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
 
   Handle<String> LookupSymbol(Vector<const char> str);
   Handle<String> LookupSymbol(Handle<String> str);
@@ -160,9 +162,12 @@ class Factory {
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewGlobalContext();
 
+  // Create a module context.
+  Handle<Context> NewModuleContext(Handle<Context> previous,
+                                   Handle<ScopeInfo> scope_info);
+
   // Create a function context.
-  Handle<Context> NewFunctionContext(int length,
-                                     Handle<JSFunction> function);
+  Handle<Context> NewFunctionContext(int length, Handle<JSFunction> function);
 
   // Create a catch context.
   Handle<Context> NewCatchContext(Handle<JSFunction> function,
@@ -175,7 +180,7 @@ class Factory {
                                  Handle<Context> previous,
                                  Handle<JSObject> extension);
 
-  // Create a 'block' context.
+  // Create a block context.
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
@@ -260,12 +265,17 @@ class Factory {
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
 
+  // JS modules are pretenured.
+  Handle<JSModule> NewJSModule();
+
   // JS arrays are pretenured when allocated by the parser.
   Handle<JSArray> NewJSArray(int capacity,
+                             ElementsKind elements_kind = FAST_ELEMENTS,
                              PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
+      ElementsKind elements_kind = FAST_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
 
   void SetElementsCapacityAndLength(Handle<JSArray> array,

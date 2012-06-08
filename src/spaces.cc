@@ -362,13 +362,20 @@ Address MemoryAllocator::AllocateAlignedMemory(size_t size,
   if (base == NULL) return NULL;
 
   if (executable == EXECUTABLE) {
-    CommitCodePage(&reservation, base, size);
-  } else {
-    if (!reservation.Commit(base,
-                            size,
-                            executable == EXECUTABLE)) {
-      return NULL;
+    if (!CommitCodePage(&reservation, base, size)) {
+      base = NULL;
     }
+  } else {
+    if (!reservation.Commit(base, size, false)) {
+      base = NULL;
+    }
+  }
+
+  if (base == NULL) {
+    // Failed to commit the body. Release the mapping and any partially
+    // commited regions inside it.
+    reservation.Release();
+    return NULL;
   }
 
   controller->TakeControl(&reservation);
@@ -565,11 +572,10 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 }
 
 
-Page* MemoryAllocator::AllocatePage(PagedSpace* owner,
+Page* MemoryAllocator::AllocatePage(intptr_t size,
+                                    PagedSpace* owner,
                                     Executability executable) {
-  MemoryChunk* chunk = AllocateChunk(owner->AreaSize(),
-                                     executable,
-                                     owner);
+  MemoryChunk* chunk = AllocateChunk(size, executable, owner);
 
   if (chunk == NULL) return NULL;
 
@@ -578,8 +584,8 @@ Page* MemoryAllocator::AllocatePage(PagedSpace* owner,
 
 
 LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
-                                              Executability executable,
-                                              Space* owner) {
+                                              Space* owner,
+                                              Executability executable) {
   MemoryChunk* chunk = AllocateChunk(object_size, executable, owner);
   if (chunk == NULL) return NULL;
   return LargePage::Initialize(isolate_->heap(), chunk);
@@ -593,6 +599,9 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
         static_cast<ObjectSpace>(1 << chunk->owner()->identity());
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
   }
+
+  isolate_->heap()->RememberUnmappedPage(
+      reinterpret_cast<Address>(chunk), chunk->IsEvacuationCandidate());
 
   delete chunk->slots_buffer();
   delete chunk->skip_list();
@@ -699,7 +708,7 @@ int MemoryAllocator::CodePageGuardStartOffset() {
 
 
 int MemoryAllocator::CodePageGuardSize() {
-  return OS::CommitPageSize();
+  return static_cast<int>(OS::CommitPageSize());
 }
 
 
@@ -713,7 +722,7 @@ int MemoryAllocator::CodePageAreaStartOffset() {
 int MemoryAllocator::CodePageAreaEndOffset() {
   // We are guarding code pages: the last OS page will be protected as
   // non-writable.
-  return Page::kPageSize - OS::CommitPageSize();
+  return Page::kPageSize - static_cast<int>(OS::CommitPageSize());
 }
 
 
@@ -830,7 +839,6 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
 
 bool PagedSpace::CanExpand() {
   ASSERT(max_capacity_ % AreaSize() == 0);
-  ASSERT(Capacity() % AreaSize() == 0);
 
   if (Capacity() == max_capacity_) return false;
 
@@ -845,8 +853,14 @@ bool PagedSpace::CanExpand() {
 bool PagedSpace::Expand() {
   if (!CanExpand()) return false;
 
-  Page* p = heap()->isolate()->memory_allocator()->
-      AllocatePage(this, executable());
+  intptr_t size = AreaSize();
+
+  if (anchor_.next_page() == &anchor_) {
+    size = SizeOfFirstPage();
+  }
+
+  Page* p = heap()->isolate()->memory_allocator()->AllocatePage(
+      size, this, executable());
   if (p == NULL) return false;
 
   ASSERT(Capacity() <= max_capacity_);
@@ -854,6 +868,38 @@ bool PagedSpace::Expand() {
   p->InsertAfter(anchor_.prev_page());
 
   return true;
+}
+
+
+intptr_t PagedSpace::SizeOfFirstPage() {
+  int size = 0;
+  switch (identity()) {
+    case OLD_POINTER_SPACE:
+      size = 64 * kPointerSize * KB;
+      break;
+    case OLD_DATA_SPACE:
+      size = 192 * KB;
+      break;
+    case MAP_SPACE:
+      size = 128 * KB;
+      break;
+    case CELL_SPACE:
+      size = 96 * KB;
+      break;
+    case CODE_SPACE:
+      if (kPointerSize == 8) {
+        // On x64 we allocate code pages in a special way (from the reserved
+        // 2Byte area). That part of the code is not yet upgraded to handle
+        // small pages.
+        size = AreaSize();
+      } else {
+        size = 384 * KB;
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return Min(size, AreaSize());
 }
 
 
@@ -900,7 +946,6 @@ void PagedSpace::ReleasePage(Page* page) {
   }
 
   ASSERT(Capacity() > 0);
-  ASSERT(Capacity() % AreaSize() == 0);
   accounting_stats_.ShrinkSpace(AreaSize());
 }
 
@@ -1039,6 +1084,7 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   if (!to_space_.Commit()) {
     return false;
   }
+  ASSERT(!from_space_.is_committed());  // No need to use memory yet.
 
   start_ = chunk_base_;
   address_mask_ = ~(2 * reserved_semispace_capacity - 1);
@@ -1195,13 +1241,15 @@ MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
         allocation_info_.limit + inline_allocation_limit_step_,
         high);
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated);
+    heap()->incremental_marking()->Step(
+        bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = new_top;
     return AllocateRaw(size_in_bytes);
   } else if (AddFreshPage()) {
     // Switched to new page. Try allocating again.
     int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated);
+    heap()->incremental_marking()->Step(
+        bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = to_space_.page_low();
     return AllocateRaw(size_in_bytes);
   } else {
@@ -2217,7 +2265,9 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
 // You have to call this last, since the implementation from PagedSpace
 // doesn't know that memory was 'promised' to large object space.
 bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return heap()->OldGenerationSpaceAvailable() >= bytes;
+  return heap()->OldGenerationCapacityAvailable() >= bytes &&
+         (!heap()->incremental_marking()->IsStopped() ||
+           heap()->OldGenerationSpaceAvailable() >= bytes);
 }
 
 
@@ -2520,6 +2570,10 @@ HeapObject* LargeObjectIterator::Next() {
 
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
+static bool ComparePointers(void* key1, void* key2) {
+    return key1 == key2;
+}
+
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap,
                                    intptr_t max_capacity,
@@ -2529,7 +2583,8 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap,
       first_page_(NULL),
       size_(0),
       page_count_(0),
-      objects_size_(0) {}
+      objects_size_(0),
+      chunk_map_(ComparePointers, 1024) {}
 
 
 bool LargeObjectSpace::SetUp() {
@@ -2537,6 +2592,7 @@ bool LargeObjectSpace::SetUp() {
   size_ = 0;
   page_count_ = 0;
   objects_size_ = 0;
+  chunk_map_.Clear();
   return true;
 }
 
@@ -2570,7 +2626,7 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   }
 
   LargePage* page = heap()->isolate()->memory_allocator()->
-      AllocateLargePage(object_size, executable, this);
+      AllocateLargePage(object_size, this, executable);
   if (page == NULL) return Failure::RetryAfterGC(identity());
   ASSERT(page->area_size() >= object_size);
 
@@ -2579,6 +2635,18 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   page_count_++;
   page->set_next_page(first_page_);
   first_page_ = page;
+
+  // Register all MemoryChunk::kAlignment-aligned chunks covered by
+  // this large page in the chunk map.
+  uintptr_t base = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
+  uintptr_t limit = base + (page->size() - 1) / MemoryChunk::kAlignment;
+  for (uintptr_t key = base; key <= limit; key++) {
+    HashMap::Entry* entry = chunk_map_.Lookup(reinterpret_cast<void*>(key),
+                                              static_cast<uint32_t>(key),
+                                              true);
+    ASSERT(entry != NULL);
+    entry->value = page;
+  }
 
   HeapObject* object = page->GetObject();
 
@@ -2596,27 +2664,25 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
 // GC support
 MaybeObject* LargeObjectSpace::FindObject(Address a) {
-  for (LargePage* page = first_page_;
-       page != NULL;
-       page = page->next_page()) {
-    Address page_address = page->address();
-    if (page_address <= a && a < page_address + page->size()) {
-      return page->GetObject();
-    }
+  LargePage* page = FindPage(a);
+  if (page != NULL) {
+    return page->GetObject();
   }
   return Failure::Exception();
 }
 
 
-LargePage* LargeObjectSpace::FindPageContainingPc(Address pc) {
-  // TODO(853): Change this implementation to only find executable
-  // chunks and use some kind of hash-based approach to speed it up.
-  for (LargePage* chunk = first_page_;
-       chunk != NULL;
-       chunk = chunk->next_page()) {
-    Address chunk_address = chunk->address();
-    if (chunk_address <= pc && pc < chunk_address + chunk->size()) {
-      return chunk;
+LargePage* LargeObjectSpace::FindPage(Address a) {
+  uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
+  HashMap::Entry* e = chunk_map_.Lookup(reinterpret_cast<void*>(key),
+                                        static_cast<uint32_t>(key),
+                                        false);
+  if (e != NULL) {
+    ASSERT(e->value != NULL);
+    LargePage* page = reinterpret_cast<LargePage*>(e->value);
+    ASSERT(page->is_valid());
+    if (page->Contains(a)) {
+      return page;
     }
   }
   return NULL;
@@ -2653,6 +2719,17 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       size_ -= static_cast<int>(page->size());
       objects_size_ -= object->Size();
       page_count_--;
+
+      // Remove entries belonging to this page.
+      // Use variable alignment to help pass length check (<= 80 characters)
+      // of single line in tools/presubmit.py.
+      const intptr_t alignment = MemoryChunk::kAlignment;
+      uintptr_t base = reinterpret_cast<uintptr_t>(page)/alignment;
+      uintptr_t limit = base + (page->size()-1)/alignment;
+      for (uintptr_t key = base; key <= limit; key++) {
+        chunk_map_.Remove(reinterpret_cast<void*>(key),
+                          static_cast<uint32_t>(key));
+      }
 
       if (is_pointer_object) {
         heap()->QueueMemoryChunkForFree(page);

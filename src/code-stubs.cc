@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -73,21 +73,12 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 
 
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
-  code->set_major_key(MajorKey());
-
   Isolate* isolate = masm->isolate();
   SmartArrayPointer<const char> name = GetName();
   PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
   GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
-
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code_stubs) {
-    code->Disassemble(*name);
-    PrintF("\n");
-  }
-#endif
 }
 
 
@@ -125,8 +116,16 @@ Handle<Code> CodeStub::GetCode() {
         GetICState());
     Handle<Code> new_object = factory->NewCode(
         desc, flags, masm.CodeObject(), NeedsImmovableCode());
-    RecordCodeGeneration(*new_object, &masm);
+    new_object->set_major_key(MajorKey());
     FinishCode(new_object);
+    RecordCodeGeneration(*new_object, &masm);
+
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_code_stubs) {
+      new_object->Disassemble(*GetName());
+      PrintF("\n");
+    }
+#endif
 
     if (UseSpecialCache()) {
       AddToSpecialCache(new_object);
@@ -296,12 +295,14 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case FAST_SMI_ONLY_ELEMENTS: {
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
                                                        is_js_array_,
-                                                       elements_kind_);
+                                                       elements_kind_,
+                                                       grow_mode_);
     }
       break;
     case FAST_DOUBLE_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
-                                                             is_js_array_);
+                                                             is_js_array_,
+                                                             grow_mode_);
       break;
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -338,6 +339,12 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
 void CallFunctionStub::PrintName(StringStream* stream) {
   stream->Add("CallFunctionStub_Args%d", argc_);
   if (ReceiverMightBeImplicit()) stream->Add("_Implicit");
+  if (RecordCallTarget()) stream->Add("_Recording");
+}
+
+
+void CallConstructStub::PrintName(StringStream* stream) {
+  stream->Add("CallConstructStub");
   if (RecordCallTarget()) stream->Add("_Recording");
 }
 
@@ -434,10 +441,13 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
       }
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
                                                        is_jsarray_,
-                                                       FAST_ELEMENTS);
+                                                       FAST_ELEMENTS,
+                                                       grow_mode_);
     } else if (from_ == FAST_SMI_ONLY_ELEMENTS && to_ == FAST_DOUBLE_ELEMENTS) {
       ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
-      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm, is_jsarray_);
+      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
+                                                             is_jsarray_,
+                                                             grow_mode_);
     } else {
       UNREACHABLE();
     }

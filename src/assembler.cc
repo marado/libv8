@@ -45,6 +45,7 @@
 #include "ic.h"
 #include "isolate.h"
 #include "jsregexp.h"
+#include "lazy-instance.h"
 #include "platform.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-stack.h"
@@ -84,15 +85,22 @@
 namespace v8 {
 namespace internal {
 
+// -----------------------------------------------------------------------------
+// Common double constants.
 
-const double DoubleConstant::min_int = kMinInt;
-const double DoubleConstant::one_half = 0.5;
-const double DoubleConstant::minus_zero = -0.0;
-const double DoubleConstant::uint8_max_value = 255;
-const double DoubleConstant::zero = 0.0;
-const double DoubleConstant::canonical_non_hole_nan = OS::nan_value();
-const double DoubleConstant::the_hole_nan = BitCast<double>(kHoleNanInt64);
-const double DoubleConstant::negative_infinity = -V8_INFINITY;
+struct DoubleConstant BASE_EMBEDDED {
+  double min_int;
+  double one_half;
+  double minus_zero;
+  double zero;
+  double uint8_max_value;
+  double negative_infinity;
+  double canonical_non_hole_nan;
+  double the_hole_nan;
+};
+
+static DoubleConstant double_constants;
+
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
@@ -704,6 +712,18 @@ void RelocInfo::Verify() {
 // -----------------------------------------------------------------------------
 // Implementation of ExternalReference
 
+void ExternalReference::SetUp() {
+  double_constants.min_int = kMinInt;
+  double_constants.one_half = 0.5;
+  double_constants.minus_zero = -0.0;
+  double_constants.uint8_max_value = 255;
+  double_constants.zero = 0.0;
+  double_constants.canonical_non_hole_nan = OS::nan_value();
+  double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
+  double_constants.negative_infinity = -V8_INFINITY;
+}
+
+
 ExternalReference::ExternalReference(Builtins::CFunctionId id, Isolate* isolate)
   : address_(Redirect(isolate, Builtins::c_function_address(id))) {}
 
@@ -810,6 +830,17 @@ ExternalReference ExternalReference::delete_handle_scope_extensions(
 ExternalReference ExternalReference::random_uint32_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(V8::Random)));
+}
+
+
+ExternalReference ExternalReference::get_date_field_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(JSDate::GetField)));
+}
+
+
+ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
+  return ExternalReference(isolate->date_cache()->stamp_address());
 }
 
 
@@ -925,50 +956,47 @@ ExternalReference ExternalReference::scheduled_exception_address(
 
 
 ExternalReference ExternalReference::address_of_min_int() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::min_int)));
+  return ExternalReference(reinterpret_cast<void*>(&double_constants.min_int));
 }
 
 
 ExternalReference ExternalReference::address_of_one_half() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::one_half)));
+  return ExternalReference(reinterpret_cast<void*>(&double_constants.one_half));
 }
 
 
 ExternalReference ExternalReference::address_of_minus_zero() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::minus_zero)));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.minus_zero));
 }
 
 
 ExternalReference ExternalReference::address_of_zero() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::zero)));
+  return ExternalReference(reinterpret_cast<void*>(&double_constants.zero));
 }
 
 
 ExternalReference ExternalReference::address_of_uint8_max_value() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::uint8_max_value)));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.uint8_max_value));
 }
 
 
 ExternalReference ExternalReference::address_of_negative_infinity() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::negative_infinity)));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.negative_infinity));
 }
 
 
 ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::canonical_non_hole_nan)));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.canonical_non_hole_nan));
 }
 
 
 ExternalReference ExternalReference::address_of_the_hole_nan() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::the_hole_nan)));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.the_hole_nan));
 }
 
 
@@ -1125,6 +1153,20 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
+#ifdef __MINGW64_VERSION_MAJOR
+  // MinGW64 has a custom implementation for pow.  This handles certain
+  // special cases that are different.
+  if ((x == 0.0 || isinf(x)) && isfinite(y)) {
+    double f;
+    if (modf(y, &f) != 0.0) return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+  }
+
+  if (x == 2.0) {
+    int y_int = static_cast<int>(y);
+    if (y == y_int) return ldexp(1.0, y_int);
+  }
+#endif
+
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) return OS::nan_value();

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -148,6 +148,13 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 }
 
 
+Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateTypeFeedbackInfo(),
+                     TypeFeedbackInfo);
+}
+
+
 // Symbols are created in the old generation (data space).
 Handle<String> Factory::LookupSymbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -284,6 +291,15 @@ Handle<Context> Factory::NewGlobalContext() {
 }
 
 
+Handle<Context> Factory::NewModuleContext(Handle<Context> previous,
+                                          Handle<ScopeInfo> scope_info) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateModuleContext(*previous, *scope_info),
+      Context);
+}
+
+
 Handle<Context> Factory::NewFunctionContext(int length,
                                             Handle<JSFunction> function) {
   CALL_HEAP_FUNCTION(
@@ -317,10 +333,9 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
 }
 
 
-Handle<Context> Factory::NewBlockContext(
-    Handle<JSFunction> function,
-    Handle<Context> previous,
-    Handle<ScopeInfo> scope_info) {
+Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
+                                         Handle<Context> previous,
+                                         Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateBlockContext(*function,
@@ -375,6 +390,8 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_context_data(heap->undefined_value());
   script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
   script->set_compilation_type(Smi::FromInt(Script::COMPILATION_TYPE_HOST));
+  script->set_compilation_state(
+      Smi::FromInt(Script::COMPILATION_STATE_INITIAL));
   script->set_wrapper(*wrapper);
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
@@ -485,8 +502,9 @@ Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
 Handle<Map> Factory::GetElementsTransitionMap(
     Handle<JSObject> src,
     ElementsKind elements_kind) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     src->GetElementsTransitionMap(elements_kind),
+  Isolate* i = isolate();
+  CALL_HEAP_FUNCTION(i,
+                     src->GetElementsTransitionMap(i, elements_kind),
                      Map);
 }
 
@@ -527,6 +545,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
           : isolate()->strict_mode_function_map(),
       pretenure);
 
+  if (function_info->ic_age() != isolate()->heap()->global_ic_age()) {
+    function_info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  }
+
   result->set_context(*context);
   if (!function_info->bound()) {
     int number_of_literals = function_info->num_literals();
@@ -539,16 +561,13 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
                     context->global_context());
     }
     result->set_literals(*literals);
-  } else {
-    result->set_function_bindings(isolate()->heap()->empty_fixed_array());
   }
-  result->set_next_function_link(isolate()->heap()->undefined_value());
-
   if (V8::UseCrankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&
       !function_info->is_toplevel() &&
-      function_info->allows_lazy_compilation()) {
+      function_info->allows_lazy_compilation() &&
+      !function_info->optimization_disabled()) {
     result->MarkForLazyRecompilation();
   }
   return result;
@@ -754,12 +773,9 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   if (force_initial_map ||
       type != JS_OBJECT_TYPE ||
       instance_size != JSObject::kHeaderSize) {
-    ElementsKind default_elements_kind = FLAG_smi_only_arrays
-        ? FAST_SMI_ONLY_ELEMENTS
-        : FAST_ELEMENTS;
     Handle<Map> initial_map = NewMap(type,
                                      instance_size,
-                                     default_elements_kind);
+                                     FAST_SMI_ONLY_ELEMENTS);
     function->set_initial_map(*initial_map);
     initial_map->set_constructor(*function);
   }
@@ -867,7 +883,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Copy the descriptors from the array.
   for (int i = 0; i < array->number_of_descriptors(); i++) {
     if (!array->IsNullDescriptor(i)) {
-      result->CopyFrom(descriptor_count++, *array, i, witness);
+      DescriptorArray::CopyFrom(result, descriptor_count++, array, i, witness);
     }
   }
 
@@ -901,7 +917,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<DescriptorArray> new_result =
         NewDescriptorArray(number_of_descriptors);
     for (int i = 0; i < number_of_descriptors; i++) {
-      new_result->CopyFrom(i, *result, i, witness);
+      DescriptorArray::CopyFrom(new_result, i, result, i, witness);
     }
     result = new_result;
   }
@@ -917,6 +933,13 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
+}
+
+
+Handle<JSModule> Factory::NewJSModule() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSModule(), JSModule);
 }
 
 
@@ -938,22 +961,28 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 
 
 Handle<JSArray> Factory::NewJSArray(int capacity,
+                                    ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  Handle<JSObject> obj = NewJSObject(isolate()->array_function(), pretenure);
   CALL_HEAP_FUNCTION(isolate(),
-                     Handle<JSArray>::cast(obj)->Initialize(capacity),
+                     isolate()->heap()->AllocateJSArrayAndStorage(
+                         elements_kind,
+                         0,
+                         capacity,
+                         INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+                         pretenure),
                      JSArray);
 }
 
 
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
+                                                ElementsKind elements_kind,
                                                 PretenureFlag pretenure) {
-  Handle<JSArray> result =
-      Handle<JSArray>::cast(NewJSObject(isolate()->array_function(),
-                                        pretenure));
-  result->set_length(Smi::FromInt(0));
-  SetContent(result, elements);
-  return result;
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSArrayWithElements(*elements,
+                                                     elements_kind,
+                                                     pretenure),
+      JSArray);
 }
 
 

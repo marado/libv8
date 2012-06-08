@@ -114,8 +114,10 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
+  void DoDeferredRandom(LRandom* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
+  void DoDeferredAllocateObject(LAllocateObject* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
@@ -213,12 +215,18 @@ class LCodeGen BASE_EMBEDDED {
                                int argc,
                                LInstruction* instr);
 
+  enum R1State {
+    R1_UNINITIALIZED,
+    R1_CONTAINS_TARGET
+  };
+
   // Generate a direct call to a known function.  Expects the function
   // to be in r1.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind);
+                         CallKind call_kind,
+                         R1State r1_state);
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
@@ -314,6 +322,17 @@ class LCodeGen BASE_EMBEDDED {
                     Register result,
                     Register source,
                     int* offset);
+
+  // Emit optimized code for integer division.
+  // Inputs are signed.
+  // All registers are clobbered.
+  // If 'remainder' is no_reg, it is not computed.
+  void EmitSignedIntegerDivisionByConstant(Register result,
+                                           Register dividend,
+                                           int32_t divisor,
+                                           Register remainder,
+                                           Register scratch,
+                                           LEnvironment* environment);
 
   struct JumpTableEntry {
     explicit inline JumpTableEntry(Address entry)
