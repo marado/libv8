@@ -1,4 +1,2 @@
 0008_mksnapshot_stdout.patch
 0011_use_system_gyp.patch
-0014_disable_cross_build.patch
-issue9316131_5001.diff
