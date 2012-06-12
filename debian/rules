@@ -45,9 +45,13 @@ GYPFLAGS += -Dhost_arch=$(v8arch)
 # still not compatible with GCC 4.6 defaults (at 3.8.9.16 mipsel)
 CXXFLAGS += -Wno-unused-but-set-variable
 
+# the default test timeout in seconds
+timeOut = 180
+
 # build for loongson, which uses mips3, a sub-instruction-set of mips32r2
 ifeq (mipsel, $(DEB_HOST_ARCH))
 GYPFLAGS += -Dmips_arch_variant=loongson
+timeOut = 400
 endif
 
 # armel and armhf arches need flags to work around those issues :
@@ -91,7 +95,7 @@ v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
 DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	LD_PRELOAD=$(v8out) \
 	TESTFLAGS="--no-presubmit mjsunit message preparser" \
-	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=180" \
+	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=$(timeOut)" \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
 
