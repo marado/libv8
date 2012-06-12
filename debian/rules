@@ -45,6 +45,11 @@ GYPFLAGS += -Dhost_arch=$(v8arch)
 # still not compatible with GCC 4.6 defaults (at 3.8.9.16 mipsel)
 CXXFLAGS += -Wno-unused-but-set-variable
 
+# build for loongson, which uses mips3, a sub-instruction-set of mips32r2
+ifeq (mipsel, $(DEB_HOST_ARCH))
+GYPFLAGS += -Dmips_arch_variant=loongson
+endif
+
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
