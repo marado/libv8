@@ -1,4 +1,4 @@
-libv8 (3.10.8.15-1) UNRELEASED; urgency=low
+libv8 (3.10.8.16-1) UNRELEASED; urgency=low
 
   * Upstream update.
   * SONAME is libv8.so.3.10.8 instead of libv8.so.3.10.8.15
