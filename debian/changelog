@@ -1,13 +1,19 @@
 libv8 (3.10.8.15-1) UNRELEASED; urgency=low
 
   * Upstream update.
-  * SONAME is libv8.so.3.10.8
+  * SONAME is libv8.so.3.10.8 instead of libv8.so.3.10.8.15
   * debian/README.source: details about how SONAME is chosen.
-  * debian/rules: extract the soname version from upstream version.
+  * debian/rules:
+    + extract the soname version from upstream version.
+    + enable mipsel architecture.
+    + force mips3 (Loongson) support.
+    + set test timeout to 400 seconds for mipsel.
   * debian/patches:
     + refresh
-    + remove 0014_disable_cross_build.patch, applied upstream
-    + remove issue9316131_5001.diff, applied upstream.
+    + removed 0014_disable_cross_build.patch, applied upstream
+    + removed issue9316131_5001.diff, applied upstream.
+    + added upstream 0012_loongson_force_cache_flush.patch, fixing
+      mipsel tests.
   * debian/copyright: add MIT license for benchmarks/navier-stokes.js
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 08 Jun 2012 18:04:07 +0200
