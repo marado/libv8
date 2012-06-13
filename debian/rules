@@ -17,8 +17,7 @@ LIBPKGNAME = libv8-$(SONAME)
 libSoname = libv8.so.$(SONAME)
 
 # Supported archs
-#  * TODO: Add mipsel when mips3 (not only mips32r2) is supported
-ARCHS = i386 amd64 armel armhf
+ARCHS = i386 amd64 armel armhf mipsel
 
 # allow parallel builds
 DEB_BUILD_PARALLEL=1
