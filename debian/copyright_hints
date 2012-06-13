@@ -1134,6 +1134,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1278.js
  test/mjsunit/regress/regress-128018.js
  test/mjsunit/regress/regress-1309.js
+ test/mjsunit/regress/regress-131923.js
  test/mjsunit/regress/regress-1323.js
  test/mjsunit/regress/regress-1327557.js
  test/mjsunit/regress/regress-1337.js
@@ -1622,10 +1623,12 @@ Files: AUTHORS
  debian/libv8.install
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0011_use_system_gyp.patch
+ debian/patches/0012_loongson_force_cache_flush.patch
  debian/patches/series
  debian/rules
  debian/source/format
  debian/watch
+ debian/watch.in
  test/es5conform/README
  test/mjsunit/tools/tickprocessor-test-func-info.log
  test/mjsunit/tools/tickprocessor-test.default
