@@ -1,0 +1,161 @@
+Description: Fix performance regression caused by r11202.
+ This is a backport of upstream patch to v8 3.10 branch.
+Author: Michael Starzinger <mstarzinger@chromium.org>
+Origin:upstream,https://chromiumcodereview.appspot.com/10539131
+Last-Update: 2012-06-13
+--- a/src/objects.cc
++++ b/src/objects.cc
+@@ -1710,11 +1710,13 @@
+ MaybeObject* JSObject::AddProperty(String* name,
+                                    Object* value,
+                                    PropertyAttributes attributes,
+-                                   StrictModeFlag strict_mode) {
++                                   StrictModeFlag strict_mode,
++                                   ExtensibilityCheck extensibility_check) {
+   ASSERT(!IsJSGlobalProxy());
+   Map* map_of_this = map();
+   Heap* heap = GetHeap();
+-  if (!map_of_this->is_extensible()) {
++  if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
++      !map_of_this->is_extensible()) {
+     if (strict_mode == kNonStrictMode) {
+       return value;
+     } else {
+@@ -1753,7 +1755,8 @@
+     String* name,
+     Object* value,
+     PropertyAttributes attributes,
+-    StrictModeFlag strict_mode) {
++    StrictModeFlag strict_mode,
++    ExtensibilityCheck extensibility_check) {
+   // Check local property, ignore interceptor.
+   LookupResult result(GetIsolate());
+   LocalLookupRealNamedProperty(name, &result);
+@@ -1771,7 +1774,8 @@
+                                                             strict_mode);
+   if (found) return result_object;
+   // Add a new real property.
+-  return AddProperty(name, value, attributes, strict_mode);
++  return AddProperty(name, value, attributes, strict_mode,
++                     extensibility_check);
+ }
+ 
+ 
+@@ -1927,7 +1931,8 @@
+       this_handle->SetPropertyPostInterceptor(*name_handle,
+                                               *value_handle,
+                                               attributes,
+-                                              strict_mode);
++                                              strict_mode,
++                                              PERFORM_EXTENSIBILITY_CHECK);
+   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+   return raw_result;
+ }
+@@ -3752,11 +3757,14 @@
+   MaybeObject* dict_alloc = StringDictionary::Allocate(kInitialSize);
+   StringDictionary* dictionary;
+   if (!dict_alloc->To<StringDictionary>(&dictionary)) return dict_alloc;
+-  // Using AddProperty or SetPropertyPostInterceptor here could fail, because
+-  // object might be non-extensible.
+-  return HasFastProperties()
+-      ? AddFastProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM)
+-      : AddSlowProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM);
++  MaybeObject* store_result =
++      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
++                                 dictionary,
++                                 DONT_ENUM,
++                                 kNonStrictMode,
++                                 OMIT_EXTENSIBILITY_CHECK);
++  if (store_result->IsFailure()) return store_result;
++  return dictionary;
+ }
+ 
+ 
+@@ -3785,7 +3793,8 @@
+       SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+                                  dictionary,
+                                  DONT_ENUM,
+-                                 kNonStrictMode);
++                                 kNonStrictMode,
++                                 OMIT_EXTENSIBILITY_CHECK);
+   if (store_result->IsFailure()) return store_result;
+   return this;
+ }
+--- a/src/objects.h
++++ b/src/objects.h
+@@ -1392,6 +1392,13 @@
+     FORCE_DELETION
+   };
+ 
++  // Internal properties (e.g. the hidden properties dictionary) might
++  // be added even though the receiver is non-extensible.
++  enum ExtensibilityCheck {
++    PERFORM_EXTENSIBILITY_CHECK,
++    OMIT_EXTENSIBILITY_CHECK
++  };
++
+   // Casting.
+   static inline JSReceiver* cast(Object* obj);
+ 
+@@ -1579,7 +1586,8 @@
+       String* name,
+       Object* value,
+       PropertyAttributes attributes,
+-      StrictModeFlag strict_mode);
++      StrictModeFlag strict_mode,
++      ExtensibilityCheck extensibility_check);
+ 
+   static Handle<Object> SetLocalPropertyIgnoreAttributes(
+       Handle<JSObject> object,
+@@ -1957,7 +1965,8 @@
+   MUST_USE_RESULT MaybeObject* AddProperty(String* name,
+                                            Object* value,
+                                            PropertyAttributes attributes,
+-                                           StrictModeFlag strict_mode);
++                                           StrictModeFlag strict_mode,
++                                           ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
+ 
+   // Convert the object to use the canonical dictionary
+   // representation. If the object is expected to have additional properties
+--- /dev/null
++++ b/test/mjsunit/regress/regress-2156.js
+@@ -0,0 +1,39 @@
++// Copyright 2012 the V8 project authors. All rights reserved.
++// Redistribution and use in source and binary forms, with or without
++// modification, are permitted provided that the following conditions are
++// met:
++//
++//     * Redistributions of source code must retain the above copyright
++//       notice, this list of conditions and the following disclaimer.
++//     * Redistributions in binary form must reproduce the above
++//       copyright notice, this list of conditions and the following
++//       disclaimer in the documentation and/or other materials provided
++//       with the distribution.
++//     * Neither the name of Google Inc. nor the names of its
++//       contributors may be used to endorse or promote products derived
++//       from this software without specific prior written permission.
++//
++// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++// Flags: --allow-natives-syntax --harmony-collections
++
++var key1 = {};
++var key2 = {};
++var map = new WeakMap;
++
++// Adding hidden properties preserves map sharing. Putting the key into
++// a WeakMap will cause the first hidden property to be added.
++assertTrue(%HaveSameMap(key1, key2));
++map.set(key1, 1);
++map.set(key2, 2);
++assertTrue(%HaveSameMap(key1, key2));
