@@ -1,5 +1,5 @@
 libv8 (3.10.8.16-1) UNRELEASED; urgency=low
-
+  
   * Upstream update.
   * SONAME is libv8.so.3.10.8 instead of libv8.so.3.10.8.15
   * debian/README.source: details about how SONAME is chosen.
@@ -14,6 +14,7 @@ libv8 (3.10.8.16-1) UNRELEASED; urgency=low
     + removed issue9316131_5001.diff, applied upstream.
     + added upstream 0012_loongson_force_cache_flush.patch, fixing
       mipsel tests.
+    + added upstream 0013_performance_regression_fix.patch.
   * debian/copyright: add MIT license for benchmarks/navier-stokes.js
   * debian/watch: generated from debian/watch.in and current branch
     version. This ensures watch file is up to date.
