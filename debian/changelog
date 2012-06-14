@@ -8,10 +8,14 @@ libv8 (3.10.8.16-1) UNRELEASED; urgency=low
     + enable mipsel architecture.
     + force mips3 (Loongson) support.
     + set test timeout to 400 seconds for mipsel.
+    + enable kfreebsd-i386, kfreebsd-amd64 architectures,
+      closes:bug#670836.
   * debian/patches:
     + refresh
     + removed 0014_disable_cross_build.patch, applied upstream
     + removed issue9316131_5001.diff, applied upstream.
+    + added 0001_kfreebsd.patch, needed to fix build flags for kfreebsd.
+      Thanks to Steven Chamberlain.
     + added upstream 0012_loongson_force_cache_flush.patch, fixing
       mipsel tests.
     + added upstream 0013_performance_regression_fix.patch.
