@@ -1,4 +1,4 @@
-libv8 (3.10.8.16-1) UNRELEASED; urgency=low
+libv8 (3.10.8.16-1) unstable; urgency=low
   
   * Upstream update.
   * SONAME is libv8.so.3.10.8 instead of libv8.so.3.10.8.15
@@ -23,7 +23,7 @@ libv8 (3.10.8.16-1) UNRELEASED; urgency=low
   * debian/watch: generated from debian/watch.in and current branch
     version. This ensures watch file is up to date.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 08 Jun 2012 18:04:07 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 15 Jun 2012 01:38:41 +0200
 
 libv8 (3.8.9.20-1) unstable; urgency=low
 
