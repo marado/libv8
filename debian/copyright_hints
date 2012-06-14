@@ -1622,6 +1622,7 @@ Files: AUTHORS
  debian/libv8-dev.install
  debian/libv8.dirs
  debian/libv8.install
+ debian/patches/0001_kfreebsd.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0011_use_system_gyp.patch
  debian/patches/0012_loongson_force_cache_flush.patch
