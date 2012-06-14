@@ -19,6 +19,7 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
+ debian/patches/0013_performance_regression_fix.patch
  debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
