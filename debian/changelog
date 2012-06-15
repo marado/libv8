@@ -14,7 +14,8 @@ libv8 (3.10.8.16-1) unstable; urgency=low
     + refresh
     + removed 0014_disable_cross_build.patch, applied upstream
     + removed issue9316131_5001.diff, applied upstream.
-    + added 0001_kfreebsd.patch, needed to fix build flags for kfreebsd.
+    + added 0001_kfreebsd.patch, needed to fix build flags for kfreebsd,
+      and a unused-but-set-variable warning for gcc >= 4.6.
       Thanks to Steven Chamberlain.
     + added upstream 0012_loongson_force_cache_flush.patch, fixing
       mipsel tests.
@@ -23,7 +24,7 @@ libv8 (3.10.8.16-1) unstable; urgency=low
   * debian/watch: generated from debian/watch.in and current branch
     version. This ensures watch file is up to date.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 15 Jun 2012 01:38:41 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 15 Jun 2012 09:21:34 +0200
 
 libv8 (3.8.9.20-1) unstable; urgency=low
 
