@@ -1,30 +1,35 @@
 libv8 (3.10.8.16-1) unstable; urgency=low
-  
-  * Upstream update.
-  * SONAME is libv8.so.3.10.8 instead of libv8.so.3.10.8.15
-  * debian/README.source: details about how SONAME is chosen.
-  * debian/rules:
-    + extract the soname version from upstream version.
-    + enable mipsel architecture.
-    + force mips3 (Loongson) support.
-    + set test timeout to 400 seconds for mipsel.
-    + enable kfreebsd-i386, kfreebsd-amd64 architectures,
-      closes:bug#670836.
-  * debian/patches:
-    + refresh
-    + removed 0014_disable_cross_build.patch, applied upstream
-    + removed issue9316131_5001.diff, applied upstream.
-    + added 0001_kfreebsd.patch, needed to fix build flags for kfreebsd,
-      and a unused-but-set-variable warning for gcc >= 4.6.
-      Thanks to Steven Chamberlain.
-    + added upstream 0012_loongson_force_cache_flush.patch, fixing
-      mipsel tests.
-    + added upstream 0013_performance_regression_fix.patch.
-  * debian/copyright: add MIT license for benchmarks/navier-stokes.js
-  * debian/watch: generated from debian/watch.in and current branch
-    version. This ensures watch file is up to date.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 15 Jun 2012 09:21:34 +0200
+  * New upstream release.
+
+  [ Jérémy Lal ]
+  * Simplify SONAME naming to only first 3 segments of upstream version
+    (i.e. skip patch level). Add chapter on reasoning to README.source.
+  * Enable architectures kfreebsd-i386, kfreebsd-amd64 and mipsel.
+    + Force mips3 (Loongson) support.
+    + Set test timeout to 400 seconds for mipsel.
+    Closes:bug#670836. Thanks to Steven Chamberlain.
+  * Update patches:
+    + Drop patches 0014 (disable cross-build) and issue9316131 (fix init
+      array literals on ARM): Applied upstream.
+    + Add patch 0001: Fix build flags for kfreebsd and
+      unused-but-set-variable warning for gcc >= 4.6.
+      Thanks to Steven Chamberlain.
+    + Add patch 0012: Force cache flush on Loongson.
+      Fixes mipsel tests.
+    + Add patch 0013: Fix performance regression.
+    + Refresh all remaining patches.
+  * Add MIT license to copyright file for benchmarks/navier-stokes.js.
+  * Autogenerate watch file, to track current branch (= major+minor of
+    upstream version).
+
+  [ Jonas Smedegaard ]
+  * Update copyright file:
+    + Bump file format to 1.0.
+    + Fix double-indent in Copyright fields as per Policy §5.6.13.
+  * Fix capitalize project name in copyright and long descriptions.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 23 Jun 2012 13:07:52 +0200
 
 libv8 (3.8.9.20-1) unstable; urgency=low
 

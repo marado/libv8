@@ -1226,6 +1226,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-2058.js
  test/mjsunit/regress/regress-2071.js
  test/mjsunit/regress/regress-2110.js
+ test/mjsunit/regress/regress-2156.js
  test/mjsunit/regress/regress-219.js
  test/mjsunit/regress/regress-220.js
  test/mjsunit/regress/regress-2249423.js
