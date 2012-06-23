@@ -13,7 +13,7 @@ Files: src/arm/assembler-arm*
  src/mips/assembler-mips*
  src/x64/assembler-x64.h
 Copyright: 1994-2006,2011, Sun Microsystems Inc.
- 2011-2012, the V8 Project Authors
+  2011-2012, the V8 Project Authors
 License: BSD-3-clause~SUN
 
 Files: test/mjsunit/third_party/*
@@ -26,13 +26,13 @@ License: BSD-4-clause
 
 Files: test/mjsunit/third_party/regexp-pcre.js
 Copyright: 1997-2007, University of Cambridge
- 2007, Google Inc
+  2007, Google Inc
 License: BSD-3-clause~Cambridge
 
 Files: benchmarks/deltablue.js
 Copyright: 1996, John Maloney
- 1996, Mario Wolczko
- 2008, the V8 project authors
+  1996, Mario Wolczko
+  2008, the V8 project authors
 License: GPL-2+
 
 Files: benchmarks/crypto.js
@@ -41,7 +41,7 @@ License: MIT~Wu
 
 Files: benchmarks/navier-stokes.js
 Copyright: 2009, Oliver Hunt <http://nerget.com>
- 2012, the V8 project authors
+  2012, the V8 project authors
 License: MIT
 
 Files: benchmarks/raytrace.js
@@ -54,7 +54,7 @@ Comment:
 
 Files: build/android.gypi
 Copyright: 2012, The Chromium Authors
- 2012, the V8 project authors
+  2012, the V8 project authors
 License: BSD-3-clause~Google
 
 Files: debian/*
