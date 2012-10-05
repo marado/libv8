@@ -673,7 +673,7 @@ TEST(JSArray) {
   array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(0), array->length());
   // Must be in fast mode.
-  CHECK(array->HasFastTypeElements());
+  CHECK(array->HasFastSmiOrObjectElements());
 
   // array[length] = name.
   array->SetElement(0, *name, NONE, kNonStrictMode)->ToObjectChecked();
@@ -811,7 +811,9 @@ TEST(Iteration) {
 
   // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
   objs[next_objs_index++] = FACTORY->NewJSArray(10);
-  objs[next_objs_index++] = FACTORY->NewJSArray(10, FAST_ELEMENTS, TENURED);
+  objs[next_objs_index++] = FACTORY->NewJSArray(10,
+                                                FAST_HOLEY_ELEMENTS,
+                                                TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
@@ -1580,22 +1582,24 @@ TEST(PrototypeTransitionClearing) {
   // Verify that only dead prototype transitions are cleared.
   CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK_EQ(10 - 3, baseObject->map()->NumberOfProtoTransitions());
+  const int transitions = 10 - 3;
+  CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
   // Verify that prototype transitions array was compacted.
   FixedArray* trans = baseObject->map()->prototype_transitions();
-  for (int i = 0; i < 10 - 3; i++) {
+  for (int i = 0; i < transitions; i++) {
     int j = Map::kProtoTransitionHeaderSize +
         i * Map::kProtoTransitionElementsPerEntry;
     CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
-    CHECK(trans->get(j + Map::kProtoTransitionPrototypeOffset)->IsJSObject());
+    Object* proto = trans->get(j + Map::kProtoTransitionPrototypeOffset);
+    CHECK(proto->IsTheHole() || proto->IsJSObject());
   }
 
   // Make sure next prototype is placed on an old-space evacuation candidate.
   Handle<JSObject> prototype;
   PagedSpace* space = HEAP->old_pointer_space();
   do {
-    prototype = FACTORY->NewJSArray(32 * KB, FAST_ELEMENTS, TENURED);
+    prototype = FACTORY->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
   } while (space->FirstPage() == space->LastPage() ||
       !space->LastPage()->Contains(prototype->address()));
 
@@ -1734,4 +1738,202 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
   CHECK(HEAP->InNewSpace(*o));
+}
+
+
+static int CountMapTransitions(Map* map) {
+  int result = 0;
+  DescriptorArray* descs = map->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (descs->IsTransitionOnly(i)) {
+      result++;
+    }
+  }
+  return result;
+}
+
+
+// Test that map transitions are cleared and maps are collected with
+// incremental marking as well.
+TEST(Regress1465) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_trace_incremental_marking = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  #define TRANSITION_COUNT 256
+  for (int i = 0; i < TRANSITION_COUNT; i++) {
+    EmbeddedVector<char, 64> buffer;
+    OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
+    CompileRun(buffer.start());
+  }
+  CompileRun("var root = new Object;");
+  Handle<JSObject> root =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+
+  // Count number of live transitions before marking.
+  int transitions_before = CountMapTransitions(root->map());
+  CompileRun("%DebugPrint(root);");
+  CHECK_EQ(TRANSITION_COUNT, transitions_before);
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  // Count number of live transitions after marking.  Note that one transition
+  // is left, because 'o' still holds an instance of one transition target.
+  int transitions_after = CountMapTransitions(root->map());
+  CompileRun("%DebugPrint(root);");
+  CHECK_EQ(1, transitions_after);
+}
+
+
+TEST(Regress2143a) {
+  i::FLAG_collect_maps = true;
+  i::FLAG_incremental_marking = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Prepare a map transition from the root object together with a yet
+  // untransitioned root object.
+  CompileRun("var root = new Object;"
+             "root.foo = 0;"
+             "root = new Object;");
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+
+  // Compile a StoreIC that performs the prepared map transition. This
+  // will restart incremental marking and should make sure the root is
+  // marked grey again.
+  CompileRun("function f(o) {"
+             "  o.foo = 0;"
+             "}"
+             "f(new Object);"
+             "f(root);");
+
+  // This bug only triggers with aggressive IC clearing.
+  HEAP->AgeInlineCaches();
+
+  // Explicitly request GC to perform final marking step and sweeping.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  Handle<JSObject> root =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+
+  // The root object should be in a sane state.
+  CHECK(root->IsJSObject());
+  CHECK(root->map()->IsMap());
+}
+
+
+TEST(Regress2143b) {
+  i::FLAG_collect_maps = true;
+  i::FLAG_incremental_marking = true;
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Prepare a map transition from the root object together with a yet
+  // untransitioned root object.
+  CompileRun("var root = new Object;"
+             "root.foo = 0;"
+             "root = new Object;");
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+
+  // Compile an optimized LStoreNamedField that performs the prepared
+  // map transition. This will restart incremental marking and should
+  // make sure the root is marked grey again.
+  CompileRun("function f(o) {"
+             "  o.foo = 0;"
+             "}"
+             "f(new Object);"
+             "f(new Object);"
+             "%OptimizeFunctionOnNextCall(f);"
+             "f(root);"
+             "%DeoptimizeFunction(f);");
+
+  // This bug only triggers with aggressive IC clearing.
+  HEAP->AgeInlineCaches();
+
+  // Explicitly request GC to perform final marking step and sweeping.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  Handle<JSObject> root =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+
+  // The root object should be in a sane state.
+  CHECK(root->IsJSObject());
+  CHECK(root->map()->IsMap());
+}
+
+
+// Implemented in the test-alloc.cc test suite.
+void SimulateFullSpace(PagedSpace* space);
+
+
+TEST(ReleaseOverReservedPages) {
+  i::FLAG_trace_gc = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  static const int number_of_test_pages = 20;
+
+  // Prepare many pages with low live-bytes count.
+  PagedSpace* old_pointer_space = HEAP->old_pointer_space();
+  CHECK_EQ(1, old_pointer_space->CountTotalPages());
+  for (int i = 0; i < number_of_test_pages; i++) {
+    AlwaysAllocateScope always_allocate;
+    SimulateFullSpace(old_pointer_space);
+    FACTORY->NewFixedArray(1, TENURED);
+  }
+  CHECK_EQ(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+
+  // Triggering one GC will cause a lot of garbage to be discovered but
+  // even spread across all allocated pages.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags, "triggered for preparation");
+  CHECK_EQ(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+
+  // Triggering subsequent GCs should cause at least half of the pages
+  // to be released to the OS after at most two cycles.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 1");
+  CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 2");
+  CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages() * 2);
+
+  // Triggering a last-resort GC should cause all pages to be released
+  // to the OS so that other processes can seize the memory.
+  HEAP->CollectAllAvailableGarbage("triggered really hard");
+  CHECK_EQ(1, old_pointer_space->CountTotalPages());
 }
