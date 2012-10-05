@@ -31,6 +31,17 @@ libv8 (3.10.8.16-1) unstable; urgency=low
 
  -- Jonas Smedegaard <dr@jones.dk>  Sat, 23 Jun 2012 13:07:52 +0200
 
+libv8 (3.8.9.20-2) unstable; urgency=low
+
+  * Cherry-picked four upstream patches from 3.8.9.29:
+    + r11654.patch: fix CVE-2011-3111, closes:bug#687574.
+    + r12161.patch: Fix ICs for slow objects with native accessor.
+    + r12336.patch: Fix bug in compare IC.
+    + r12460.patch: Fix some corner cases in skipping native methods
+                    using caller. Fix binding in new Function().
+
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 29 Sep 2012 01:04:06 +0200
+
 libv8 (3.8.9.20-1) unstable; urgency=low
 
   [ Jérémy Lal ]
