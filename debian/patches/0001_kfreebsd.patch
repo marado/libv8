@@ -1,13 +1,13 @@
 Description: Needed for kfreebsd-* arch
- Fix link_settings and a small unused-but-set-variable fix for gcc 4.6.
+ Fix link_settings.
 Forwarded: not-needed
 Author: Steven Chamberlain <steven@pyro.eu.org>
 Author: Jérémy Lal <kapouer@melix.org>
 Bug-Debian: http://bugs.debian.org/670836
-Last-Update: 2012-06-15
+Last-Update: 2012-10-05
 --- a/tools/gyp/v8.gyp
 +++ b/tools/gyp/v8.gyp
-@@ -685,7 +685,7 @@
+@@ -667,7 +667,7 @@
              ['OS=="freebsd"', {
                  'link_settings': {
                    'libraries': [
@@ -16,13 +16,3 @@ Last-Update: 2012-06-15
                  ]},
                  'sources': [
                    '../../src/platform-freebsd.cc',
---- a/src/platform-freebsd.cc
-+++ b/src/platform-freebsd.cc
-@@ -554,6 +554,7 @@
-     ASSERT(result == 0);
-     result = pthread_mutex_init(&mutex_, &attrs);
-     ASSERT(result == 0);
-+    USE(result);
-   }
- 
-   virtual ~FreeBSDMutex() { pthread_mutex_destroy(&mutex_); }
