@@ -1,8 +1,15 @@
 libv8 (3.11.10.25-1) UNRELEASED; urgency=low
 
-  * New upstream release. 
+  * New upstream release.
+  * Part of 0001_kfreebsd.patch (gcc 4.6 unused variable) fixed upstream.
+  * Remove 0013_performance_regression_fix.patch, applied upstream.
+  * Trivial patches refresh.
+  * Refresh debian/control* files
+  * Refresh debian/watch file.
+  * Hardening gyp workaround, now lintian clean.
+  * Copyright hints updated. No copyright changes needed.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 05 Oct 2012 19:34:06 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 05 Oct 2012 23:33:22 +0200
 
 libv8 (3.10.8.16-1) unstable; urgency=low
 
