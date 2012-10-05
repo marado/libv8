@@ -19,7 +19,6 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
- debian/patches/0013_performance_regression_fix.patch
  debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
@@ -156,6 +155,8 @@ Files: LICENSE
  src/double.h
  src/dtoa.cc
  src/dtoa.h
+ src/elements-kind.cc
+ src/elements-kind.h
  src/elements.cc
  src/elements.h
  src/execution.cc
@@ -554,6 +555,7 @@ Files: LICENSE
  test/message/try-finally-throw-in-try-and-finally.out
  test/message/try-finally-throw-in-try.js
  test/message/try-finally-throw-in-try.out
+ test/mjsunit/accessor-map-sharing.js
  test/mjsunit/accessors-on-global-object.js
  test/mjsunit/api-call-after-bypassed-exception.js
  test/mjsunit/apply-arguments-gc-safepoint.js
@@ -625,6 +627,7 @@ Files: LICENSE
  test/mjsunit/closures.js
  test/mjsunit/codegen-coverage.js
  test/mjsunit/compare-character.js
+ test/mjsunit/compare-known-objects-slow.js
  test/mjsunit/compare-nan.js
  test/mjsunit/comparison-ops-and-undefined.js
  test/mjsunit/compiler/alloc-number.js
@@ -791,6 +794,7 @@ Files: LICENSE
  test/mjsunit/debug-liveedit-newsource.js
  test/mjsunit/debug-liveedit-patch-positions-replace.js
  test/mjsunit/debug-liveedit-patch-positions.js
+ test/mjsunit/debug-liveedit-stack-padding.js
  test/mjsunit/debug-liveedit-utils.js
  test/mjsunit/debug-mirror-cache.js
  test/mjsunit/debug-multiple-breakpoints.js
@@ -852,7 +856,10 @@ Files: LICENSE
  test/mjsunit/external-array.js
  test/mjsunit/extra-arguments.js
  test/mjsunit/extra-commas.js
+ test/mjsunit/fast-array-length.js
  test/mjsunit/fast-element-smi-check.js
+ test/mjsunit/fast-non-keyed.js
+ test/mjsunit/fast-prototype.js
  test/mjsunit/for-in-delete.js
  test/mjsunit/for-in-null-or-undefined.js
  test/mjsunit/for-in-special-cases.js
@@ -967,6 +974,7 @@ Files: LICENSE
  test/mjsunit/multiple-return.js
  test/mjsunit/negate-zero.js
  test/mjsunit/negate.js
+ test/mjsunit/new-function.js
  test/mjsunit/new.js
  test/mjsunit/newline-in-string.js
  test/mjsunit/no-branch-elimination.js
@@ -997,6 +1005,7 @@ Files: LICENSE
  test/mjsunit/object-toprimitive.js
  test/mjsunit/optimized-typeof.js
  test/mjsunit/override-read-only-property.js
+ test/mjsunit/packed-elements.js
  test/mjsunit/parse-int-float.js
  test/mjsunit/pixel-array-rounding.js
  test/mjsunit/polymorph-arrays.js
@@ -1004,6 +1013,7 @@ Files: LICENSE
  test/mjsunit/property-object-key.js
  test/mjsunit/proto.js
  test/mjsunit/prototype.js
+ test/mjsunit/readonly.js
  test/mjsunit/receiver-in-with-calls.js
  test/mjsunit/regexp-UC16.js
  test/mjsunit/regexp-cache-replace.js
@@ -1012,6 +1022,7 @@ Files: LICENSE
  test/mjsunit/regexp-capture.js
  test/mjsunit/regexp-captures.js
  test/mjsunit/regexp-compile.js
+ test/mjsunit/regexp-global.js
  test/mjsunit/regexp-indexof.js
  test/mjsunit/regexp-lookahead.js
  test/mjsunit/regexp-loop-capture.js
@@ -1074,6 +1085,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1149.js
  test/mjsunit/regress/regress-1150.js
  test/mjsunit/regress/regress-1151.js
+ test/mjsunit/regress/regress-115100.js
  test/mjsunit/regress/regress-115452.js
  test/mjsunit/regress/regress-1156.js
  test/mjsunit/regress/regress-116.js
@@ -1134,10 +1146,13 @@ Files: LICENSE
  test/mjsunit/regress/regress-126412.js
  test/mjsunit/regress/regress-1278.js
  test/mjsunit/regress/regress-128018.js
+ test/mjsunit/regress/regress-128146.js
  test/mjsunit/regress/regress-1309.js
  test/mjsunit/regress/regress-131923.js
  test/mjsunit/regress/regress-1323.js
  test/mjsunit/regress/regress-1327557.js
+ test/mjsunit/regress/regress-133211.js
+ test/mjsunit/regress/regress-133211b.js
  test/mjsunit/regress/regress-1337.js
  test/mjsunit/regress/regress-1346700.js
  test/mjsunit/regress/regress-1351.js
@@ -1159,6 +1174,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-1436.js
  test/mjsunit/regress/regress-1439135.js
  test/mjsunit/regress/regress-1447.js
+ test/mjsunit/regress/regress-145201.js
  test/mjsunit/regress/regress-1472.js
  test/mjsunit/regress/regress-1476.js
  test/mjsunit/regress/regress-149.js
@@ -1226,12 +1242,17 @@ Files: LICENSE
  test/mjsunit/regress/regress-2058.js
  test/mjsunit/regress/regress-2071.js
  test/mjsunit/regress/regress-2110.js
+ test/mjsunit/regress/regress-2153.js
  test/mjsunit/regress/regress-2156.js
+ test/mjsunit/regress/regress-2163.js
+ test/mjsunit/regress/regress-2170.js
  test/mjsunit/regress/regress-219.js
  test/mjsunit/regress/regress-220.js
+ test/mjsunit/regress/regress-2234.js
  test/mjsunit/regress/regress-2249423.js
  test/mjsunit/regress/regress-225.js
  test/mjsunit/regress/regress-227.js
+ test/mjsunit/regress/regress-2291.js
  test/mjsunit/regress/regress-231.js
  test/mjsunit/regress/regress-233.js
  test/mjsunit/regress/regress-244.js
@@ -1402,7 +1423,9 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-107996.js
  test/mjsunit/regress/regress-crbug-119926.js
  test/mjsunit/regress/regress-crbug-122271.js
+ test/mjsunit/regress/regress-crbug-125148.js
  test/mjsunit/regress/regress-crbug-126414.js
+ test/mjsunit/regress/regress-crbug-134055.js
  test/mjsunit/regress/regress-crbug-18639.js
  test/mjsunit/regress/regress-crbug-3184.js
  test/mjsunit/regress/regress-crbug-37853.js
@@ -1414,10 +1437,12 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-87478.js
  test/mjsunit/regress/regress-create-exception.js
  test/mjsunit/regress/regress-debug-code-recompilation.js
+ test/mjsunit/regress/regress-deep-proto.js
  test/mjsunit/regress/regress-deopt-gc.js
  test/mjsunit/regress/regress-fast-literal-transition.js
  test/mjsunit/regress/regress-fundecl.js
  test/mjsunit/regress/regress-inlining-function-literal-context.js
+ test/mjsunit/regress/regress-iteration-order.js
  test/mjsunit/regress/regress-lazy-deopt-reloc.js
  test/mjsunit/regress/regress-push-args-twice.js
  test/mjsunit/regress/regress-r3391.js
@@ -1426,6 +1451,7 @@ Files: LICENSE
  test/mjsunit/regress/regress-smi-only-concat.js
  test/mjsunit/regress/regress-sqrt.js
  test/mjsunit/regress/regress-swapelements.js
+ test/mjsunit/regress/regress-transcendental.js
  test/mjsunit/regress/short-circuit.js
  test/mjsunit/regress/splice-missing-wb.js
  test/mjsunit/samevalue.js
@@ -1501,6 +1527,7 @@ Files: LICENSE
  test/mjsunit/transcendentals.js
  test/mjsunit/try-catch-extension-object.js
  test/mjsunit/try-catch-scopes.js
+ test/mjsunit/try-finally-continue.js
  test/mjsunit/try-finally-nested.js
  test/mjsunit/try.js
  test/mjsunit/typeof.js
@@ -1561,6 +1588,7 @@ Files: LICENSE
  tools/consarray.js
  tools/csvparser.js
  tools/disasm.py
+ tools/fuzz-harness.sh
  tools/gc-nvp-trace-processor.py
  tools/gcmole/Makefile
  tools/gcmole/gcmole.cc
@@ -1788,8 +1816,8 @@ License: BSD (3 clause)
  FIXME
 
 Files: tools/js2c.py
-Copyright: 2006-2008, the V8 project authors.
-  2011, Google Inc.
+Copyright: 2011, Google Inc.
+  2012, the V8 project authors.
   HOLDERS AND CONTRIBUTORS
 License: BSD (3 clause)
  FIXME
