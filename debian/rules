@@ -83,8 +83,12 @@ GYPFLAGS += -Darmv7=0 -Dv8_use_arm_eabi_hardfloat=false
 endif
 endif
 
-export GYPFLAGS
+# hardening gyp
+CXXFLAGS+=$(CPPFLAGS)
+export LDFLAGS
+
 export CXXFLAGS
+export GYPFLAGS
 
 DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(SONAME) OS=$(v8os) V=1 
 DEB_MAKE_CLEAN_TARGET = clean
