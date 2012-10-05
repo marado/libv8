@@ -3323,23 +3323,23 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
-    if (!CpuFeatures::IsSupported(VFP3)) UNREACHABLE();
+    ASSERT(CpuFeatures::IsSupported(VFP3));
     CpuFeatures::Scope scope(VFP3);
 
     Label no_update;
     Label skip_cache;
 
     // Call C function to calculate the result and update the cache.
-    // Register r0 holds precalculated cache entry address; preserve
-    // it on the stack and pop it into register cache_entry after the
-    // call.
-    __ push(cache_entry);
+    // r0: precalculated cache entry address.
+    // r2 and r3: parts of the double value.
+    // Store r0, r2 and r3 on stack for later before calling C function.
+    __ Push(r3, r2, cache_entry);
     GenerateCallCFunction(masm, scratch0);
     __ GetCFunctionDoubleResult(d2);
 
     // Try to update the cache. If we cannot allocate a
     // heap number, we return the result without updating.
-    __ pop(cache_entry);
+    __ Pop(r3, r2, cache_entry);
     __ LoadRoot(r5, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(r6, scratch0, scratch1, r5, &no_update);
     __ vstr(d2, FieldMemOperand(r6, HeapNumber::kValueOffset));
@@ -3737,9 +3737,13 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Compute the return address in lr to return to after the jump below. Pc is
   // already at '+ 8' from the current instruction but return is after three
   // instructions so add another 4 to pc to get the return address.
-  masm->add(lr, pc, Operand(4));
-  __ str(lr, MemOperand(sp, 0));
-  masm->Jump(r5);
+  {
+    // Prevent literal pool emission before return address.
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    masm->add(lr, pc, Operand(4));
+    __ str(lr, MemOperand(sp, 0));
+    masm->Jump(r5);
+  }
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
@@ -3956,14 +3960,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
   __ jmp(&invoke);
-  __ bind(&handler_entry);
-  handler_offset_ = handler_entry.pos();
-  // Caught exception: Store result (exception) in the pending exception
-  // field in the JSEnv and return a failure sentinel.  Coming in here the
-  // fp will be invalid because the PushTryHandler below sets it to 0 to
-  // signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                       isolate)));
+
+  // Block literal pool emission whilst taking the position of the handler
+  // entry. This avoids making the assumption that literal pools are always
+  // emitted after an instruction is emitted, rather than before.
+  {
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ bind(&handler_entry);
+    handler_offset_ = handler_entry.pos();
+    // Caught exception: Store result (exception) in the pending exception
+    // field in the JSEnv and return a failure sentinel.  Coming in here the
+    // fp will be invalid because the PushTryHandler below sets it to 0 to
+    // signal the existence of the JSEntry frame.
+    __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                         isolate)));
+  }
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -4006,9 +4017,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Branch and link to JSEntryTrampoline.  We don't use the double underscore
   // macro for the add instruction because we don't want the coverage tool
-  // inserting instructions here after we read the pc.
-  __ mov(lr, Operand(pc));
-  masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  // inserting instructions here after we read the pc. We block literal pool
+  // emission for the same reason.
+  {
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ mov(lr, Operand(pc));
+    masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  }
 
   // Unlink this frame from the handler chain.
   __ PopTryHandler();
@@ -4824,27 +4839,32 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(isolate->counters()->regexp_entry_native(), 1, r0, r2);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
-  const int kRegExpExecuteArguments = 8;
+  const int kRegExpExecuteArguments = 9;
   const int kParameterRegisters = 4;
   __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
 
   // Stack pointer now points to cell where return address is to be written.
   // Arguments are before that on the stack or in registers.
 
-  // Argument 8 (sp[16]): Pass current isolate address.
+  // Argument 9 (sp[20]): Pass current isolate address.
   __ mov(r0, Operand(ExternalReference::isolate_address()));
+  __ str(r0, MemOperand(sp, 5 * kPointerSize));
+
+  // Argument 8 (sp[16]): Indicate that this is a direct call from JavaScript.
+  __ mov(r0, Operand(1));
   __ str(r0, MemOperand(sp, 4 * kPointerSize));
 
-  // Argument 7 (sp[12]): Indicate that this is a direct call from JavaScript.
-  __ mov(r0, Operand(1));
-  __ str(r0, MemOperand(sp, 3 * kPointerSize));
-
-  // Argument 6 (sp[8]): Start (high end) of backtracking stack memory area.
+  // Argument 7 (sp[12]): Start (high end) of backtracking stack memory area.
   __ mov(r0, Operand(address_of_regexp_stack_memory_address));
   __ ldr(r0, MemOperand(r0, 0));
   __ mov(r2, Operand(address_of_regexp_stack_memory_size));
   __ ldr(r2, MemOperand(r2, 0));
   __ add(r0, r0, Operand(r2));
+  __ str(r0, MemOperand(sp, 3 * kPointerSize));
+
+  // Argument 6: Set the number of capture registers to zero to force global
+  // regexps to behave as non-global.  This does not affect non-global regexps.
+  __ mov(r0, Operand(0));
   __ str(r0, MemOperand(sp, 2 * kPointerSize));
 
   // Argument 5 (sp[4]): static offsets vector buffer.
@@ -4893,7 +4913,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
   Label success;
 
-  __ cmp(r0, Operand(NativeRegExpMacroAssembler::SUCCESS));
+  __ cmp(r0, Operand(1));
+  // We expect exactly one result since we force the called regexp to behave
+  // as non-global.
   __ b(eq, &success);
   Label failure;
   __ cmp(r0, Operand(NativeRegExpMacroAssembler::FAILURE));
@@ -6805,6 +6827,10 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                      RelocInfo::CODE_TARGET));
+
+  // Prevent literal pool emission during calculation of return address.
+  Assembler::BlockConstPoolScope block_const_pool(masm);
+
   // Push return address (accessible to GC through exit frame pc).
   // Note that using pc with str is deprecated.
   Label start;
@@ -7095,8 +7121,8 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { REG(r3), REG(r2), REG(r4), EMIT_REMEMBERED_SET },
   { REG(r2), REG(r3), REG(r4), EMIT_REMEMBERED_SET },
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
+  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
+  // and ElementsTransitionGenerator::GenerateSmiToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { REG(r2), REG(r3), REG(r9), EMIT_REMEMBERED_SET },
   { REG(r2), REG(r3), REG(r9), OMIT_REMEMBERED_SET },
@@ -7165,8 +7191,13 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   // forth between a compare instructions (a nop in this position) and the
   // real branch when we start and stop incremental heap marking.
   // See RecordWriteStub::Patch for details.
-  __ b(&skip_to_incremental_noncompacting);
-  __ b(&skip_to_incremental_compacting);
+  {
+    // Block literal pool emission, as the position of these two instructions
+    // is assumed by the patching code.
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ b(&skip_to_incremental_noncompacting);
+    __ b(&skip_to_incremental_compacting);
+  }
 
   if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
     __ RememberedSetHelper(object_,
@@ -7359,9 +7390,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label fast_elements;
 
   __ CheckFastElements(r2, r5, &double_elements);
-  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  // FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS
   __ JumpIfSmi(r0, &smi_element);
-  __ CheckFastSmiOnlyElements(r2, r5, &fast_elements);
+  __ CheckFastSmiElements(r2, r5, &fast_elements);
 
   // Store into the array literal requires a elements transition. Call into
   // the runtime.
@@ -7373,7 +7404,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Push(r5, r4);
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
-  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
   __ bind(&fast_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
@@ -7384,8 +7415,8 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                  EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ Ret();
 
-  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-  // FAST_ELEMENTS, and value is Smi.
+  // Array literal has ElementsKind of FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS,
+  // and value is Smi.
   __ bind(&smi_element);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));

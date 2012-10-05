@@ -337,7 +337,7 @@ function ObjectKeys(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
-    return ToStringArray(names);
+    return ToStringArray(names, "keys");
   }
   return %LocalKeys(obj);
 }
@@ -963,7 +963,7 @@ function ToStringArray(obj, trap) {
   var names = {};  // TODO(rossberg): use sets once they are ready.
   for (var index = 0; index < n; index++) {
     var s = ToString(obj[index]);
-    if (s in names) {
+    if (%HasLocalProperty(names, s)) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
     }
     array[index] = s;
@@ -1654,7 +1654,9 @@ function NewFunction(arg1) {  // length == 1
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  var f = %CompileString(source)();
+  var global_receiver = %GlobalReceiver(global);
+  var f = %_CallFunction(global_receiver, %CompileString(source));
+
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return %SetNewFunctionAttributes(f);
 }

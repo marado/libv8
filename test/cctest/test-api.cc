@@ -7662,7 +7662,7 @@ THREADED_TEST(ShadowObject) {
   value = Script::Compile(v8_str("f()"))->Run();
   CHECK_EQ(42, value->Int32Value());
 
-  Script::Compile(v8_str("y = 42"))->Run();
+  Script::Compile(v8_str("y = 43"))->Run();
   CHECK_EQ(1, shadow_y_setter_call_count);
   value = Script::Compile(v8_str("y"))->Run();
   CHECK_EQ(1, shadow_y_getter_call_count);
@@ -10260,6 +10260,7 @@ static v8::Handle<Value> ChildGetter(Local<String> name,
 
 
 THREADED_TEST(Overriding) {
+  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   LocalContext context;
 
@@ -10306,11 +10307,11 @@ THREADED_TEST(Overriding) {
   value = v8_compile("o.g")->Run();
   CHECK_EQ(42, value->Int32Value());
 
-  // Check 'h' can be shadowed.
+  // Check that 'h' cannot be shadowed.
   value = v8_compile("o.h = 3; o.h")->Run();
-  CHECK_EQ(3, value->Int32Value());
+  CHECK_EQ(1, value->Int32Value());
 
-  // Check 'i' is cannot be shadowed or changed.
+  // Check that 'i' cannot be shadowed or changed.
   value = v8_compile("o.i = 3; o.i")->Run();
   CHECK_EQ(42, value->Int32Value());
 }
@@ -12148,9 +12149,10 @@ TEST(RegExpStringModification) {
 }
 
 
-// Test that we can set a property on the global object even if there
+// Test that we cannot set a property on the global object if there
 // is a read-only property in the prototype chain.
 TEST(ReadOnlyPropertyInGlobalProto) {
+  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
   LocalContext context(0, templ);
@@ -12162,12 +12164,13 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   // Check without 'eval' or 'with'.
   v8::Handle<v8::Value> res =
       CompileRun("function f() { x = 42; return x; }; f()");
+  CHECK_EQ(v8::Integer::New(0), res);
   // Check with 'eval'.
-  res = CompileRun("function f() { eval('1'); y = 42; return y; }; f()");
-  CHECK_EQ(v8::Integer::New(42), res);
+  res = CompileRun("function f() { eval('1'); y = 43; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(0), res);
   // Check with 'with'.
-  res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
-  CHECK_EQ(v8::Integer::New(42), res);
+  res = CompileRun("function f() { with (this) { y = 44 }; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(0), res);
 }
 
 static int force_set_set_count = 0;
@@ -14564,6 +14567,8 @@ THREADED_TEST(FunctionGetScriptId) {
 
 static v8::Handle<Value> GetterWhichReturns42(Local<String> name,
                                               const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
   return v8_num(42);
 }
 
@@ -14571,7 +14576,29 @@ static v8::Handle<Value> GetterWhichReturns42(Local<String> name,
 static void SetterWhichSetsYOnThisTo23(Local<String> name,
                                        Local<Value> value,
                                        const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
   info.This()->Set(v8_str("y"), v8_num(23));
+}
+
+
+Handle<Value> FooGetInterceptor(Local<String> name,
+                                const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
+  if (!name->Equals(v8_str("foo"))) return Handle<Value>();
+  return v8_num(42);
+}
+
+
+Handle<Value> FooSetInterceptor(Local<String> name,
+                                Local<Value> value,
+                                const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
+  if (!name->Equals(v8_str("foo"))) return Handle<Value>();
+  info.This()->Set(v8_str("y"), v8_num(23));
+  return v8_num(23);
 }
 
 
@@ -16592,4 +16619,401 @@ TEST(StringEmpty) {
   CHECK_EQ(2, fatal_error_callback_counter);
   CHECK(v8::String::Empty(isolate).IsEmpty());
   CHECK_EQ(3, fatal_error_callback_counter);
+}
+
+
+static int instance_checked_getter_count = 0;
+static Handle<Value> InstanceCheckedGetter(Local<String> name,
+                                           const AccessorInfo& info) {
+  CHECK_EQ(name, v8_str("foo"));
+  instance_checked_getter_count++;
+  return v8_num(11);
+}
+
+
+static int instance_checked_setter_count = 0;
+static void InstanceCheckedSetter(Local<String> name,
+                      Local<Value> value,
+                      const AccessorInfo& info) {
+  CHECK_EQ(name, v8_str("foo"));
+  CHECK_EQ(value, v8_num(23));
+  instance_checked_setter_count++;
+}
+
+
+static void CheckInstanceCheckedResult(int getters,
+                                       int setters,
+                                       bool expects_callbacks,
+                                       TryCatch* try_catch) {
+  if (expects_callbacks) {
+    CHECK(!try_catch->HasCaught());
+    CHECK_EQ(getters, instance_checked_getter_count);
+    CHECK_EQ(setters, instance_checked_setter_count);
+  } else {
+    CHECK(try_catch->HasCaught());
+    CHECK_EQ(0, instance_checked_getter_count);
+    CHECK_EQ(0, instance_checked_setter_count);
+  }
+  try_catch->Reset();
+}
+
+
+static void CheckInstanceCheckedAccessors(bool expects_callbacks) {
+  instance_checked_getter_count = 0;
+  instance_checked_setter_count = 0;
+  TryCatch try_catch;
+
+  // Test path through generic runtime code.
+  CompileRun("obj.foo");
+  CheckInstanceCheckedResult(1, 0, expects_callbacks, &try_catch);
+  CompileRun("obj.foo = 23");
+  CheckInstanceCheckedResult(1, 1, expects_callbacks, &try_catch);
+
+  // Test path through generated LoadIC and StoredIC.
+  CompileRun("function test_get(o) { o.foo; }"
+             "test_get(obj);");
+  CheckInstanceCheckedResult(2, 1, expects_callbacks, &try_catch);
+  CompileRun("test_get(obj);");
+  CheckInstanceCheckedResult(3, 1, expects_callbacks, &try_catch);
+  CompileRun("test_get(obj);");
+  CheckInstanceCheckedResult(4, 1, expects_callbacks, &try_catch);
+  CompileRun("function test_set(o) { o.foo = 23; }"
+             "test_set(obj);");
+  CheckInstanceCheckedResult(4, 2, expects_callbacks, &try_catch);
+  CompileRun("test_set(obj);");
+  CheckInstanceCheckedResult(4, 3, expects_callbacks, &try_catch);
+  CompileRun("test_set(obj);");
+  CheckInstanceCheckedResult(4, 4, expects_callbacks, &try_catch);
+
+  // Test path through optimized code.
+  CompileRun("%OptimizeFunctionOnNextCall(test_get);"
+             "test_get(obj);");
+  CheckInstanceCheckedResult(5, 4, expects_callbacks, &try_catch);
+  CompileRun("%OptimizeFunctionOnNextCall(test_set);"
+             "test_set(obj);");
+  CheckInstanceCheckedResult(5, 5, expects_callbacks, &try_catch);
+
+  // Cleanup so that closures start out fresh in next check.
+  CompileRun("%DeoptimizeFunction(test_get);"
+             "%ClearFunctionTypeFeedback(test_get);"
+             "%DeoptimizeFunction(test_set);"
+             "%ClearFunctionTypeFeedback(test_set);");
+}
+
+
+THREADED_TEST(InstanceCheckOnInstanceAccessor) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> inst = templ->InstanceTemplate();
+  inst->SetAccessor(v8_str("foo"),
+                    InstanceCheckedGetter, InstanceCheckedSetter,
+                    Handle<Value>(),
+                    v8::DEFAULT,
+                    v8::None,
+                    v8::AccessorSignature::New(templ));
+  context->Global()->Set(v8_str("f"), templ->GetFunction());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+
+  printf("Testing negative ...\n");
+  CompileRun("var obj = {};"
+             "obj.__proto__ = new f();");
+  CHECK(!templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(false);
+}
+
+
+THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> inst = templ->InstanceTemplate();
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  inst->SetAccessor(v8_str("foo"),
+                    InstanceCheckedGetter, InstanceCheckedSetter,
+                    Handle<Value>(),
+                    v8::DEFAULT,
+                    v8::None,
+                    v8::AccessorSignature::New(templ));
+  context->Global()->Set(v8_str("f"), templ->GetFunction());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+
+  printf("Testing negative ...\n");
+  CompileRun("var obj = {};"
+             "obj.__proto__ = new f();");
+  CHECK(!templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(false);
+}
+
+
+THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> proto = templ->PrototypeTemplate();
+  proto->SetAccessor(v8_str("foo"),
+                     InstanceCheckedGetter, InstanceCheckedSetter,
+                     Handle<Value>(),
+                     v8::DEFAULT,
+                     v8::None,
+                     v8::AccessorSignature::New(templ));
+  context->Global()->Set(v8_str("f"), templ->GetFunction());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+
+  printf("Testing negative ...\n");
+  CompileRun("var obj = {};"
+             "obj.__proto__ = new f();");
+  CHECK(!templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(false);
+
+  printf("Testing positive with modified prototype chain ...\n");
+  CompileRun("var obj = new f();"
+             "var pro = {};"
+             "pro.__proto__ = obj.__proto__;"
+             "obj.__proto__ = pro;");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+}
+
+
+TEST(TryFinallyMessage) {
+  v8::HandleScope scope;
+  LocalContext context;
+  {
+    // Test that the original error message is not lost if there is a
+    // recursive call into Javascript is done in the finally block, e.g. to
+    // initialize an IC. (crbug.com/129171)
+    TryCatch try_catch;
+    const char* trigger_ic =
+        "try {                      \n"
+        "  throw new Error('test'); \n"
+        "} finally {                \n"
+        "  var x = 0;               \n"
+        "  x++;                     \n"  // Trigger an IC initialization here.
+        "}                          \n";
+    CompileRun(trigger_ic);
+    CHECK(try_catch.HasCaught());
+    Local<Message> message = try_catch.Message();
+    CHECK(!message.IsEmpty());
+    CHECK_EQ(2, message->GetLineNumber());
+  }
+
+  {
+    // Test that the original exception message is indeed overwritten if
+    // a new error is thrown in the finally block.
+    TryCatch try_catch;
+    const char* throw_again =
+        "try {                       \n"
+        "  throw new Error('test');  \n"
+        "} finally {                 \n"
+        "  var x = 0;                \n"
+        "  x++;                      \n"
+        "  throw new Error('again'); \n"  // This is the new uncaught error.
+        "}                           \n";
+    CompileRun(throw_again);
+    CHECK(try_catch.HasCaught());
+    Local<Message> message = try_catch.Message();
+    CHECK(!message.IsEmpty());
+    CHECK_EQ(6, message->GetLineNumber());
+  }
+}
+
+
+static void Helper137002(bool do_store,
+                         bool polymorphic,
+                         bool remove_accessor,
+                         bool interceptor) {
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  if (interceptor) {
+    templ->SetNamedPropertyHandler(FooGetInterceptor, FooSetInterceptor);
+  } else {
+    templ->SetAccessor(v8_str("foo"),
+                       GetterWhichReturns42,
+                       SetterWhichSetsYOnThisTo23);
+  }
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  // Turn monomorphic on slow object with native accessor, then turn
+  // polymorphic, finally optimize to create negative lookup and fail.
+  CompileRun(do_store ?
+             "function f(x) { x.foo = void 0; }" :
+             "function f(x) { return x.foo; }");
+  CompileRun("obj.y = void 0;");
+  if (!interceptor) {
+    CompileRun("%OptimizeObjectForAddingMultipleProperties(obj, 1);");
+  }
+  CompileRun("obj.__proto__ = null;"
+             "f(obj); f(obj); f(obj);");
+  if (polymorphic) {
+    CompileRun("f({});");
+  }
+  CompileRun("obj.y = void 0;"
+             "%OptimizeFunctionOnNextCall(f);");
+  if (remove_accessor) {
+    CompileRun("delete obj.foo;");
+  }
+  CompileRun("var result = f(obj);");
+  if (do_store) {
+    CompileRun("result = obj.y;");
+  }
+  if (remove_accessor && !interceptor) {
+    CHECK(context->Global()->Get(v8_str("result"))->IsUndefined());
+  } else {
+    CHECK_EQ(do_store ? 23 : 42,
+             context->Global()->Get(v8_str("result"))->Int32Value());
+  }
+}
+
+
+THREADED_TEST(Regress137002a) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_compilation_cache = false;
+  v8::HandleScope scope;
+  for (int i = 0; i < 16; i++) {
+    Helper137002(i & 8, i & 4, i & 2, i & 1);
+  }
+}
+
+
+THREADED_TEST(Regress137002b) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("foo"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  // Turn monomorphic on slow object with native accessor, then just
+  // delete the property and fail.
+  CompileRun("function load(x) { return x.foo; }"
+             "function store(x) { x.foo = void 0; }"
+             "function keyed_load(x, key) { return x[key]; }"
+             // Second version of function has a different source (add void 0)
+             // so that it does not share code with the first version.  This
+             // ensures that the ICs are monomorphic.
+             "function load2(x) { void 0; return x.foo; }"
+             "function store2(x) { void 0; x.foo = void 0; }"
+             "function keyed_load2(x, key) { void 0; return x[key]; }"
+
+             "obj.y = void 0;"
+             "obj.__proto__ = null;"
+             "var subobj = {};"
+             "subobj.y = void 0;"
+             "subobj.__proto__ = obj;"
+             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+
+             // Make the ICs monomorphic.
+             "load(obj); load(obj);"
+             "load2(subobj); load2(subobj);"
+             "store(obj); store(obj);"
+             "store2(subobj); store2(subobj);"
+             "keyed_load(obj, 'foo'); keyed_load(obj, 'foo');"
+             "keyed_load2(subobj, 'foo'); keyed_load2(subobj, 'foo');"
+
+             // Actually test the shiny new ICs and better not crash. This
+             // serves as a regression test for issue 142088 as well.
+             "load(obj);"
+             "load2(subobj);"
+             "store(obj);"
+             "store2(subobj);"
+             "keyed_load(obj, 'foo');"
+             "keyed_load2(subobj, 'foo');"
+
+             // Delete the accessor.  It better not be called any more now.
+             "delete obj.foo;"
+             "obj.y = void 0;"
+             "subobj.y = void 0;"
+
+             "var load_result = load(obj);"
+             "var load_result2 = load2(subobj);"
+             "var keyed_load_result = keyed_load(obj, 'foo');"
+             "var keyed_load_result2 = keyed_load2(subobj, 'foo');"
+             "store(obj);"
+             "store2(subobj);"
+             "var y_from_obj = obj.y;"
+             "var y_from_subobj = subobj.y;");
+  CHECK(context->Global()->Get(v8_str("load_result"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("load_result2"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("keyed_load_result"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("keyed_load_result2"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("y_from_obj"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("y_from_subobj"))->IsUndefined());
+}
+
+
+THREADED_TEST(Regress142088) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("foo"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  // Turn monomorphic on slow object with native accessor, then just
+  // delete the property and fail.
+  CompileRun("function load(x) { return x.foo; }"
+             "function store(x) { x.foo = void 0; }"
+             "function keyed_load(x, key) { return x[key]; }"
+             // Second version of function has a different source (add void 0)
+             // so that it does not share code with the first version.  This
+             // ensures that the ICs are monomorphic.
+             "function load2(x) { void 0; return x.foo; }"
+             "function store2(x) { void 0; x.foo = void 0; }"
+             "function keyed_load2(x, key) { void 0; return x[key]; }"
+
+             "obj.__proto__ = null;"
+             "var subobj = {};"
+             "subobj.__proto__ = obj;"
+             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+
+             // Make the ICs monomorphic.
+             "load(obj); load(obj);"
+             "load2(subobj); load2(subobj);"
+             "store(obj);"
+             "store2(subobj);"
+             "keyed_load(obj, 'foo'); keyed_load(obj, 'foo');"
+             "keyed_load2(subobj, 'foo'); keyed_load2(subobj, 'foo');"
+
+             // Delete the accessor.  It better not be called any more now.
+             "delete obj.foo;"
+             "obj.y = void 0;"
+             "subobj.y = void 0;"
+
+             "var load_result = load(obj);"
+             "var load_result2 = load2(subobj);"
+             "var keyed_load_result = keyed_load(obj, 'foo');"
+             "var keyed_load_result2 = keyed_load2(subobj, 'foo');"
+             "store(obj);"
+             "store2(subobj);"
+             "var y_from_obj = obj.y;"
+             "var y_from_subobj = subobj.y;");
+  CHECK(context->Global()->Get(v8_str("load_result"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("load_result2"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("keyed_load_result"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("keyed_load_result2"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("y_from_obj"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("y_from_subobj"))->IsUndefined());
 }
