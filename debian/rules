@@ -110,7 +110,7 @@ DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/$(libSoname)
 
 clean::
 	rm -rf out
-	rm -f tools/*.pyc
+	find tools/ -name "*.pyc" -exec rm -f '{}' \;
 	rm -f test/*/*.pyc
 
 common-install-impl::
