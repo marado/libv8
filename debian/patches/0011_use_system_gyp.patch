@@ -4,9 +4,9 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-10-22
 --- a/Makefile
 +++ b/Makefile
-@@ -214,14 +214,14 @@
- MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
- $(MAKEFILES): $(GYPFILES) $(ENVFILE)
+@@ -254,14 +254,14 @@
+ OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
+ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
  	GYP_GENERATORS=make \
 -	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
@@ -20,13 +20,4 @@ Last-Update: 2011-10-22
 +	gyp --generator-output="$(OUTDIR)" build/all.gyp \
  	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
  
- $(OUTDIR)/Makefile.android: $(GYPFILES) $(ENVFILE) build/android.gypi \
-@@ -229,7 +229,7 @@
- 	GYP_GENERATORS=make \
- 	CC="${ANDROID_TOOL_PREFIX}-gcc" \
- 	CXX="${ANDROID_TOOL_PREFIX}-g++" \
--	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-+	gyp --generator-output="$(OUTDIR)" build/all.gyp \
- 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
- 	              -S.android $(GYPFLAGS)
- 
+ must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN:
