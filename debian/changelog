@@ -4,9 +4,13 @@ libv8 (3.14.5.8-1) UNRELEASED; urgency=low
   * Patches:
     + 0001_kfreebsd is partially fixed upstream.
     + remove 0013_performance_regression_fix, applied upstream.
+    + refreshed patches.
   * Refresh debian/control*, debian/watch files.
   * debian/rules: append CPPFLAGS to CXXFLAGS, export LDFLAGS to let gyp
     catch hardening flags. Might be needed because of bug#689754.
+  * debian/copyright:
+    + extend to year 2013
+    + tools/testrunner/server/daemon.py is in Public Domain.
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 05 Oct 2012 23:33:22 +0200
 
