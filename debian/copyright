@@ -4,7 +4,7 @@ Upstream-Contact: the V8 Project Authors <v8-dev@googlegroups.com>
 Source: http://code.google.com/p/v8
 
 Files: *
-Copyright: 2006-2012 the V8 project authors
+Copyright: 2006-2013 the V8 project authors
 License: BSD-3-clause~Google
 
 Files: src/arm/assembler-arm*
