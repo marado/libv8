@@ -9,7 +9,7 @@ Standards-Version: 3.9.3
 Section: libs
 Homepage: http://code.google.com/p/v8/
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/libv8.git
-Vcs-Git: git://git.debian.org/git/collab-maint/libv8.git
+Vcs-Git: git://anonscm.debian.org/git/collab-maint/libv8.git
 
 Package: libv8-dev
 Section: libdevel
