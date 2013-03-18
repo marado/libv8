@@ -1,18 +1,27 @@
 libv8 (3.16.14.7-1) UNRELEASED; urgency=low
 
-  * New upstream release.
-  * Patches:
-    + 0001_kfreebsd is partially fixed upstream.
-    + remove 0013_performance_regression_fix, applied upstream.
-    + refreshed patches.
-  * Refresh debian/control*, debian/watch files.
-  * debian/rules:
-    + append CPPFLAGS to CXXFLAGS, export LDFLAGS to let gyp
-      catch hardening flags. Might be needed because of bug#689754.
-    + remove *.pyc files in tools dir.
-  * debian/copyright:
-    + extend to year 2013
-    + tools/testrunner/server/daemon.py is in Public Domain.
+  [ upstream ]
+  * New release.
+
+  [ Jérémy Lal ]
+  * Update patches:
+    + Update 0001_kfreebsd: Partially fixed upstream.
+    + Remove 0013_performance_regression_fix: Applied upstream.
+    + Unfuzz patches.
+  * Update version numbers in watch file and package names/dependencies
+    to reflect curent upstream version.
+  * Build-depend unversioned on cdbs: Needed version satisfied in stable
+    and oldstable no longer supported.
+  * Append CPPFLAGS to CXXFLAGS and export LDFLAGS to let gyp catch
+    hardening flags.
+    Maybe fixes hardening (see bug#689754).
+  * Fix remove all *.pyc files below tools dir.
+  * Update copyright file:
+    + Extend coverage for main copyright holder with current year.
+    + Add tools/testrunner/server/daemon.py (in the Public Domain).
+
+  [ Jonas Smedegaard ]
+  * Explicitly mention Public Domain file as such in Copyright field.
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 05 Oct 2012 23:33:22 +0200
 
