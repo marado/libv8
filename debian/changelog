@@ -8,7 +8,10 @@ libv8 (3.14.5.8-1) UNRELEASED; urgency=low
     + Update 0001_kfreebsd: Partially fixed upstream.
     + Remove 0013_performance_regression_fix: Applied upstream.
     + Unfuzz patches.
-  * Refresh debian/control*, debian/watch files.
+  * Update version numbers in watch file and package names/dependencies
+    to reflect curent upstream version.
+  * Build-depend unversioned on cdbs: Needed version satisfied in stable
+    and oldstable no longer supported.
   * Append CPPFLAGS to CXXFLAGS and export LDFLAGS to let gyp catch
     hardening flags.
     Maybe fixes hardening (see bug#689754).
