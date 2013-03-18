@@ -1,4 +1,4 @@
-Source: libv8
+Source: __SRCPKGNAME__
 Priority: optional
 Maintainer: Debian Javascript Maintainers <pkg-javascript-devel@lists.alioth.debian.org>
 Uploaders: Jérémy Lal <kapouer@melix.org>,

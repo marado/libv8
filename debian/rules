@@ -8,8 +8,11 @@ debian/control.in::
 		< debian/control.in.in > debian/control.in
 
 debian/watch::
-	sed -e 's/__watchBranch__/$(watchBranch)/g' \
-		< debian/watch.in > debian/watch
+	sed \
+		-e 's/__SRCPKGNAME__/$(SRCPKGNAME)/g' \
+		-e 's/__LIBPKGNAME__/$(LIBPKGNAME)/g' \
+		-e 's/__ARCHS__/$(ARCHS)/g' \
+		< debian/control.in.in > debian/control.in
 
 include /usr/share/cdbs/1/rules/upstream-tarball.mk
 include /usr/share/cdbs/1/rules/utils.mk
@@ -21,6 +24,7 @@ MINOR = $(word 2, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
 BUILD = $(word 3, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
 # keep only major.minor.build version. See README.source.
 SONAME = $(MAJOR).$(MINOR).$(BUILD)
+SRCPKGNAME = libv8-$(MAJOR).$(MINOR)
 LIBPKGNAME = libv8-$(SONAME)
 libSoname = libv8.so.$(SONAME)
 watchBranch = $(MAJOR)\\.$(MINOR)
