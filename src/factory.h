@@ -79,16 +79,16 @@ class Factory {
 
   Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
 
-  Handle<String> LookupSymbol(Vector<const char> str);
+  Handle<String> LookupUtf8Symbol(Vector<const char> str);
+  Handle<String> LookupUtf8Symbol(const char* str) {
+    return LookupUtf8Symbol(CStrVector(str));
+  }
   Handle<String> LookupSymbol(Handle<String> str);
-  Handle<String> LookupAsciiSymbol(Vector<const char> str);
-  Handle<String> LookupAsciiSymbol(Handle<SeqAsciiString>,
+  Handle<String> LookupOneByteSymbol(Vector<const uint8_t> str);
+  Handle<String> LookupOneByteSymbol(Handle<SeqOneByteString>,
                                    int from,
                                    int length);
   Handle<String> LookupTwoByteSymbol(Vector<const uc16> str);
-  Handle<String> LookupAsciiSymbol(const char* str) {
-    return LookupSymbol(CStrVector(str));
-  }
 
 
   // String creation functions.  Most of the string creation functions take
@@ -113,9 +113,15 @@ class Factory {
   //     two byte.
   //
   // ASCII strings are pretenured when used as keys in the SourceCodeCache.
-  Handle<String> NewStringFromAscii(
-      Vector<const char> str,
+  Handle<String> NewStringFromOneByte(
+      Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
+  // TODO(dcarney): remove this function.
+  inline Handle<String> NewStringFromAscii(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewStringFromOneByte(Vector<const uint8_t>::cast(str), pretenure);
+  }
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
@@ -130,7 +136,7 @@ class Factory {
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  Handle<SeqAsciiString> NewRawAsciiString(
+  Handle<SeqOneByteString> NewRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
   Handle<SeqTwoByteString> NewRawTwoByteString(
@@ -239,6 +245,9 @@ class Factory {
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
+  Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
+                                        int new_length);
+
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
 
@@ -324,6 +333,8 @@ class Factory {
       PretenureFlag pretenure = TENURED);
 
   Handle<ScopeInfo> NewScopeInfo(int length);
+
+  Handle<JSObject> NewExternal(void* value);
 
   Handle<Code> NewCode(const CodeDesc& desc,
                        Code::Flags flags,

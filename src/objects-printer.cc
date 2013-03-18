@@ -384,7 +384,7 @@ void JSObject::PrintElements(FILE* out) {
     case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "  %d: %f\n", i, p->get_scalar(i));
+        PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
       }
       break;
     }
@@ -393,11 +393,16 @@ void JSObject::PrintElements(FILE* out) {
       break;
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* p = FixedArray::cast(elements());
+      PrintF(out, "   parameter map:");
       for (int i = 2; i < p->length(); i++) {
-        PrintF(out, "   %d: ", i);
+        PrintF(out, " %d:", i - 2);
         p->get(i)->ShortPrint(out);
-        PrintF(out, "\n");
       }
+      PrintF(out, "\n   context: ");
+      p->get(0)->ShortPrint(out);
+      PrintF(out, "\n   arguments: ");
+      p->get(1)->ShortPrint(out);
+      PrintF(out, "\n");
       break;
     }
   }
@@ -698,7 +703,7 @@ char* String::ToAsciiArray() {
   static char* buffer = NULL;
   if (buffer != NULL) free(buffer);
   buffer = new char[length()+1];
-  WriteToFlat(this, buffer, 0, length());
+  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
   buffer[length()] = 0;
   return buffer;
 }
@@ -994,6 +999,22 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeSwitchInfo");
   PrintF(out, "\n - types: ");
   types()->ShortPrint(out);
+}
+
+
+void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+  PrintF(out, " - payload: ");
+  if (payload()->IsJSArray()) {
+    PrintF(out, "Array literal ");
+    payload()->ShortPrint(out);
+    PrintF(out, "\n");
+    return;
+  }
+
+  PrintF(out, "unknown payload ");
+  payload()->ShortPrint(out);
+  PrintF(out, "\n");
 }
 
 

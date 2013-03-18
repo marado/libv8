@@ -94,16 +94,17 @@ static void InitializeVM() {
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
+  Handle<String> symbol = FACTORY->LookupUtf8Symbol(name);
   return Isolate::Current()->context()->global_object()->GetProperty(*symbol);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
+  Isolate* isolate = Isolate::Current();
   Handle<Object> object(value);
-  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
+  Handle<String> symbol = FACTORY->LookupUtf8Symbol(name);
   Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  SetProperty(global, symbol, object, NONE, kNonStrictMode);
+  SetProperty(isolate, global, symbol, object, NONE, kNonStrictMode);
 }
 
 
@@ -293,13 +294,16 @@ TEST(C2JSFrames) {
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Object* foo_symbol = FACTORY->LookupAsciiSymbol("foo")->ToObjectChecked();
+  Object* foo_symbol =
+      FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("foo"))->
+        ToObjectChecked();
   MaybeObject* fun1_object = Isolate::Current()->context()->global_object()->
       GetProperty(String::cast(foo_symbol));
   Handle<Object> fun1(fun1_object->ToObjectChecked());
   CHECK(fun1->IsJSFunction());
 
-  Handle<Object> argv[] = { FACTORY->LookupAsciiSymbol("hello") };
+  Handle<Object> argv[] =
+    { FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("hello")) };
   Execution::Call(Handle<JSFunction>::cast(fun1),
                   global,
                   ARRAY_SIZE(argv),
