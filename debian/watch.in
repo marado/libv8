@@ -1,8 +1,4 @@
 # Compulsory line, this is a version 3 file
 version=3
 
-# unfortunately there is no way we can download from an
-# SVN tag but the watch file will still useful to find
-# new versions
-opts="dversionmangle=s/\+dfsg//" \
-http://v8.googlecode.com/svn/tags/ (__watchBranch__\.[\d.]+)/
+https://github.com/v8/v8/tags .*/archive/(__watchBranch__[\d.]*).tar.gz
