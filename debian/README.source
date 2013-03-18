@@ -1,3 +1,13 @@
+CDBS+git-buildpackage
+=====================
+
+This source package uses CDBS and git-buildpackage.  NMUs need not (but
+are encouraged to) make special use of these tools.  In particular, the
+debian/control.in file can be completely ignored.
+
+More info here: http://wiki.debian.org/CDBS+git-buildpackage
+
+
 Branches, versions, SONAME
 ==========================
 
@@ -30,37 +40,6 @@ sure any accidental ABI break does not happen.
 Side note: http://www.upstream-tracker.org/versions/v8.html gives
 valuable information about upstream involuntarily breaking API/ABI, like
 what happened with 3.7.12.31, fixed in 3.7.12.32.
-
-
-Import a new version using git-buildpackage layout
-==================================================
-
-   # the new version you want to import
-   VERSION=3.8.10.14
-   # the dir where you keep your debian git packaging archive 
-   GITDIR=collab-maint
-
-   # download and repackage the upstream source
-   svn export http://v8.googlecode.com/svn/tags/$VERSION import/libv8-$VERSION
-   cd import
-   tar zcvf libv8-$VERSION.tar.gz libv8-$VERSION
-   cd ..
-
-   # import into upstream/$VERSION and automatically merge to master
-   cd $GITDIR
-   git checkout master
-   git-import-orig --pristine-tar ../import/libv8-$VERSION.tar.gz
-
-
-Update and building gotchas
-===========================
-
-* generate debian/control.in and debian/control :
-
-   DEB_MAINTAINER_MODE=1 ./debian/rules debian/control
-   
-
-* if this is a new v8 branch, don't forget to update debian/watch
 
 
 gbp.conf and branched versions
