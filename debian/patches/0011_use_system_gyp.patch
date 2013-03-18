@@ -4,7 +4,7 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2011-10-22
 --- a/Makefile
 +++ b/Makefile
-@@ -254,14 +254,14 @@
+@@ -266,14 +266,14 @@
  OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
  $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
  	GYP_GENERATORS=make \
