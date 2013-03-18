@@ -1,4 +1,4 @@
-libv8 (3.14.5.8-1) UNRELEASED; urgency=low
+libv8-3.14 (3.14.5.8-1) UNRELEASED; urgency=low
 
   [ upstream ]
   * New release.
@@ -22,6 +22,20 @@ libv8 (3.14.5.8-1) UNRELEASED; urgency=low
 
   [ Jonas Smedegaard ]
   * Explicitly mention Public Domain file as such in Copyright field.
+  * Have git-import-orig suppress upstream .gitignore file.
+  * Drop obsolete "DM-Upload-Allowed" control file field.
+  * Update to use anonscm.debian.org URL for Vcs-Git field.
+  * Track upstream source via github mirror (not limited-use
+    googlecode.com SVN tags).
+  * Include CDBS upstream-tarball snippet, and setup get-orig-source
+    target.
+  * Tidy README.source:
+    + Drop obsolete sections.
+    + Refer to common CDBS+git-buildpackage praxis.
+    + Emphasize explicitly that NMUs can totally ignore control.in.
+  * Tidy rules file: Resolve version strings in fewer shell calls.
+  * Use versioned source package name, to allow multiple branches to
+    coexist: Nodejs often needs more table release than Chromium.
 
  -- Jérémy Lal <kapouer@melix.org>  Fri, 05 Oct 2012 23:33:22 +0200
 
