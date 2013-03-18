@@ -376,18 +376,23 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
                                             Register dst,
                                             Register src,
                                             Handle<JSObject> holder,
-                                            int index) {
-  // Adjust for the number of properties stored in the holder.
-  index -= holder->map()->inobject_properties();
-  if (index < 0) {
-    // Get the property straight out of the holder.
-    int offset = holder->map()->instance_size() + (index * kPointerSize);
+                                            PropertyIndex index) {
+  if (index.is_header_index()) {
+    int offset = index.header_index() * kPointerSize;
     __ mov(dst, FieldOperand(src, offset));
   } else {
-    // Calculate the offset into the properties array.
-    int offset = index * kPointerSize + FixedArray::kHeaderSize;
-    __ mov(dst, FieldOperand(src, JSObject::kPropertiesOffset));
-    __ mov(dst, FieldOperand(dst, offset));
+    // Adjust for the number of properties stored in the holder.
+    int slot = index.field_index() - holder->map()->inobject_properties();
+    if (slot < 0) {
+      // Get the property straight out of the holder.
+      int offset = holder->map()->instance_size() + (slot * kPointerSize);
+      __ mov(dst, FieldOperand(src, offset));
+    } else {
+      // Calculate the offset into the properties array.
+      int offset = slot * kPointerSize + FixedArray::kHeaderSize;
+      __ mov(dst, FieldOperand(src, JSObject::kPropertiesOffset));
+      __ mov(dst, FieldOperand(dst, offset));
+    }
   }
 }
 
@@ -732,6 +737,15 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+void StubCompiler::GenerateStoreMiss(MacroAssembler* masm, Code::Kind kind) {
+  ASSERT(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
+  Handle<Code> code = (kind == Code::STORE_IC)
+      ? masm->isolate()->builtins()->StoreIC_Miss()
+      : masm->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ jmp(code, RelocInfo::CODE_TARGET);
+}
+
+
 void StubCompiler::GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm) {
   Handle<Code> code =
       masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
@@ -1036,7 +1050,7 @@ void StubCompiler::GenerateLoadField(Handle<JSObject> object,
                                      Register scratch1,
                                      Register scratch2,
                                      Register scratch3,
-                                     int index,
+                                     PropertyIndex index,
                                      Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
@@ -1423,7 +1437,7 @@ void CallStubCompiler::GenerateMissBranch() {
 
 Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                int index,
+                                                PropertyIndex index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
@@ -1518,7 +1532,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Label call_builtin;
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label attempt_to_grow_elements, with_write_barrier;
+      Label attempt_to_grow_elements, with_write_barrier, check_double;
 
       // Get the elements array of the object.
       __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
@@ -1526,7 +1540,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Check that the elements are in fast mode and writable.
       __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
              Immediate(factory()->fixed_array_map()));
-      __ j(not_equal, &call_builtin);
+      __ j(not_equal, &check_double);
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1557,17 +1571,49 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       __ ret((argc + 1) * kPointerSize);
 
+      __ bind(&check_double);
+
+
+      // Check that the elements are in double mode.
+      __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+             Immediate(factory()->fixed_double_array_map()));
+      __ j(not_equal, &call_builtin);
+
+      // Get the array's length into eax and calculate new length.
+      __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
+      __ add(eax, Immediate(Smi::FromInt(argc)));
+
+      // Get the elements' length into ecx.
+      __ mov(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ cmp(eax, ecx);
+      __ j(greater, &call_builtin);
+
+      __ mov(ecx, Operand(esp, argc * kPointerSize));
+      __ StoreNumberToDoubleElements(
+          ecx, edi, eax, ecx, xmm0, &call_builtin, true, argc * kDoubleSize);
+
+      // Save new length.
+      __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
+      __ ret((argc + 1) * kPointerSize);
+
       __ bind(&with_write_barrier);
 
       __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
 
-      if (FLAG_smi_only_arrays  && !FLAG_trace_elements_transitions) {
+      if (FLAG_smi_only_arrays && !FLAG_trace_elements_transitions) {
         Label fast_object, not_fast_object;
         __ CheckFastObjectElements(ebx, &not_fast_object, Label::kNear);
         __ jmp(&fast_object);
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(ebx, &call_builtin);
+        __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
+               Immediate(factory()->heap_number_map()));
+        __ j(equal, &call_builtin);
         // edi: elements array
         // edx: receiver
         // ebx: map
@@ -1579,7 +1625,9 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
                                                &try_holey_map);
 
         ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+            GenerateMapChangeElementsTransition(masm(),
+                                                DONT_TRACK_ALLOCATION_SITE,
+                                                NULL);
         // Restore edi.
         __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
         __ jmp(&fast_object);
@@ -1591,7 +1639,9 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
                                                edi,
                                                &call_builtin);
         ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+            GenerateMapChangeElementsTransition(masm(),
+                                                DONT_TRACK_ALLOCATION_SITE,
+                                                NULL);
         // Restore edi.
         __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
         __ bind(&fast_object);
@@ -2318,11 +2368,11 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
-                                                   Handle<JSObject> holder,
-                                                   Handle<JSFunction> function,
-                                                   Handle<String> name,
-                                                   CheckType check) {
+void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
+                                              Handle<JSObject> holder,
+                                              Handle<String> name,
+                                              CheckType check,
+                                              Label* success) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -2330,15 +2380,6 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-
-  if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(object, holder,
-                                          Handle<JSGlobalPropertyCell>::null(),
-                                          function, name);
-    // A null handle means bail out to the regular compiler code below.
-    if (!code.is_null()) return code;
-  }
-
   Label miss;
   GenerateNameCheck(name, &miss);
 
@@ -2371,76 +2412,87 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
-        // Check that the object is a string or a symbol.
-        __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
-        __ j(above_equal, &miss);
-        // Check that the maps starting from the prototype haven't changed.
-        GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::STRING_FUNCTION_INDEX, eax, &miss);
-        CheckPrototypes(
-            Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-            eax, holder, ebx, edx, edi, name, &miss);
-      } else {
-        // Calling non-strict non-builtins with a value as the receiver
-        // requires boxing.
-        __ jmp(&miss);
-      }
+      // Check that the object is a string or a symbol.
+      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
+      __ j(above_equal, &miss);
+      // Check that the maps starting from the prototype haven't changed.
+      GenerateDirectLoadGlobalFunctionPrototype(
+          masm(), Context::STRING_FUNCTION_INDEX, eax, &miss);
+      CheckPrototypes(
+          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          eax, holder, ebx, edx, edi, name, &miss);
       break;
 
-    case NUMBER_CHECK:
-      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
-        Label fast;
-        // Check that the object is a smi or a heap number.
-        __ JumpIfSmi(edx, &fast);
-        __ CmpObjectType(edx, HEAP_NUMBER_TYPE, eax);
-        __ j(not_equal, &miss);
-        __ bind(&fast);
-        // Check that the maps starting from the prototype haven't changed.
-        GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::NUMBER_FUNCTION_INDEX, eax, &miss);
-        CheckPrototypes(
-            Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-            eax, holder, ebx, edx, edi, name, &miss);
-      } else {
-        // Calling non-strict non-builtins with a value as the receiver
-        // requires boxing.
-        __ jmp(&miss);
-      }
+    case NUMBER_CHECK: {
+      Label fast;
+      // Check that the object is a smi or a heap number.
+      __ JumpIfSmi(edx, &fast);
+      __ CmpObjectType(edx, HEAP_NUMBER_TYPE, eax);
+      __ j(not_equal, &miss);
+      __ bind(&fast);
+      // Check that the maps starting from the prototype haven't changed.
+      GenerateDirectLoadGlobalFunctionPrototype(
+          masm(), Context::NUMBER_FUNCTION_INDEX, eax, &miss);
+      CheckPrototypes(
+          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          eax, holder, ebx, edx, edi, name, &miss);
       break;
-
-    case BOOLEAN_CHECK:
-      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
-        Label fast;
-        // Check that the object is a boolean.
-        __ cmp(edx, factory()->true_value());
-        __ j(equal, &fast);
-        __ cmp(edx, factory()->false_value());
-        __ j(not_equal, &miss);
-        __ bind(&fast);
-        // Check that the maps starting from the prototype haven't changed.
-        GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax, &miss);
-        CheckPrototypes(
-            Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-            eax, holder, ebx, edx, edi, name, &miss);
-      } else {
-        // Calling non-strict non-builtins with a value as the receiver
-        // requires boxing.
-        __ jmp(&miss);
-      }
+    }
+    case BOOLEAN_CHECK: {
+      Label fast;
+      // Check that the object is a boolean.
+      __ cmp(edx, factory()->true_value());
+      __ j(equal, &fast);
+      __ cmp(edx, factory()->false_value());
+      __ j(not_equal, &miss);
+      __ bind(&fast);
+      // Check that the maps starting from the prototype haven't changed.
+      GenerateDirectLoadGlobalFunctionPrototype(
+          masm(), Context::BOOLEAN_FUNCTION_INDEX, eax, &miss);
+      CheckPrototypes(
+          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          eax, holder, ebx, edx, edi, name, &miss);
       break;
+    }
   }
 
+  __ jmp(success);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  GenerateMissBranch();
+}
+
+
+void CallStubCompiler::CompileHandlerBackend(Handle<JSFunction> function) {
   CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
                     NullCallWrapper(), call_kind);
+}
 
-  // Handle call cache miss.
-  __ bind(&miss);
-  GenerateMissBranch();
+
+Handle<Code> CallStubCompiler::CompileCallConstant(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<String> name,
+    CheckType check,
+    Handle<JSFunction> function) {
+
+  if (HasCustomCallGenerator(function)) {
+    Handle<Code> code = CompileCustomCall(object, holder,
+                                          Handle<JSGlobalPropertyCell>::null(),
+                                          function, name);
+    // A null handle means bail out to the regular compiler code below.
+    if (!code.is_null()) return code;
+  }
+
+  Label success;
+
+  CompileHandlerFrontend(object, holder, name, check, &success);
+  __ bind(&success);
+  CompileHandlerBackend(function);
 
   // Return the generated code.
   return GetCode(function);
@@ -2910,13 +2962,15 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
   __ jmp(miss_ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(Code::NORMAL, factory()->empty_string(), MEGAMORPHIC);
+  return GetCode(Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
-                                                      Handle<JSObject> object,
-                                                      Handle<JSObject> last) {
+Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
+    Handle<JSObject> object,
+    Handle<JSObject> last,
+    Handle<String> name,
+    Handle<GlobalObject> global) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- edx    : receiver
@@ -2927,18 +2981,25 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(edx, &miss);
 
-  ASSERT(last->IsGlobalObject() || last->HasFastProperties());
+  Register scratch = eax;
 
   // Check the maps of the full prototype chain. Also check that
   // global property cells up to (but not including) the last object
   // in the prototype chain are empty.
-  CheckPrototypes(object, edx, last, ebx, eax, edi, name, &miss);
+  Register result =
+      CheckPrototypes(object, edx, last, ebx, scratch, edi, name, &miss);
 
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
-  if (last->IsGlobalObject()) {
-    GenerateCheckPropertyCell(
-        masm(), Handle<GlobalObject>::cast(last), name, eax, &miss);
+  if (!global.is_null()) {
+    GenerateCheckPropertyCell(masm(), global, name, scratch, &miss);
+  }
+
+  if (!last->HasFastProperties()) {
+    __ mov(scratch, FieldOperand(result, HeapObject::kMapOffset));
+    __ mov(scratch, FieldOperand(scratch, Map::kPrototypeOffset));
+    __ cmp(scratch, isolate()->factory()->null_value());
+    __ j(not_equal, &miss);
   }
 
   // Return undefined if maps of the full prototype chain are still the
@@ -2954,45 +3015,25 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
-                                                Handle<JSObject> holder,
-                                                int index,
-                                                Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  GenerateLoadField(object, holder, edx, ebx, eax, edi, index, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::FIELD, name);
+Register* LoadStubCompiler::registers() {
+  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+  static Register registers[] = { edx, ecx, ebx, eax, edi, no_reg };
+  return registers;
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<String> name,
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
+Register* KeyedLoadStubCompiler::registers() {
+  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+  static Register registers[] = { edx, ecx, ebx, eax, edi, no_reg };
+  return registers;
+}
 
-  GenerateLoadCallback(object, holder, edx, ecx, ebx, eax, edi, no_reg,
-                       callback, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
+void KeyedLoadStubCompiler::GenerateNameCheck(Handle<String> name,
+                                              Register name_reg,
+                                              Label* miss) {
+  __ cmp(name_reg, Immediate(name));
+  __ j(not_equal, miss);
 }
 
 
@@ -3034,9 +3075,9 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
-    Handle<String> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
+    Handle<String> name,
     Handle<JSFunction> getter) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
@@ -3056,52 +3097,6 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
 
   // Return the generated code.
   return GetCode(Code::CALLBACKS, name);
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
-                                                   Handle<JSObject> holder,
-                                                   Handle<JSFunction> value,
-                                                   Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  GenerateLoadConstant(object, holder, edx, ebx, eax, edi, value, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CONSTANT_FUNCTION, name);
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadInterceptor(Handle<JSObject> receiver,
-                                                      Handle<JSObject> holder,
-                                                      Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  LookupResult lookup(isolate());
-  LookupPostInterceptor(holder, name, &lookup);
-
-  // TODO(368): Compile in the whole chain: all the interceptors in
-  // prototypes and ultimate answer.
-  GenerateLoadInterceptor(receiver, holder, &lookup, edx, ecx, eax, ebx, edi,
-                          name, &miss);
-
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::INTERCEPTOR, name);
 }
 
 
@@ -3153,205 +3148,6 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
-                                                     Handle<JSObject> receiver,
-                                                     Handle<JSObject> holder,
-                                                     int index) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_field(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadField(receiver, holder, edx, ebx, eax, edi, index, name, &miss);
-
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_field(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::FIELD, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadCallback(
-    Handle<String> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_callback(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadCallback(receiver, holder, edx, ecx, ebx, eax, edi, no_reg,
-                       callback, name, &miss);
-
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_callback(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(
-    Handle<String> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<JSFunction> value) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_constant_function(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadConstant(
-      receiver, holder, edx, ebx, eax, edi, value, name, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_constant_function(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CONSTANT_FUNCTION, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadInterceptor(
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_interceptor(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  LookupResult lookup(isolate());
-  LookupPostInterceptor(holder, name, &lookup);
-  GenerateLoadInterceptor(receiver, holder, &lookup, edx, ecx, eax, ebx, edi,
-                          name, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_interceptor(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::INTERCEPTOR, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadArrayLength(
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_array_length(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadArrayLength(masm(), edx, eax, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_array_length(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadStringLength(
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_string_length(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadStringLength(masm(), edx, eax, ebx, &miss, true);
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_string_length(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_function_prototype(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadFunctionPrototype(masm(), edx, eax, ebx, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_function_prototype(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
 Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Map> receiver_map) {
   // ----------- S t a t e -------------
@@ -3361,9 +3157,17 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
   // -----------------------------------
 
   ElementsKind elements_kind = receiver_map->elements_kind();
-  Handle<Code> stub = KeyedLoadElementStub(elements_kind).GetCode();
-
-  __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
+  if (receiver_map->has_fast_elements() ||
+      receiver_map->has_external_array_elements()) {
+    Handle<Code> stub = KeyedLoadFastElementStub(
+        receiver_map->instance_type() == JS_ARRAY_TYPE,
+        elements_kind).GetCode();
+    __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
+  } else {
+    Handle<Code> stub =
+        KeyedLoadDictionaryElementStub().GetCode();
+    __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
+  }
 
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
@@ -3395,7 +3199,7 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(Code::NORMAL, factory()->empty_string(), MEGAMORPHIC);
+  return GetCode(Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
 }
 
 
@@ -3624,157 +3428,6 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
 }
 
 
-void KeyedLoadStubCompiler::GenerateLoadExternalArray(
-    MacroAssembler* masm,
-    ElementsKind elements_kind) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss_force_generic, failed_allocation, slow;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
-
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, ecx, eax, xmm0, xmm1, &miss_force_generic);
-
-  // Check that the index is in range.
-  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
-  __ cmp(ecx, FieldOperand(ebx, ExternalArray::kLengthOffset));
-  // Unsigned comparison catches both negative and too-large values.
-  __ j(above_equal, &miss_force_generic);
-  __ mov(ebx, FieldOperand(ebx, ExternalArray::kExternalPointerOffset));
-  // ebx: base pointer of external storage
-  switch (elements_kind) {
-    case EXTERNAL_BYTE_ELEMENTS:
-      __ SmiUntag(ecx);  // Untag the index.
-      __ movsx_b(eax, Operand(ebx, ecx, times_1, 0));
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-      __ SmiUntag(ecx);  // Untag the index.
-      __ movzx_b(eax, Operand(ebx, ecx, times_1, 0));
-      break;
-    case EXTERNAL_SHORT_ELEMENTS:
-      __ movsx_w(eax, Operand(ebx, ecx, times_1, 0));
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      __ movzx_w(eax, Operand(ebx, ecx, times_1, 0));
-      break;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-      __ mov(eax, Operand(ebx, ecx, times_2, 0));
-      break;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      __ fld_s(Operand(ebx, ecx, times_2, 0));
-      break;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      __ fld_d(Operand(ebx, ecx, times_4, 0));
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
-
-  // For integer array types:
-  // eax: value
-  // For floating-point array type:
-  // FP(0): value
-
-  if (elements_kind == EXTERNAL_INT_ELEMENTS ||
-      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
-    // For the Int and UnsignedInt array types, we need to see whether
-    // the value can be represented in a Smi. If not, we need to convert
-    // it to a HeapNumber.
-    Label box_int;
-    if (elements_kind == EXTERNAL_INT_ELEMENTS) {
-      __ cmp(eax, 0xc0000000);
-      __ j(sign, &box_int);
-    } else {
-      ASSERT_EQ(EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
-      // The test is different for unsigned int values. Since we need
-      // the value to be in the range of a positive smi, we can't
-      // handle either of the top two bits being set in the value.
-      __ test(eax, Immediate(0xc0000000));
-      __ j(not_zero, &box_int);
-    }
-
-    __ SmiTag(eax);
-    __ ret(0);
-
-    __ bind(&box_int);
-
-    // Allocate a HeapNumber for the int and perform int-to-double
-    // conversion.
-    if (elements_kind == EXTERNAL_INT_ELEMENTS) {
-      __ push(eax);
-      __ fild_s(Operand(esp, 0));
-      __ pop(eax);
-    } else {
-      ASSERT_EQ(EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
-      // Need to zero-extend the value.
-      // There's no fild variant for unsigned values, so zero-extend
-      // to a 64-bit int manually.
-      __ push(Immediate(0));
-      __ push(eax);
-      __ fild_d(Operand(esp, 0));
-      __ pop(eax);
-      __ pop(eax);
-    }
-    // FP(0): value
-    __ AllocateHeapNumber(eax, ebx, edi, &failed_allocation);
-    // Set the value.
-    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-    __ ret(0);
-  } else if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
-             elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    // For the floating-point array type, we need to always allocate a
-    // HeapNumber.
-    __ AllocateHeapNumber(eax, ebx, edi, &failed_allocation);
-    // Set the value.
-    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-    __ ret(0);
-  } else {
-    __ SmiTag(eax);
-    __ ret(0);
-  }
-
-  // If we fail allocation of the HeapNumber, we still have a value on
-  // top of the FPU stack. Remove it.
-  __ bind(&failed_allocation);
-  __ fstp(0);
-  // Fall through to slow case.
-
-  // Slow case: Jump to runtime.
-  __ bind(&slow);
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_external_array_slow(), 1);
-
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Slow();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  // Miss case: Jump to runtime.
-  __ bind(&miss_force_generic);
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
-}
-
-
 void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
@@ -3970,106 +3623,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ bind(&miss_force_generic);
   Handle<Code> miss_ic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
-}
-
-
-void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss_force_generic;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
-
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, ecx, eax, xmm0, xmm1, &miss_force_generic);
-
-  // Get the elements array.
-  __ mov(eax, FieldOperand(edx, JSObject::kElementsOffset));
-  __ AssertFastElements(eax);
-
-  // Check that the key is within bounds.
-  __ cmp(ecx, FieldOperand(eax, FixedArray::kLengthOffset));
-  __ j(above_equal, &miss_force_generic);
-
-  // Load the result and make sure it's not the hole.
-  __ mov(ebx, Operand(eax, ecx, times_2,
-                      FixedArray::kHeaderSize - kHeapObjectTag));
-  __ cmp(ebx, masm->isolate()->factory()->the_hole_value());
-  __ j(equal, &miss_force_generic);
-  __ mov(eax, ebx);
-  __ ret(0);
-
-  __ bind(&miss_force_generic);
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
-}
-
-
-void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
-    MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss_force_generic, slow_allocate_heapnumber;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
-
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, ecx, eax, xmm0, xmm1, &miss_force_generic);
-
-  // Get the elements array.
-  __ mov(eax, FieldOperand(edx, JSObject::kElementsOffset));
-  __ AssertFastElements(eax);
-
-  // Check that the key is within bounds.
-  __ cmp(ecx, FieldOperand(eax, FixedDoubleArray::kLengthOffset));
-  __ j(above_equal, &miss_force_generic);
-
-  // Check for the hole
-  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
-  __ cmp(FieldOperand(eax, ecx, times_4, offset), Immediate(kHoleNanUpper32));
-  __ j(equal, &miss_force_generic);
-
-  // Always allocate a heap number for the result.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    __ movdbl(xmm0, FieldOperand(eax, ecx, times_4,
-                                 FixedDoubleArray::kHeaderSize));
-  } else {
-    __ fld_d(FieldOperand(eax, ecx, times_4, FixedDoubleArray::kHeaderSize));
-  }
-  __ AllocateHeapNumber(eax, ebx, edi, &slow_allocate_heapnumber);
-  // Set the value.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-  } else {
-    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-  }
-  __ ret(0);
-
-  __ bind(&slow_allocate_heapnumber);
-  // A value was pushed on the floating point stack before the allocation, if
-  // the allocation fails it needs to be removed.
-  if (!CpuFeatures::IsSupported(SSE2)) {
-    __ fstp(0);
-  }
-  Handle<Code> slow_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_Slow();
-  __ jmp(slow_ic, RelocInfo::CODE_TARGET);
-
-  __ bind(&miss_force_generic);
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
   __ jmp(miss_ic, RelocInfo::CODE_TARGET);
 }
 
@@ -4316,12 +3869,21 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // ecx: key
     // edx: receiver
     // edi: elements
-    // Initialize the new FixedDoubleArray. Leave elements unitialized for
-    // efficiency, they are guaranteed to be initialized before use.
+    // Initialize the new FixedDoubleArray.
     __ mov(FieldOperand(edi, JSObject::kMapOffset),
            Immediate(masm->isolate()->factory()->fixed_double_array_map()));
     __ mov(FieldOperand(edi, FixedDoubleArray::kLengthOffset),
            Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+
+    __ StoreNumberToDoubleElements(eax, edi, ecx, ebx, xmm0,
+                                   &transition_elements_kind, true);
+
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      int offset = FixedDoubleArray::OffsetOfElementAt(i);
+      __ mov(FieldOperand(edi, offset), Immediate(kHoleNanLower32));
+      __ mov(FieldOperand(edi, offset + kPointerSize),
+             Immediate(kHoleNanUpper32));
+    }
 
     // Install the new backing store in the JSArray.
     __ mov(FieldOperand(edx, JSObject::kElementsOffset), edi);
@@ -4332,7 +3894,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
     __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-    __ jmp(&finish_store);
+    __ ret(0);
 
     __ bind(&check_capacity);
     // eax: value

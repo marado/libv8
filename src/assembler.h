@@ -56,18 +56,56 @@ struct StatsCounter;
 
 class AssemblerBase: public Malloced {
  public:
-  explicit AssemblerBase(Isolate* isolate);
+  AssemblerBase(Isolate* isolate, void* buffer, int buffer_size);
+  virtual ~AssemblerBase();
 
   Isolate* isolate() const { return isolate_; }
-  int jit_cookie() { return jit_cookie_; }
+  int jit_cookie() const { return jit_cookie_; }
+
+  bool emit_debug_code() const { return emit_debug_code_; }
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
+  bool predictable_code_size() const { return predictable_code_size_; }
+  void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
 
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+
+  static const int kMinimalBufferSize = 4*KB;
+
+ protected:
+  // The buffer into which code and relocation info are generated. It could
+  // either be owned by the assembler or be provided externally.
+  byte* buffer_;
+  int buffer_size_;
+  bool own_buffer_;
+
+  // The program counter, which points into the buffer above and moves forward.
+  byte* pc_;
+
  private:
   Isolate* isolate_;
   int jit_cookie_;
+  bool emit_debug_code_;
+  bool predictable_code_size_;
+};
+
+
+// Avoids using instructions that vary in size in unpredictable ways between the
+// snapshot and the running VM.
+class PredictableCodeSizeScope {
+ public:
+  PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
+  ~PredictableCodeSizeScope();
+
+ private:
+  AssemblerBase* assembler_;
+  int expected_size_;
+  int start_offset_;
+  bool old_value_;
 };
 
 
@@ -210,7 +248,14 @@ class RelocInfo BASE_EMBEDDED {
     // add more as needed
     // Pseudo-types
     NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
-    NONE,  // never recorded
+    NONE32,  // never recorded 32-bit value
+    NONE64,  // never recorded 64-bit value
+    CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
+                        // code aging.
+    FIRST_REAL_RELOC_MODE = CODE_TARGET,
+    LAST_REAL_RELOC_MODE = CONST_POOL,
+    FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
+    LAST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_CODE_ENUM = DEBUG_BREAK,
     LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL,
     // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
@@ -224,7 +269,19 @@ class RelocInfo BASE_EMBEDDED {
   RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
       : pc_(pc), rmode_(rmode), data_(data), host_(host) {
   }
+  RelocInfo(byte* pc, double data64)
+      : pc_(pc), rmode_(NONE64), data64_(data64), host_(NULL) {
+  }
 
+  static inline bool IsRealRelocMode(Mode mode) {
+    return mode >= FIRST_REAL_RELOC_MODE &&
+        mode <= LAST_REAL_RELOC_MODE;
+  }
+  static inline bool IsPseudoRelocMode(Mode mode) {
+    ASSERT(!IsRealRelocMode(mode));
+    return mode >= FIRST_PSEUDO_RELOC_MODE &&
+        mode <= LAST_PSEUDO_RELOC_MODE;
+  }
   static inline bool IsConstructCall(Mode mode) {
     return mode == CONSTRUCT_CALL;
   }
@@ -262,6 +319,12 @@ class RelocInfo BASE_EMBEDDED {
   static inline bool IsDebugBreakSlot(Mode mode) {
     return mode == DEBUG_BREAK_SLOT;
   }
+  static inline bool IsNone(Mode mode) {
+    return mode == NONE32 || mode == NONE64;
+  }
+  static inline bool IsCodeAgeSequence(Mode mode) {
+    return mode == CODE_AGE_SEQUENCE;
+  }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
@@ -269,6 +332,7 @@ class RelocInfo BASE_EMBEDDED {
   void set_pc(byte* pc) { pc_ = pc; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
+  double data64() const { return data64_; }
   Code* host() const { return host_; }
 
   // Apply a relocation by delta bytes
@@ -294,7 +358,8 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
   INLINE(void set_target_cell(JSGlobalPropertyCell* cell,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
-
+  INLINE(Code* code_age_stub());
+  INLINE(void set_code_age_stub(Code* stub));
 
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
@@ -366,7 +431,10 @@ class RelocInfo BASE_EMBEDDED {
   // comment).
   byte* pc_;
   Mode rmode_;
-  intptr_t data_;
+  union {
+    intptr_t data_;
+    double data64_;
+  };
   Code* host_;
   // Code and Embedded Object pointers on some platforms are stored split
   // across two consecutive 32-bit instructions. Heap management
@@ -487,6 +555,7 @@ class RelocIterator: public Malloced {
 
   byte* pos_;
   byte* end_;
+  byte* code_age_sequence_;
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
@@ -546,6 +615,8 @@ class ExternalReference BASE_EMBEDDED {
   };
 
   static void SetUp();
+  static void InitializeMathExpData();
+  static void TearDownMathExpData();
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);
 
@@ -595,9 +666,15 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference get_date_field_function(Isolate* isolate);
   static ExternalReference date_cache_stamp(Isolate* isolate);
 
+  static ExternalReference get_make_code_young_function(Isolate* isolate);
+
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);
+
+  // Log support.
+  static ExternalReference log_enter_external_function(Isolate* isolate);
+  static ExternalReference log_leave_external_function(Isolate* isolate);
 
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);
@@ -665,7 +742,14 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference math_tan_double_function(Isolate* isolate);
   static ExternalReference math_log_double_function(Isolate* isolate);
 
+  static ExternalReference math_exp_constants(int constant_index);
+  static ExternalReference math_exp_log_table();
+
   static ExternalReference page_flags(Page* page);
+
+  static ExternalReference ForDeoptEntry(Address entry);
+
+  static ExternalReference cpu_features();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 

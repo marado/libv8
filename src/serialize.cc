@@ -30,6 +30,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "bootstrapper.h"
+#include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "ic-inl.h"
@@ -523,6 +524,37 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       50,
       "pending_message_script");
+  Add(ExternalReference::get_make_code_young_function(isolate).address(),
+      UNCLASSIFIED,
+      51,
+      "Code::MakeCodeYoung");
+  Add(ExternalReference::cpu_features().address(),
+      UNCLASSIFIED,
+      52,
+      "cpu_features");
+  Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
+      UNCLASSIFIED,
+      53,
+      "Heap::NewSpaceAllocationTopAddress");
+  Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
+      UNCLASSIFIED,
+      54,
+      "Heap::NewSpaceAllocationLimitAddress");
+  Add(ExternalReference(Runtime::kAllocateInNewSpace, isolate).address(),
+      UNCLASSIFIED,
+      55,
+      "Runtime::AllocateInNewSpace");
+
+  // Add a small set of deopt entry addresses to encoder without generating the
+  // deopt table code, which isn't possible at deserialization time.
+  HandleScope scope(Isolate::Current());
+  for (int entry = 0; entry < kDeoptTableSerializeEntryCount; ++entry) {
+    Address address = Deoptimizer::GetDeoptimizationEntry(
+        entry,
+        Deoptimizer::LAZY,
+        Deoptimizer::CALCULATE_ENTRY_ADDRESS);
+    Add(address, LAZY_DEOPTIMIZATION, 56 + entry, "lazy_deopt");
+  }
 }
 
 
@@ -1297,7 +1329,7 @@ void PartialSerializer::SerializeObject(
     // The code-caches link to context-specific code objects, which
     // the startup and context serializes cannot currently handle.
     ASSERT(Map::cast(heap_object)->code_cache() ==
-           heap_object->GetHeap()->raw_unchecked_empty_fixed_array());
+           heap_object->GetHeap()->empty_fixed_array());
   }
 
   int root_index;

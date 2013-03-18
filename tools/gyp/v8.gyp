@@ -69,6 +69,14 @@
                 ],
               },
               'conditions': [
+                ['OS=="android"', {
+                  'libraries': [
+                    '-llog',
+                  ],
+                  'include_dirs': [
+                    'src/common/android/include',
+                  ],
+                }],
                 ['OS=="mac"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
@@ -91,7 +99,7 @@
         },
         {
           'target_name': 'v8_snapshot',
-          'type': '<(library)',
+          'type': 'static_library',
           'conditions': [
             ['want_separate_host_toolset==1', {
               'toolsets': ['host', 'target'],
@@ -150,8 +158,9 @@
                     ['armv7==1', {
                       # The ARM Architecture Manual mandates VFPv3 if NEON is
                       # available.
-                      # The current V8 doesn't use d16-d31, so for vfpv3-d16, we can
-                      # also enable vfp3 for the better performance.
+                      # V8 does not use d16-d31 unless explicitly enabled
+                      # (--enable_32dregs) or detected at run-time, so for vfpv3-d16,
+                      # we can also enable vfp3 for the better performance.
                       'conditions': [
                         ['arm_neon!=1 and arm_fpu!="vfpv3" and arm_fpu!="vfpv3-d16"', {
                           'variables': {
@@ -182,7 +191,7 @@
         },
         {
           'target_name': 'v8_nosnapshot',
-          'type': '<(library)',
+          'type': 'static_library',
           'dependencies': [
             'v8_base',
           ],
@@ -212,7 +221,7 @@
         },
         {
           'target_name': 'v8_base',
-          'type': '<(library)',
+          'type': 'static_library',
           'variables': {
             'optimize': 'max',
           },
@@ -254,6 +263,7 @@
             '../../src/circular-queue.h',
             '../../src/code-stubs.cc',
             '../../src/code-stubs.h',
+            '../../src/code-stubs-hydrogen.cc',
             '../../src/code.h',
             '../../src/codegen.cc',
             '../../src/codegen.h',
@@ -344,8 +354,6 @@
             '../../src/ic.h',
             '../../src/incremental-marking.cc',
             '../../src/incremental-marking.h',
-            '../../src/inspector.cc',
-            '../../src/inspector.h',
             '../../src/interface.cc',
             '../../src/interface.h',
             '../../src/interpreter-irregexp.cc',
@@ -353,6 +361,8 @@
             '../../src/isolate.cc',
             '../../src/isolate.h',
             '../../src/json-parser.h',
+            '../../src/json-stringifier.h',
+            '../../src/jsregexp-inl.h',
             '../../src/jsregexp.cc',
             '../../src/jsregexp.h',
             '../../src/lazy-instance.h',
@@ -365,9 +375,6 @@
             '../../src/lithium.h',
             '../../src/liveedit.cc',
             '../../src/liveedit.h',
-            '../../src/liveobjectlist-inl.h',
-            '../../src/liveobjectlist.cc',
-            '../../src/liveobjectlist.h',
             '../../src/log-inl.h',
             '../../src/log-utils.cc',
             '../../src/log-utils.h',
@@ -376,6 +383,8 @@
             '../../src/macro-assembler.h',
             '../../src/mark-compact.cc',
             '../../src/mark-compact.h',
+            '../../src/marking-thread.h',
+            '../../src/marking-thread.cc',
             '../../src/messages.cc',
             '../../src/messages.h',
             '../../src/natives.h',
@@ -455,6 +464,8 @@
             '../../src/strtod.h',
             '../../src/stub-cache.cc',
             '../../src/stub-cache.h',
+            '../../src/sweeper-thread.h',
+            '../../src/sweeper-thread.cc',
             '../../src/token.cc',
             '../../src/token.h',
             '../../src/transitions-inl.h',
@@ -779,6 +790,7 @@
               '../../src/macros.py',
               '../../src/proxy.js',
               '../../src/collection.js',
+              '../../src/object-observe.js'
             ],
           },
           'actions': [
@@ -902,7 +914,7 @@
         },
         {
           'target_name': 'preparser_lib',
-          'type': '<(library)',
+          'type': 'static_library',
           'include_dirs+': [
             '../../src',
           ],
@@ -979,6 +991,47 @@
             }, {
               'toolsets': ['target'],
             }],
+          ],
+          'variables': {
+            'shim_headers_path': '<(SHARED_INTERMEDIATE_DIR)/shim_headers/<(_target_name)/<(_toolset)',
+          },
+          'include_dirs++': [
+            '<(shim_headers_path)',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs+++': [
+              '<(shim_headers_path)',
+            ],
+          },
+          'actions': [
+            {
+              'variables': {
+                'generator_path': '../../../tools/generate_shim_headers/generate_shim_headers.py',
+                'generator_args': [
+                  '--headers-root', '../../include',
+                  '--output-directory', '<(shim_headers_path)',
+                  'v8-debug.h',
+                  'v8-preparser.h',
+                  'v8-profiler.h',
+                  'v8-testing.h',
+                  'v8.h',
+                  'v8stdint.h',
+                ],
+              },
+              'action_name': 'generate_<(_target_name)_shim_headers',
+              'inputs': [
+                '<(generator_path)',
+              ],
+              'outputs': [
+                '<!@pymod_do_main(generate_shim_headers <@(generator_args) --outputs)',
+              ],
+              'action': ['python',
+                         '<(generator_path)',
+                         '<@(generator_args)',
+                         '--generate',
+              ],
+              'message': 'Generating <(_target_name) shim headers.',
+            },
           ],
           'link_settings': {
             'libraries': [
