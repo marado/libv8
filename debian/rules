@@ -22,7 +22,7 @@ MINOR = $(word 2, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
 BUILD = $(word 3, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
 API = $(MAJOR).$(MINOR)
 ABI = $(MAJOR).$(MINOR).$(BUILD)
-libSoname = libv8.so.$(ABI)
+LIBSTEM = libv8.so
 watchBranch = $(MAJOR)\\.$(MINOR)
 
 DEB_UPSTREAM_URL = https://github.com/v8/v8/archive
@@ -103,7 +103,7 @@ DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(ABI) OS=$(v8
 DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
-v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(libSoname)
+v8out = $(CURDIR)/out/$(v8arch).release/lib.target/$(LIBSTEM).$(ABI)
 
 # regression tests
 #  * relax regression tests when targeted experimental suite
@@ -115,7 +115,7 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
 
-DEB_DH_INSTALL_ARGS_libv8-$(ABI) = usr/lib/$(libSoname)
+DEB_DH_INSTALL_ARGS_libv8-$(ABI) = usr/lib/$(LIBSTEM).$(ABI)
 
 clean::
 	rm -rf out
@@ -127,4 +127,4 @@ common-install-impl::
 	mkdir -p debian/tmp/usr/lib ; \
 	cd debian/tmp/usr/lib ; \
 	cp $(v8out) . ; \
-	ln -s -T $(libSoname) libv8.so
+	ln -s -T $(LIBSTEM).$(ABI) $(LIBSTEM)
