@@ -114,7 +114,7 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=$(timeOut)" \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
-
+DEB_INSTALL_EXAMPLES_libv8-$(API)-dev = samples/*.cc samples/*.js debian/samples.gyp
 DEB_DH_INSTALL_ARGS_libv8-$(ABI) = usr/lib/$(LIBSTEM).$(ABI)
 
 clean::
