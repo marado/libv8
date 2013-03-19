@@ -1,4 +1,4 @@
-libv8-3.14 (3.14.5.8-1) UNRELEASED; urgency=low
+libv8-3.14 (3.14.5.8-1) unstable; urgency=low
 
   [ upstream ]
   * New release.
@@ -36,8 +36,9 @@ libv8-3.14 (3.14.5.8-1) UNRELEASED; urgency=low
   * Tidy rules file: Resolve version strings in fewer shell calls.
   * Use versioned source package name, to allow multiple branches to
     coexist: Nodejs often needs more table release than Chromium.
+  * Git-ignore quilt .pc dir.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 05 Oct 2012 23:33:22 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 19 Mar 2013 01:01:54 +0100
 
 libv8 (3.10.8.16-1) unstable; urgency=low
 
