@@ -125,6 +125,7 @@ clean::
 	rm -rf out
 	find tools/ -name "*.pyc" -exec rm -f '{}' \;
 	rm -f test/*/*.pyc
+	rm -f test/*/*.status2
 
 common-install-impl::
 	mkdir -p debian/tmp/usr/lib ; \
