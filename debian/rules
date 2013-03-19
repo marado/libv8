@@ -4,14 +4,11 @@
 debian/control:: debian/control.in debian/watch
 DEB_PHONY_RULES += debian/control.in
 debian/control.in::
-	sed -e 's/__LIBPKGNAME__/$(LIBPKGNAME)/g' -e 's/__ARCHS__/$(ARCHS)/g' \
+	sed $(foreach re,API ABI ARCHS,-e 's/__$(re)__/$($(re))/g') \
 		< debian/control.in.in > debian/control.in
 
 debian/watch::
-	sed \
-		-e 's/__SRCPKGNAME__/$(SRCPKGNAME)/g' \
-		-e 's/__LIBPKGNAME__/$(LIBPKGNAME)/g' \
-		-e 's/__ARCHS__/$(ARCHS)/g' \
+	sed $(foreach re,API ABI ARCHS,-e 's/__$(re)__/$($(re))/g') \
 		< debian/control.in.in > debian/control.in
 
 include /usr/share/cdbs/1/rules/upstream-tarball.mk
@@ -19,14 +16,13 @@ include /usr/share/cdbs/1/rules/utils.mk
 include /usr/share/cdbs/1/class/makefile.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
 
+# See README.source for details on these.
 MAJOR = $(word 1, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
 MINOR = $(word 2, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
 BUILD = $(word 3, $(subst .,$(space), $(DEB_UPSTREAM_VERSION)))
-# keep only major.minor.build version. See README.source.
-SONAME = $(MAJOR).$(MINOR).$(BUILD)
-SRCPKGNAME = libv8-$(MAJOR).$(MINOR)
-LIBPKGNAME = libv8-$(SONAME)
-libSoname = libv8.so.$(SONAME)
+API = $(MAJOR).$(MINOR)
+ABI = $(MAJOR).$(MINOR).$(BUILD)
+libSoname = libv8.so.$(ABI)
 watchBranch = $(MAJOR)\\.$(MINOR)
 
 DEB_UPSTREAM_URL = https://github.com/v8/v8/archive
@@ -103,7 +99,7 @@ export LDFLAGS
 export CXXFLAGS
 export GYPFLAGS
 
-DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(SONAME) OS=$(v8os) V=1 
+DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(ABI) OS=$(v8os) V=1 
 DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
@@ -119,7 +115,7 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
 
-DEB_DH_INSTALL_ARGS_$(LIBPKGNAME) = usr/lib/$(libSoname)
+DEB_DH_INSTALL_ARGS_libv8-$(ABI) = usr/lib/$(libSoname)
 
 clean::
 	rm -rf out
