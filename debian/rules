@@ -117,6 +117,12 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 DEB_INSTALL_EXAMPLES_libv8-$(API)-dev = samples/*.cc samples/*.js debian/samples.gyp
 DEB_DH_INSTALL_ARGS_libv8-$(ABI) = usr/lib/$(LIBSTEM).$(ABI)
 
+# Setup dynamically named debhelper install file during build
+pre-build::
+	cp -f debian/libv8-__API__-dev.install.in debian/libv8-$(API)-dev.install
+clean::
+	rm -f debian/libv8-$(API)-dev.install
+
 clean::
 	rm -rf out
 	find tools/ -name "*.pyc" -exec rm -f '{}' \;
