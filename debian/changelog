@@ -38,7 +38,7 @@ libv8-3.14 (3.14.5.8-1) experimental; urgency=low
     coexist: Nodejs often needs more stable release than Chromium.
   * Git-ignore quilt .pc dir.
 
- -- Jonas Smedegaard <dr@jones.dk>  Tue, 19 Mar 2013 01:32:38 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 19 Mar 2013 03:20:03 +0100
 
 libv8 (3.10.8.16-1) unstable; urgency=low
 

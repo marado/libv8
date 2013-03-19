@@ -1793,11 +1793,7 @@ Files: AUTHORS
  debian/control.in
  debian/control.in.in
  debian/gbp.conf
- debian/libv8-dev.dirs
- debian/libv8-dev.examples
- debian/libv8-dev.install
- debian/libv8.dirs
- debian/libv8.install
+ debian/libv8-__API__-dev.install.in
  debian/patches/0001_kfreebsd.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0011_use_system_gyp.patch
