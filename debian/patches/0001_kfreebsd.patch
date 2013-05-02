@@ -24,7 +24,7 @@ Last-Update: 2013-05-02
  
  
 -import multiprocessing
-+import multiprocessing.dummy
++import multiprocessing.dummy as multiprocessing
  import optparse
  import os
  from os.path import join
@@ -35,7 +35,7 @@ Last-Update: 2013-05-02
  
  
 -import multiprocessing
-+import multiprocessing.dummy
++import multiprocessing.dummy as multiprocessing
  import os
  import threading
  import time
