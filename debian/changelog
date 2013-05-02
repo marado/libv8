@@ -1,3 +1,9 @@
+libv8-3.14 (3.14.5.8-3) UNRELEASED; urgency=low
+
+  * Try to fix multiprocessing.dummy import.
+
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 03 May 2013 01:24:38 +0200
+
 libv8-3.14 (3.14.5.8-2) experimental; urgency=low
 
   * Fix mipsel build (upstream follows same archs names as debian).
