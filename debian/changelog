@@ -1,6 +1,8 @@
 libv8-3.14 (3.14.5.8-2) experimental; urgency=low
 
-  * Fix mipsel build (upstream follows same archs names as debian). 
+  * Fix mipsel build (upstream follows same archs names as debian).
+  * 0001_kfreebsd.patch: work around kfreebsd tests runner failure,
+    "This platform lacks a functioning sem_open implementation".
 
  -- Jérémy Lal <kapouer@melix.org>  Wed, 01 May 2013 23:18:05 +0200
 
