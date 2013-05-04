@@ -1,8 +1,8 @@
-libv8-3.14 (3.14.5.8-3) UNRELEASED; urgency=low
+libv8-3.14 (3.14.5.8-3) experimental; urgency=low
 
-  * 0001_kfreebsd.patch: fix tests runner.
+  * 0001_kfreebsd.patch: fix tests runner in previous broken patch.
 
- -- Jérémy Lal <kapouer@melix.org>  Fri, 03 May 2013 01:24:38 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Sat, 04 May 2013 23:33:58 +0200
 
 libv8-3.14 (3.14.5.8-2) experimental; urgency=low
 
