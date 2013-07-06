@@ -11,6 +11,17 @@ Homepage: http://code.google.com/p/v8/
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/libv8.git
 Vcs-Git: git://anonscm.debian.org/git/collab-maint/libv8.git
 
+Package: libv8-dev
+Section: libdevel
+Architecture: i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf mipsel
+Depends: libv8-3.14.5 (= ${binary:Version}), ${misc:Depends}
+Description: V8 JavaScript engine - development files
+ V8 is a high performance JavaScript engine written in C++.  It is used
+ in the web browser Chromium.
+ .
+ Install this package if you wish to develop your own programs using the
+ latest V8 JavaScript engine.
+
 Package: libv8-3.14-dev
 Section: libdevel
 Architecture: i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf mipsel
