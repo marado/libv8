@@ -114,14 +114,15 @@ DEB_MAKE_CHECK_TARGET = $(v8arch).release.check \
 	TESTJOBS="$(DEB_MAKE_PARALLEL) --timeout=$(timeOut)" \
 	$(if $(shell dpkg-parsechangelog | grep -Fx 'Distribution: experimental'),|| true)
 
-DEB_INSTALL_EXAMPLES_libv8-$(API)-dev = samples/*.cc samples/*.js debian/samples.gyp
 DEB_DH_INSTALL_ARGS_libv8-$(ABI) = usr/lib/$(LIBSTEM).$(ABI)
 
 # Setup dynamically named debhelper install file during build
 pre-build::
-	cp -f debian/libv8-__API__-dev.install.in debian/libv8-$(API)-dev.install
+	cp -f debian/libv8-dev.install debian/libv8-$(API)-dev.install
+	cp -f debian/libv8-dev.examples debian/libv8-$(API)-dev.examples
 clean::
 	rm -f debian/libv8-$(API)-dev.install
+	rm -f debian/libv8-$(API)-dev.examples
 
 clean::
 	rm -rf out
