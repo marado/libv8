@@ -1,8 +1,8 @@
 libv8-3.14 (3.14.5.8-4) UNRELEASED; urgency=low
 
-  * Patch: 0013_gcc_48_compat, fixes two warnings now treated as errors.
-  * libv8-dev package is restored and allows Build-Dependency on latest
-    libv8 version.
+  * Patch: 0013_gcc_48_compat, closes: bug#701312.
+  * libv8-dev package is restored and allows Build-Dependency on
+    latest libv8 version.
 
  -- Jérémy Lal <kapouer@melix.org>  Sat, 06 Jul 2013 16:24:46 +0200
 
