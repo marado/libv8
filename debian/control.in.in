@@ -15,8 +15,8 @@ Package: libv8-dev
 Section: libdevel
 Architecture: __ARCHS__
 Depends: libv8-__ABI__ (= ${binary:Version}), ${misc:Depends}
-Conflicts: libv8-legacy-dev
-Replaces: libv8-legacy-dev
+Conflicts: libv8-legacy-dev, libv8-3.14-dev
+Replaces: libv8-legacy-dev, libv8-3.14-dev
 Description: V8 JavaScript engine - development files for latest branch
  V8 is a high performance JavaScript engine written in C++.  It is used
  in the web browser Chromium.
