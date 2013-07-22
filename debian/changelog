@@ -1,4 +1,4 @@
-libv8-3.14 (3.14.5.8-4) UNRELEASED; urgency=low
+libv8-3.14 (3.14.5.8-4) unstable; urgency=low
 
   [ Jérémy Lal ]
   * Patch: 0013_gcc_48_compat, closes: bug#701312.
@@ -11,7 +11,7 @@ libv8-3.14 (3.14.5.8-4) UNRELEASED; urgency=low
   * Tidy long descriptions to talk only about what packages provide,
     not the uses of it.
 
- -- Jérémy Lal <kapouer@melix.org>  Mon, 22 Jul 2013 01:51:40 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 22 Jul 2013 09:27:39 +0200
 
 libv8-3.14 (3.14.5.8-3) experimental; urgency=low
 
