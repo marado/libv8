@@ -11,7 +11,7 @@ libv8-3.14 (3.14.5.8-4) unstable; urgency=low
   * Tidy long descriptions to talk only about what packages provide,
     not the uses of it.
 
- -- Jérémy Lal <kapouer@melix.org>  Mon, 22 Jul 2013 09:27:39 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 22 Jul 2013 10:30:56 +0200
 
 libv8-3.14 (3.14.5.8-3) experimental; urgency=low
 
