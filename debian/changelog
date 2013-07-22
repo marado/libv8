@@ -1,10 +1,17 @@
 libv8-3.14 (3.14.5.8-4) UNRELEASED; urgency=low
 
+  [ Jérémy Lal ]
   * Patch: 0013_gcc_48_compat, closes: bug#701312.
-  * libv8-dev package is restored and allows Build-Dependency on
-    latest libv8 version.
+  * Allow Build-Dependency on latest libv8 branch version or on a
+    specific branch: libv8-<API>-dev or libv8-dev.
+    Ensure switching from one dev package to another works properly.
+    Add a specific case for libv8-3.14 (<=3.14.5.8-3).
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 06 Jul 2013 16:24:46 +0200
+  [ Jonas Smedegaard ]
+  * Tidy long descriptions to talk only about what packages provide,
+    not the uses of it.
+
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 22 Jul 2013 01:51:40 +0200
 
 libv8-3.14 (3.14.5.8-3) experimental; urgency=low
 
