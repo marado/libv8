@@ -31,7 +31,7 @@ DEB_UPSTREAM_TARBALL_BASENAME =  6b10fef46e
 DEB_UPSTREAM_TARBALL_MD5 = be049128a44adf26f4dfb7d1ab55acfd
 
 # Supported archs
-ARCHS = i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf mipsel
+ARCHS = i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf mipsel powerpc
 
 # allow parallel builds
 DEB_BUILD_PARALLEL=1
@@ -50,6 +50,7 @@ v8arch := $(or $(v8arch),$(if $(filter kfreebsd-amd64,$(DEB_HOST_ARCH)),x64))
 v8arch := $(or $(v8arch),$(if $(filter armel,$(DEB_HOST_ARCH)),arm))
 v8arch := $(or $(v8arch),$(if $(filter armhf,$(DEB_HOST_ARCH)),arm))
 v8arch := $(or $(v8arch),$(if $(filter mipsel,$(DEB_HOST_ARCH)),mipsel))
+v8arch := $(or $(v8arch),$(if $(filter powerpc,$(DEB_HOST_ARCH)),ppc))
 v8arch := $(or $(v8arch),$(DEB_HOST_ARCH))
 v8os := $(or $(v8os),$(if $(filter linux,$(DEB_HOST_ARCH_OS)),linux))
 v8os := $(or $(v8os),$(if $(filter kfreebsd,$(DEB_HOST_ARCH_OS)),freebsd))
@@ -99,7 +100,7 @@ export LDFLAGS
 export CXXFLAGS
 export GYPFLAGS
 
-DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(ABI) OS=$(v8os) V=1 
+DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(ABI) OS=$(v8os) V=1
 DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
