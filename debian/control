@@ -8,7 +8,7 @@ Build-Depends: cdbs,
  debhelper,
  dh-buildinfo,
  gyp
-Standards-Version: 3.9.3
+Standards-Version: 3.9.5
 Section: libs
 Homepage: http://code.google.com/p/v8/
 Vcs-Browser: http://anonscm.debian.org/git/collab-maint/libv8.git
