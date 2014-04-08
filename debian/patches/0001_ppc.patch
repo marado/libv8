@@ -1,0 +1,1549 @@
+Description: the v8ppc branch backported to libv8-3.14
+Origin: https://github.com/andrewlow/v8ppc/archive/ba140086.tar.gz
+Acked-by: Jérémy Lal <kapouer@melix.org>
+Last-Update: 2014-04-08
+
+diff --git a/AUTHORS b/AUTHORS
+index 9c43bb5..ae029fe 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -7,6 +7,7 @@ Google Inc.
+ Sigma Designs Inc.
+ ARM Ltd.
+ Hewlett-Packard Development Company, LP
++IBM Corporation
+ Igalia, S.L.
+ Joyent, Inc.
+ 
+@@ -15,11 +16,13 @@ Alexander Botero-Lowry <alexbl@FreeBSD.org>
+ Alexander Karpinsky <homm86@gmail.com>
+ Alexandre Vassalotti <avassalotti@gmail.com>
+ Andreas Anyuru <andreas.anyuru@gmail.com>
++Andrew Low <andrew_low@ca.ibm.com>
+ Bert Belder <bertbelder@gmail.com>
+ Burcu Dogan <burcujdogan@gmail.com>
+ Craig Schlenter <craig.schlenter@gmail.com>
+ Daniel Andersson <kodandersson@gmail.com>
+ Daniel James <dnljms@gmail.com>
++David Eelsohn <dje.gcc@gmail.com>
+ Derek J Conrod <dconrod@codeaurora.org>
+ Dineel D Sule <dsule@codeaurora.org>
+ Erich Ocean <erich.ocean@me.com>
+@@ -37,6 +40,7 @@ Kun Zhang <zhangk@codeaurora.org>
+ Martyn Capewell <martyn.capewell@arm.com>
+ Mathias Bynens <mathias@qiwi.be>
+ Matt Hanselman <mjhanselman@gmail.com>
++Matthew Brandyberry <mbrandy@us.ibm.com>
+ Maxim Mossienko <maxim.mossienko@gmail.com>
+ Michael Lutz <michi@icosahedron.de>
+ Michael Smith <mike@w3.org>
+diff --git a/Makefile b/Makefile
+index b65ea4c..4c359c2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -73,6 +73,10 @@ endif
+ ifeq ($(extrachecks), off)
+   GYPFLAGS += -Dv8_enable_extra_checks=0
+ endif
++# extrachecks=off
++ifeq ($(extrappcchecks), on)
++  GYPFLAGS += -Dv8_enable_extra_ppcchecks=1
++endif
+ # gdbjit=on
+ ifeq ($(gdbjit), on)
+   GYPFLAGS += -Dv8_enable_gdbjit=1
+@@ -133,8 +137,8 @@ endif
+ 
+ # Architectures and modes to be compiled. Consider these to be internal
+ # variables, don't override them (use the targets instead).
+-ARCHES = ia32 x64 arm mipsel
+-DEFAULT_ARCHES = ia32 x64 arm
++ARCHES = ia32 x64 arm ppc mipsel ppc64
++DEFAULT_ARCHES = ia32 x64 arm ppc ppc64
+ MODES = release debug
+ ANDROID_ARCHES = android_ia32 android_arm
+ 
+diff --git a/build/common.gypi b/build/common.gypi
+index 78888b8..f87bbb9 100644
+--- a/build/common.gypi
++++ b/build/common.gypi
+@@ -73,6 +73,8 @@
+     # Enable extra checks in API functions and other strategic places.
+     'v8_enable_extra_checks%': 1,
+ 
++    'v8_enable_extra_ppcchecks%': 0,
++
+     'v8_enable_gdbjit%': 0,
+ 
+     'v8_object_print%': 0,
+@@ -117,6 +119,9 @@
+       ['v8_enable_extra_checks==1', {
+         'defines': ['ENABLE_EXTRA_CHECKS',],
+       }],
++      ['v8_enable_extra_ppcchecks==1', {
++        'defines': ['ENABLE_EXTRA_PPCCHECKS',],
++      }],
+       ['v8_enable_gdbjit==1', {
+         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+       }],
+@@ -171,6 +176,17 @@
+           }],
+         ],
+       }],  # v8_target_arch=="arm"
++      ['v8_target_arch=="ppc"', {
++        'defines': [
++          'V8_TARGET_ARCH_PPC',
++        ],
++      }],  # v8_target_arch=="ppc"
++      ['v8_target_arch=="ppc64"', {
++        'defines': [
++          'V8_TARGET_ARCH_PPC',
++          'V8_TARGET_ARCH_PPC64',
++        ],
++      }],  # v8_target_arch=="ppc64"
+       ['v8_target_arch=="ia32"', {
+         'defines': [
+           'V8_TARGET_ARCH_IA32',
+@@ -290,7 +306,7 @@
+       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+          or OS=="netbsd" or OS=="mac" or OS=="android") and \
+         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
+-         v8_target_arch=="mipsel")', {
++         v8_target_arch=="mipsel" or v8_target_arch=="ppc")', {
+         # Check whether the host compiler and target compiler support the
+         # '-m32' option and set it if so.
+         'target_conditions': [
+diff --git a/build/standalone.gypi b/build/standalone.gypi
+index 7145a16..2f271f1 100644
+--- a/build/standalone.gypi
++++ b/build/standalone.gypi
+@@ -100,6 +100,9 @@
+           [ 'OS=="linux"', {
+             'cflags': [ '-ansi' ],
+           }],
++          [ 'host_arch=="ppc64"', {
++            'cflags': [ '-mminimal-toc' ],
++          }],
+           [ 'visibility=="hidden"', {
+             'cflags': [ '-fvisibility=hidden' ],
+           }],
+diff --git a/src/assembler.cc b/src/assembler.cc
+index d81d4ae..ebc2331 100644
+--- a/src/assembler.cc
++++ b/src/assembler.cc
+@@ -61,6 +61,8 @@
+ #include "x64/assembler-x64-inl.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/assembler-arm-inl.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/assembler-ppc-inl.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/assembler-mips-inl.h"
+ #else
+@@ -75,6 +77,8 @@
+ #include "x64/regexp-macro-assembler-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/regexp-macro-assembler-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/regexp-macro-assembler-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/regexp-macro-assembler-mips.h"
+ #else  // Unknown architecture.
+@@ -1064,6 +1068,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
+   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
+ #elif V8_TARGET_ARCH_ARM
+   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
++#elif V8_TARGET_ARCH_PPC
++  function = FUNCTION_ADDR(RegExpMacroAssemblerPPC::CheckStackGuardState);
+ #elif V8_TARGET_ARCH_MIPS
+   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+ #else
+diff --git a/src/assembler.h b/src/assembler.h
+index a0e55cc..ce2a16a 100644
+--- a/src/assembler.h
++++ b/src/assembler.h
+@@ -829,31 +829,37 @@ class PreservePositionScope BASE_EMBEDDED {
+ // -----------------------------------------------------------------------------
+ // Utility functions
+ 
+-inline bool is_intn(int x, int n)  {
+-  return -(1 << (n-1)) <= x && x < (1 << (n-1));
++inline bool is_intn(intptr_t x, int n)  {
++  return -(1L << (n-1)) <= x && x < (1L << (n-1));
+ }
+ 
+-inline bool is_int8(int x)  { return is_intn(x, 8); }
+-inline bool is_int16(int x)  { return is_intn(x, 16); }
+-inline bool is_int18(int x)  { return is_intn(x, 18); }
+-inline bool is_int24(int x)  { return is_intn(x, 24); }
++inline bool is_int8(intptr_t x)  { return is_intn(x, 8); }
++inline bool is_int16(intptr_t x)  { return is_intn(x, 16); }
++inline bool is_int18(intptr_t x)  { return is_intn(x, 18); }
++inline bool is_int24(intptr_t x)  { return is_intn(x, 24); }
++inline bool is_int26(intptr_t x)  { return is_intn(x, 26); }
++#if V8_HOST_ARCH_64_BIT
++inline bool is_int32(intptr_t x)  { return is_intn(x, 32); }
++inline bool is_int48(intptr_t x)  { return is_intn(x, 48); }
++#endif
++
+ 
+-inline bool is_uintn(int x, int n) {
+-  return (x & -(1 << n)) == 0;
++inline bool is_uintn(intptr_t x, int n) {
++  return (x & -(1L << n)) == 0;
+ }
+ 
+-inline bool is_uint2(int x)  { return is_uintn(x, 2); }
+-inline bool is_uint3(int x)  { return is_uintn(x, 3); }
+-inline bool is_uint4(int x)  { return is_uintn(x, 4); }
+-inline bool is_uint5(int x)  { return is_uintn(x, 5); }
+-inline bool is_uint6(int x)  { return is_uintn(x, 6); }
+-inline bool is_uint8(int x)  { return is_uintn(x, 8); }
+-inline bool is_uint10(int x)  { return is_uintn(x, 10); }
+-inline bool is_uint12(int x)  { return is_uintn(x, 12); }
+-inline bool is_uint16(int x)  { return is_uintn(x, 16); }
+-inline bool is_uint24(int x)  { return is_uintn(x, 24); }
+-inline bool is_uint26(int x)  { return is_uintn(x, 26); }
+-inline bool is_uint28(int x)  { return is_uintn(x, 28); }
++inline bool is_uint2(intptr_t x)  { return is_uintn(x, 2); }
++inline bool is_uint3(intptr_t x)  { return is_uintn(x, 3); }
++inline bool is_uint4(intptr_t x)  { return is_uintn(x, 4); }
++inline bool is_uint5(intptr_t x)  { return is_uintn(x, 5); }
++inline bool is_uint6(intptr_t x)  { return is_uintn(x, 6); }
++inline bool is_uint8(intptr_t x)  { return is_uintn(x, 8); }
++inline bool is_uint10(intptr_t x)  { return is_uintn(x, 10); }
++inline bool is_uint12(intptr_t x)  { return is_uintn(x, 12); }
++inline bool is_uint16(intptr_t x)  { return is_uintn(x, 16); }
++inline bool is_uint24(intptr_t x)  { return is_uintn(x, 24); }
++inline bool is_uint26(intptr_t x)  { return is_uintn(x, 26); }
++inline bool is_uint28(intptr_t x)  { return is_uintn(x, 28); }
+ 
+ inline int NumberOfBitsSet(uint32_t x) {
+   unsigned int num_bits_set;
+diff --git a/src/atomicops.h b/src/atomicops.h
+index 1f0c44a..dcbb6b2 100644
+--- a/src/atomicops.h
++++ b/src/atomicops.h
+@@ -162,6 +162,8 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
+ #include "atomicops_internals_x86_gcc.h"
+ #elif defined(__GNUC__) && defined(V8_HOST_ARCH_ARM)
+ #include "atomicops_internals_arm_gcc.h"
++#elif defined(__GNUC__) && defined(V8_HOST_ARCH_PPC)
++#include "atomicops_internals_ppc_gcc.h"
+ #elif defined(__GNUC__) && defined(V8_HOST_ARCH_MIPS)
+ #include "atomicops_internals_mips_gcc.h"
+ #else
+diff --git a/src/builtins.cc b/src/builtins.cc
+index df70cd4..de0bb41 100644
+--- a/src/builtins.cc
++++ b/src/builtins.cc
+@@ -1617,10 +1617,15 @@ void Builtins::SetUp(bool create_heap_objects) {
+ 
+   const BuiltinDesc* functions = builtin_function_table.functions();
+ 
++#if V8_TARGET_ARCH_PPC64
++  const int kBufferSize = 9 * KB;
++#else
++  const int kBufferSize = 8 * KB;
++#endif
+   // For now we generate builtin adaptor code into a stack-allocated
+   // buffer, before copying it into individual code objects. Be careful
+   // with alignment, some platforms don't like unaligned code.
+-  union { int force_alignment; byte buffer[8*KB]; } u;
++  union { int force_alignment; byte buffer[kBufferSize]; } u;
+ 
+   // Traverse the list of builtins and generate an adaptor in a
+   // separate code object for each one.
+diff --git a/src/checks.h b/src/checks.h
+index d0a0c2b..eb3dfcb 100644
+--- a/src/checks.h
++++ b/src/checks.h
+@@ -292,4 +292,18 @@ extern bool FLAG_enable_slow_asserts;
+ #define EXTRA_CHECK(condition) ((void) 0)
+ #endif
+ 
++// PENGUIN: Extra checks for PPC PORT
++//   - PPCPORT_UNIMPLEMENTED: for unimplemented features
++//   - PPCPORT_CHECK: for development phase
++//   - PPCPORT_UNSAFE_IMPLEMENTATION: unsafe implementation
++#ifdef ENABLE_EXTRA_PPCCHECKS
++#define PPCPORT_CHECK(condition) CHECK(condition)
++#define PPCPORT_UNIMPLEMENTED() UNIMPLEMENTED()
++#define PPCPORT_UNSAFE_IMPLEMENTATION() ((void)0)
++#else
++#define PPCPORT_CHECK(condition) ((void) 0)
++#define PPCPORT_UNIMPLEMENTED() ((void) 0)
++#define PPCPORT_UNSAFE_IMPLEMENTATION() ((void)0)
++#endif
++
+ #endif  // V8_CHECKS_H_
+diff --git a/src/code-stubs.h b/src/code-stubs.h
+index a843841..7ac3cae 100644
+--- a/src/code-stubs.h
++++ b/src/code-stubs.h
+@@ -88,6 +88,18 @@ namespace internal {
+ #define CODE_STUB_LIST_ARM(V)
+ #endif
+ 
++// List of code stubs only used on PPC platforms.
++#ifdef V8_TARGET_ARCH_PPC
++#define CODE_STUB_LIST_PPC(V)  \
++  V(GetProperty)               \
++  V(SetProperty)               \
++  V(InvokeBuiltin)             \
++  V(RegExpCEntry)              \
++  V(DirectCEntry)
++#else
++#define CODE_STUB_LIST_PPC(V)
++#endif
++
+ // List of code stubs only used on MIPS platforms.
+ #ifdef V8_TARGET_ARCH_MIPS
+ #define CODE_STUB_LIST_MIPS(V)  \
+@@ -101,6 +113,7 @@ namespace internal {
+ #define CODE_STUB_LIST(V)            \
+   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
+   CODE_STUB_LIST_ARM(V)              \
++  CODE_STUB_LIST_PPC(V)              \
+   CODE_STUB_LIST_MIPS(V)
+ 
+ // Mode to overwrite BinaryExpression values.
+@@ -254,6 +267,8 @@ class RuntimeCallHelper {
+ #include "x64/code-stubs-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/code-stubs-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/code-stubs-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/code-stubs-mips.h"
+ #else
+diff --git a/src/codegen.cc b/src/codegen.cc
+index 0163580..52cf992 100644
+--- a/src/codegen.cc
++++ b/src/codegen.cc
+@@ -200,7 +200,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+ int CEntryStub::MinorKey() {
+   int result = (save_doubles_ == kSaveFPRegs) ? 1 : 0;
+   ASSERT(result_size_ == 1 || result_size_ == 2);
+-#ifdef _WIN64
++#if defined(_WIN64) || defined(V8_TARGET_ARCH_PPC64)
+   return result | ((result_size_ == 1) ? 0 : 2);
+ #else
+   return result;
+diff --git a/src/codegen.h b/src/codegen.h
+index 08a777f..6eef38b 100644
+--- a/src/codegen.h
++++ b/src/codegen.h
+@@ -75,6 +75,8 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+ #include "x64/codegen-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/codegen-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/codegen-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/codegen-mips.h"
+ #else
+diff --git a/src/conversions-inl.h b/src/conversions-inl.h
+index e272fe6..2872ee9 100644
+--- a/src/conversions-inl.h
++++ b/src/conversions-inl.h
+@@ -75,7 +75,11 @@ inline unsigned int FastD2UI(double x) {
+   if (x < k2Pow52) {
+     x += k2Pow52;
+     uint32_t result;
++#if __FLOAT_WORD_ORDER == __LITTLE_ENDIAN
+     Address mantissa_ptr = reinterpret_cast<Address>(&x);
++#else
++    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
++#endif
+     // Copy least significant 32 bits of mantissa.
+     memcpy(&result, mantissa_ptr, sizeof(result));
+     return negative ? ~result + 1 : result;
+diff --git a/src/deoptimizer.h b/src/deoptimizer.h
+index f67f986..2a7227a 100644
+--- a/src/deoptimizer.h
++++ b/src/deoptimizer.h
+@@ -697,7 +697,11 @@ class SlotRef BASE_EMBEDDED {
+         return Handle<Object>(Memory::Object_at(addr_));
+ 
+       case INT32: {
++#if defined(V8_TARGET_ARCH_PPC64) && __BYTE_ORDER == __BIG_ENDIAN
++        int value = Memory::int32_at(addr_ + kIntSize);
++#else
+         int value = Memory::int32_at(addr_);
++#endif
+         if (Smi::IsValid(value)) {
+           return Handle<Object>(Smi::FromInt(value));
+         } else {
+@@ -706,7 +710,11 @@ class SlotRef BASE_EMBEDDED {
+       }
+ 
+       case UINT32: {
++#if defined(V8_TARGET_ARCH_PPC64) && __BYTE_ORDER == __BIG_ENDIAN
++        uint32_t value = Memory::uint32_at(addr_ + kIntSize);
++#else
+         uint32_t value = Memory::uint32_at(addr_);
++#endif
+         if (value <= static_cast<uint32_t>(Smi::kMaxValue)) {
+           return Handle<Object>(Smi::FromInt(static_cast<int>(value)));
+         } else {
+diff --git a/src/disassembler.cc b/src/disassembler.cc
+index 9f8b9a8..9cd94f5 100644
+--- a/src/disassembler.cc
++++ b/src/disassembler.cc
+@@ -158,7 +158,11 @@ static int DecodeIt(FILE* f,
+                      "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
+                      ptr,
+                      ptr - begin);
++#if V8_TARGET_ARCH_PPC64
++        pc += 8;
++#else
+         pc += 4;
++#endif
+       } else {
+         decode_buffer[0] = '\0';
+         pc += d.InstructionDecode(decode_buffer, pc);
+diff --git a/src/execution.h b/src/execution.h
+index 9f5d9ff..5bdc135 100644
+--- a/src/execution.h
++++ b/src/execution.h
+@@ -258,7 +258,7 @@ class StackGuard {
+   void EnableInterrupts();
+   void DisableInterrupts();
+ 
+-#ifdef V8_TARGET_ARCH_X64
++#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_PPC64)
+   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
+   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
+ #else
+diff --git a/src/frames-inl.h b/src/frames-inl.h
+index 27a526c..f6cc9e7 100644
+--- a/src/frames-inl.h
++++ b/src/frames-inl.h
+@@ -38,6 +38,8 @@
+ #include "x64/frames-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/frames-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/frames-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/frames-mips.h"
+ #else
+diff --git a/src/full-codegen.h b/src/full-codegen.h
+index 89b51f9..eff4b29 100644
+--- a/src/full-codegen.h
++++ b/src/full-codegen.h
+@@ -125,6 +125,8 @@ class FullCodeGenerator: public AstVisitor {
+   static const int kBackEdgeDistanceUnit = 162;
+ #elif V8_TARGET_ARCH_ARM
+   static const int kBackEdgeDistanceUnit = 142;
++#elif V8_TARGET_ARCH_PPC
++  static const int kBackEdgeDistanceUnit = 142;
+ #elif V8_TARGET_ARCH_MIPS
+   static const int kBackEdgeDistanceUnit = 142;
+ #else
+@@ -333,12 +335,18 @@ class FullCodeGenerator: public AstVisitor {
+              Label* if_true,
+              Label* if_false,
+              Label* fall_through);
+-#else  // All non-mips arch.
++#elif defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
++  void Split(Condition cc,
++             Label* if_true,
++             Label* if_false,
++             Label* fall_through,
++             CRegister cr = cr7);
++#else  // All other arch.
+   void Split(Condition cc,
+              Label* if_true,
+              Label* if_false,
+              Label* fall_through);
+-#endif  // V8_TARGET_ARCH_MIPS
++#endif
+ 
+   // Load the value of a known (PARAMETER, LOCAL, or CONTEXT) variable into
+   // a register.  Emits a context chain walk if if necessary (so does
+diff --git a/src/globals.h b/src/globals.h
+index babffbf..c3bd0db 100644
+--- a/src/globals.h
++++ b/src/globals.h
+@@ -86,6 +86,13 @@ namespace internal {
+ #elif defined(__MIPSEL__)
+ #define V8_HOST_ARCH_MIPS 1
+ #define V8_HOST_ARCH_32_BIT 1
++#elif defined(__PPC__) || defined(_ARCH_PPC)
++#define V8_HOST_ARCH_PPC 1
++#if defined(__PPC64__) || defined(_ARCH_PPC64)
++#define V8_HOST_ARCH_64_BIT 1
++#else
++#define V8_HOST_ARCH_32_BIT 1
++#endif
+ #else
+ #error Host architecture was not detected as supported by v8
+ #endif
+@@ -94,7 +101,8 @@ namespace internal {
+ // in the same way as the host architecture, that is, target the native
+ // environment as presented by the compiler.
+ #if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_IA32) && \
+-    !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS)
++    !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS) && \
++    !defined(V8_TARGET_ARCH_PPC)
+ #if defined(_M_X64) || defined(__x86_64__)
+ #define V8_TARGET_ARCH_X64 1
+ #elif defined(_M_IX86) || defined(__i386__)
+@@ -116,8 +124,9 @@ namespace internal {
+ #error Target architecture x64 is only supported on x64 host
+ #endif
+ #if (defined(V8_TARGET_ARCH_ARM) && \
+-    !(defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_ARM)))
+-#error Target architecture arm is only supported on arm and ia32 host
++    !(defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_ARM) || \
++      defined(V8_HOST_ARCH_PPC)))
++#error Target architecture arm is only supported on arm, ppc and ia32 host
+ #endif
+ #if (defined(V8_TARGET_ARCH_MIPS) && \
+     !(defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_MIPS)))
+@@ -131,6 +140,9 @@ namespace internal {
+ #if (defined(V8_TARGET_ARCH_ARM) && !defined(V8_HOST_ARCH_ARM))
+ #define USE_SIMULATOR 1
+ #endif
++#if (defined(V8_TARGET_ARCH_PPC) && !defined(V8_HOST_ARCH_PPC))
++#define USE_SIMULATOR 1
++#endif
+ #if (defined(V8_TARGET_ARCH_MIPS) && !defined(V8_HOST_ARCH_MIPS))
+ #define USE_SIMULATOR 1
+ #endif
+diff --git a/src/heap.cc b/src/heap.cc
+index e3fcb93..e5ca930 100644
+--- a/src/heap.cc
++++ b/src/heap.cc
+@@ -50,6 +50,10 @@
+ #include "v8threads.h"
+ #include "v8utils.h"
+ #include "vm-state-inl.h"
++#if V8_TARGET_ARCH_PPC && !V8_INTERPRETED_REGEXP
++#include "regexp-macro-assembler.h"
++#include "ppc/regexp-macro-assembler-ppc.h"
++#endif
+ #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
+ #include "regexp-macro-assembler.h"
+ #include "arm/regexp-macro-assembler-arm.h"
+diff --git a/src/hydrogen-instructions.cc b/src/hydrogen-instructions.cc
+index 79550f3..408c1e6 100644
+--- a/src/hydrogen-instructions.cc
++++ b/src/hydrogen-instructions.cc
+@@ -36,6 +36,8 @@
+ #include "x64/lithium-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/lithium-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/lithium-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/lithium-mips.h"
+ #else
+@@ -966,8 +968,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
+     // introduced.
+     if (value()->representation().IsInteger32()) return value();
+ 
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
+-        defined(V8_TARGET_ARCH_X64)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||      \
++  defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_PPC)
+     if (value()->IsDiv() && (value()->UseCount() == 1)) {
+       // TODO(2038): Implement this optimization for non ARM architectures.
+       HDiv* hdiv = HDiv::cast(value());
+diff --git a/src/hydrogen.cc b/src/hydrogen.cc
+index 8393e51..4000922 100644
+--- a/src/hydrogen.cc
++++ b/src/hydrogen.cc
+@@ -43,6 +43,8 @@
+ #include "x64/lithium-codegen-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/lithium-codegen-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/lithium-codegen-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/lithium-codegen-mips.h"
+ #else
+diff --git a/src/isolate.cc b/src/isolate.cc
+index 75e15a4..65ec1c6 100644
+--- a/src/isolate.cc
++++ b/src/isolate.cc
+@@ -116,6 +116,8 @@ void ThreadLocalTop::Initialize() {
+ #ifdef USE_SIMULATOR
+ #ifdef V8_TARGET_ARCH_ARM
+   simulator_ = Simulator::current(isolate_);
++#elif V8_TARGET_ARCH_PPC
++  simulator_ = Simulator::current(isolate_);
+ #elif V8_TARGET_ARCH_MIPS
+   simulator_ = Simulator::current(isolate_);
+ #endif
+@@ -1398,6 +1400,8 @@ char* Isolate::RestoreThread(char* from) {
+ #ifdef USE_SIMULATOR
+ #ifdef V8_TARGET_ARCH_ARM
+   thread_local_top()->simulator_ = Simulator::current(this);
++#elif V8_TARGET_ARCH_PPC
++  thread_local_top()->simulator_ = Simulator::current(this);
+ #elif V8_TARGET_ARCH_MIPS
+   thread_local_top()->simulator_ = Simulator::current(this);
+ #endif
+@@ -1534,6 +1538,7 @@ Isolate::Isolate()
+   thread_manager_->isolate_ = this;
+ 
+ #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
++    defined(V8_TARGET_ARCH_PPC) && !defined(__PPC__) || \
+     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+   simulator_initialized_ = false;
+   simulator_i_cache_ = NULL;
+@@ -1851,7 +1856,8 @@ bool Isolate::Init(Deserializer* des) {
+ 
+   // Initialize other runtime facilities
+ #if defined(USE_SIMULATOR)
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) \
++  || defined(V8_TARGET_ARCH_PPC)
+   Simulator::Initialize(this);
+ #endif
+ #endif
+diff --git a/src/isolate.h b/src/isolate.h
+index b90191d..1a12e90 100644
+--- a/src/isolate.h
++++ b/src/isolate.h
+@@ -95,6 +95,7 @@ class DebuggerAgent;
+ #endif
+ 
+ #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
++    !defined(__PPC__) && defined(V8_TARGET_ARCH_PPC) || \
+     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+ class Redirection;
+ class Simulator;
+@@ -256,7 +257,8 @@ class ThreadLocalTop BASE_EMBEDDED {
+   Address handler_;   // try-blocks are chained through the stack
+ 
+ #ifdef USE_SIMULATOR
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_PPC) || \
++    defined(V8_TARGET_ARCH_MIPS)
+   Simulator* simulator_;
+ #endif
+ #endif  // USE_SIMULATOR
+@@ -375,6 +377,7 @@ class Isolate {
+           stack_limit_(0),
+           thread_state_(NULL),
+ #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
++    !defined(__PPC__) && defined(V8_TARGET_ARCH_PPC) || \
+     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+           simulator_(NULL),
+ #endif
+@@ -388,6 +391,7 @@ class Isolate {
+     void set_thread_state(ThreadState* value) { thread_state_ = value; }
+ 
+ #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
++    !defined(__PPC__) && defined(V8_TARGET_ARCH_PPC) || \
+     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+     Simulator* simulator() const { return simulator_; }
+     void set_simulator(Simulator* simulator) {
+@@ -406,6 +410,7 @@ class Isolate {
+     ThreadState* thread_state_;
+ 
+ #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
++    !defined(__PPC__) && defined(V8_TARGET_ARCH_PPC) || \
+     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+     Simulator* simulator_;
+ #endif
+@@ -970,6 +975,7 @@ class Isolate {
+ #endif
+ 
+ #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
++    defined(V8_TARGET_ARCH_PPC) && !defined(__PPC__) || \
+     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+   bool simulator_initialized() { return simulator_initialized_; }
+   void set_simulator_initialized(bool initialized) {
+@@ -1250,6 +1256,7 @@ class Isolate {
+   double time_millis_at_init_;
+ 
+ #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
++    defined(V8_TARGET_ARCH_PPC) && !defined(__PPC__) || \
+     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+   bool simulator_initialized_;
+   HashMap* simulator_i_cache_;
+diff --git a/src/jsregexp.cc b/src/jsregexp.cc
+index e59170d..47caf4e 100644
+--- a/src/jsregexp.cc
++++ b/src/jsregexp.cc
+@@ -50,6 +50,8 @@
+ #include "x64/regexp-macro-assembler-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/regexp-macro-assembler-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/regexp-macro-assembler-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/regexp-macro-assembler-mips.h"
+ #else
+@@ -6131,6 +6133,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
+ #elif V8_TARGET_ARCH_ARM
+   RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2,
+                                           zone);
++#elif V8_TARGET_ARCH_PPC
++  RegExpMacroAssemblerPPC macro_assembler(mode, (data->capture_count + 1) * 2,
++                                          zone);
+ #elif V8_TARGET_ARCH_MIPS
+   RegExpMacroAssemblerMIPS macro_assembler(mode, (data->capture_count + 1) * 2,
+                                            zone);
+diff --git a/src/lithium-allocator-inl.h b/src/lithium-allocator-inl.h
+index 8f660ce..d47e66e 100644
+--- a/src/lithium-allocator-inl.h
++++ b/src/lithium-allocator-inl.h
+@@ -36,6 +36,8 @@
+ #include "x64/lithium-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/lithium-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/lithium-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/lithium-mips.h"
+ #else
+diff --git a/src/lithium-allocator.cc b/src/lithium-allocator.cc
+index 91a9811..07ebb75 100644
+--- a/src/lithium-allocator.cc
++++ b/src/lithium-allocator.cc
+@@ -37,6 +37,8 @@
+ #include "x64/lithium-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/lithium-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/lithium-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/lithium-mips.h"
+ #else
+diff --git a/src/lithium.cc b/src/lithium.cc
+index eb2198d..e7596fa 100644
+--- a/src/lithium.cc
++++ b/src/lithium.cc
+@@ -38,6 +38,9 @@
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/lithium-arm.h"
+ #include "arm/lithium-codegen-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/lithium-ppc.h"
++#include "ppc/lithium-codegen-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/lithium-mips.h"
+ #include "mips/lithium-codegen-mips.h"
+diff --git a/src/log.cc b/src/log.cc
+index b049ffe..2f42ae1 100644
+--- a/src/log.cc
++++ b/src/log.cc
+@@ -1526,6 +1526,8 @@ void Logger::LogCodeInfo() {
+   const char arch[] = "x64";
+ #elif V8_TARGET_ARCH_ARM
+   const char arch[] = "arm";
++#elif V8_TARGET_ARCH_PPC
++  const char arch[] = "ppc";
+ #elif V8_TARGET_ARCH_MIPS
+   const char arch[] = "mips";
+ #else
+diff --git a/src/macro-assembler.h b/src/macro-assembler.h
+index 11e2217..f01a5ce 100644
+--- a/src/macro-assembler.h
++++ b/src/macro-assembler.h
+@@ -58,6 +58,13 @@ const int kInvalidProtoDepth = -1;
+ #include "arm/assembler-arm-inl.h"
+ #include "code.h"  // must be after assembler_*.h
+ #include "arm/macro-assembler-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/constants-ppc.h"
++#include "assembler.h"
++#include "ppc/assembler-ppc.h"
++#include "ppc/assembler-ppc-inl.h"
++#include "code.h"  // must be after assembler_*.h
++#include "ppc/macro-assembler-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/constants-mips.h"
+ #include "assembler.h"
+diff --git a/src/objects-inl.h b/src/objects-inl.h
+index ea5a93f..d97623c 100644
+--- a/src/objects-inl.h
++++ b/src/objects-inl.h
+@@ -1061,7 +1061,7 @@ bool Smi::IsValid(intptr_t value) {
+   bool in_range = (value >= kMinValue) && (value <= kMaxValue);
+ #endif
+ 
+-#ifdef V8_TARGET_ARCH_X64
++#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_PPC64)
+   // To be representable as a long smi, the value must be a 32-bit integer.
+   bool result = (value == static_cast<int32_t>(value));
+ #else
+@@ -2409,10 +2409,7 @@ uint32_t String::hash_field() {
+ 
+ 
+ void String::set_hash_field(uint32_t value) {
+-  WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
+-#if V8_HOST_ARCH_64_BIT
+-  WRITE_UINT32_FIELD(this, kHashFieldOffset + kIntSize, 0);
+-#endif
++  WRITE_INTPTR_FIELD(this, kHashFieldSlot, value);
+ }
+ 
+ 
+@@ -3976,8 +3973,16 @@ SMI_ACCESSORS(SharedFunctionInfo,
+               kStressDeoptCounterOffset)
+ #else
+ 
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++#define PSEUDO_SMI_LO_ALIGN 0
++#define PSEUDO_SMI_HI_ALIGN kIntSize
++#else
++#define PSEUDO_SMI_LO_ALIGN kIntSize
++#define PSEUDO_SMI_HI_ALIGN 0
++#endif
++
+ #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
+-  STATIC_ASSERT(holder::offset % kPointerSize == 0);              \
++  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_LO_ALIGN);  \
+   int holder::name() {                                            \
+     int value = READ_INT_FIELD(this, offset);                     \
+     ASSERT(kHeapObjectTag == 1);                                  \
+@@ -3994,7 +3999,7 @@ SMI_ACCESSORS(SharedFunctionInfo,
+   }
+ 
+ #define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)             \
+-  STATIC_ASSERT(holder::offset % kPointerSize == kIntSize);       \
++  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_HI_ALIGN);  \
+   INT_ACCESSORS(holder, name, offset)
+ 
+ 
+diff --git a/src/objects.cc b/src/objects.cc
+index 37f8361..6f93592 100644
+--- a/src/objects.cc
++++ b/src/objects.cc
+@@ -7007,8 +7007,8 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
+   // then we have to check that the strings are aligned before
+   // comparing them blockwise.
+   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
+-  uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
+-  uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
++  uintptr_t pa_addr = reinterpret_cast<uintptr_t>(pa);
++  uintptr_t pb_addr = reinterpret_cast<uintptr_t>(pb);
+   if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
+ #endif
+     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
+diff --git a/src/objects.h b/src/objects.h
+index 755dd42..c84c440 100644
+--- a/src/objects.h
++++ b/src/objects.h
+@@ -37,6 +37,8 @@
+ #include "unicode-inl.h"
+ #if V8_TARGET_ARCH_ARM
+ #include "arm/constants-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/constants-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/constants-mips.h"
+ #endif
+@@ -1344,8 +1346,13 @@ class HeapNumber: public HeapObject {
+   // is a mixture of sign, exponent and mantissa.  Our current platforms are all
+   // little endian apart from non-EABI arm which is little endian with big
+   // endian floating point word ordering!
++#if __BYTE_ORDER == __LITTLE_ENDIAN
+   static const int kMantissaOffset = kValueOffset;
+   static const int kExponentOffset = kValueOffset + 4;
++#elif __BYTE_ORDER == __BIG_ENDIAN
++  static const int kMantissaOffset = kValueOffset + 4;
++  static const int kExponentOffset = kValueOffset;
++#endif
+ 
+   static const int kSize = kValueOffset + kDoubleSize;
+   static const uint32_t kSignMask = 0x80000000u;
+@@ -5844,10 +5851,11 @@ class SharedFunctionInfo: public HeapObject {
+   // garbage collections.
+   // To avoid wasting space on 64-bit architectures we use
+   // the following trick: we group integer fields into pairs
+-  // First integer in each pair is shifted left by 1.
++  // The least significant integer in each pair is shifted left by 1.
+   // By doing this we guarantee that LSB of each kPointerSize aligned
+   // word is not set and thus this word cannot be treated as pointer
+   // to HeapObject during old space traversal.
++#if __BYTE_ORDER == __LITTLE_ENDIAN
+   static const int kLengthOffset =
+       kAstNodeCountOffset + kPointerSize;
+   static const int kFormalParameterCountOffset =
+@@ -5875,6 +5883,38 @@ class SharedFunctionInfo: public HeapObject {
+ 
+   static const int kCountersOffset = kOptCountOffset + kIntSize;
+   static const int kStressDeoptCounterOffset = kCountersOffset + kIntSize;
++#elif __BYTE_ORDER == __BIG_ENDIAN
++  static const int kFormalParameterCountOffset =
++      kAstNodeCountOffset + kPointerSize;
++  static const int kLengthOffset =
++      kFormalParameterCountOffset + kIntSize;
++
++  static const int kNumLiteralsOffset =
++      kLengthOffset + kIntSize;
++  static const int kExpectedNofPropertiesOffset =
++      kNumLiteralsOffset + kIntSize;
++
++  static const int kStartPositionAndTypeOffset =
++      kExpectedNofPropertiesOffset + kIntSize;
++  static const int kEndPositionOffset =
++      kStartPositionAndTypeOffset + kIntSize;
++
++  static const int kCompilerHintsOffset =
++      kEndPositionOffset + kIntSize;
++  static const int kFunctionTokenPositionOffset =
++      kCompilerHintsOffset + kIntSize;
++
++  static const int kOptCountOffset =
++      kFunctionTokenPositionOffset + kIntSize;
++  static const int kThisPropertyAssignmentsCountOffset =
++      kOptCountOffset + kIntSize;
++
++  static const int kStressDeoptCounterOffset =
++      kThisPropertyAssignmentsCountOffset + kIntSize;
++  static const int kCountersOffset = kStressDeoptCounterOffset + kIntSize;
++#else
++#error Unknown byte ordering
++#endif
+ 
+   // Total size.
+   static const int kSize = kStressDeoptCounterOffset + kIntSize;
+@@ -7314,8 +7354,13 @@ class String: public HeapObject {
+ 
+   // Layout description.
+   static const int kLengthOffset = HeapObject::kHeaderSize;
+-  static const int kHashFieldOffset = kLengthOffset + kPointerSize;
+-  static const int kSize = kHashFieldOffset + kPointerSize;
++  static const int kHashFieldSlot = kLengthOffset + kPointerSize;
++#if __BYTE_ORDER == __LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
++  static const int kHashFieldOffset = kHashFieldSlot;
++#else
++  static const int kHashFieldOffset = kHashFieldSlot + kIntSize;
++#endif
++  static const int kSize = kHashFieldSlot + kPointerSize;
+ 
+   // Maximum number of characters to consider when trying to convert a string
+   // value into an array index.
+diff --git a/src/platform-freebsd.cc b/src/platform-freebsd.cc
+index 511759c..f8d04f5 100644
+--- a/src/platform-freebsd.cc
++++ b/src/platform-freebsd.cc
+@@ -698,6 +698,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+   sample->pc = reinterpret_cast<Address>(mcontext.mc_r15);
+   sample->sp = reinterpret_cast<Address>(mcontext.mc_r13);
+   sample->fp = reinterpret_cast<Address>(mcontext.mc_r11);
++#elif V8_HOST_ARCH_PPC
++  sample->pc = reinterpret_cast<Address>(mcontext.mc_r15);
++  sample->sp = reinterpret_cast<Address>(mcontext.mc_r13);
++  sample->fp = reinterpret_cast<Address>(mcontext.mc_r11);
+ #endif
+   sampler->SampleStack(sample);
+   sampler->Tick(sample);
+diff --git a/src/platform-linux.cc b/src/platform-linux.cc
+index beb2cce..31cd279 100644
+--- a/src/platform-linux.cc
++++ b/src/platform-linux.cc
+@@ -291,6 +291,8 @@ int OS::ActivationFrameAlignment() {
+   return 8;
+ #elif V8_TARGET_ARCH_MIPS
+   return 8;
++#elif V8_TARGET_ARCH_PPC
++  return 8;
+ #endif
+   // With gcc 4.4 the tree vectorization optimizer can generate code
+   // that requires 16 byte alignment such as movdqa on x86.
+@@ -300,6 +302,7 @@ int OS::ActivationFrameAlignment() {
+ 
+ void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
+ #if (defined(V8_TARGET_ARCH_ARM) && defined(__arm__)) || \
++    (defined(V8_TARGET_ARCH_PPC) && defined(__PPC__)) || \
+     (defined(V8_TARGET_ARCH_MIPS) && defined(__mips__))
+   // Only use on ARM or MIPS hardware.
+   MemoryBarrier();
+@@ -409,6 +412,9 @@ void OS::DebugBreak() {
+ # endif
+ #elif defined(__mips__)
+   asm("break");
++#elif defined(__PPC__)
++  asm("twge 2,2");
++//  asm("nop");  // roohack - nothing for now;
+ #else
+   asm("int $3");
+ #endif
+@@ -813,7 +819,11 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
+ 
+ 
+ void Thread::YieldCPU() {
++#ifdef V8_TARGET_ARCH_PPC
++  i::OS::Sleep(0);
++#else
+   sched_yield();
++#endif
+ }
+ 
+ 
+@@ -1039,7 +1049,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+ 
+   // Extracting the sample from the context is extremely machine dependent.
+   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
++#ifndef V8_HOST_ARCH_PPC
+   mcontext_t& mcontext = ucontext->uc_mcontext;
++#endif
+   sample->state = isolate->current_vm_state();
+ #if V8_HOST_ARCH_IA32
+   sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+@@ -1067,6 +1079,12 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+   sample->pc = reinterpret_cast<Address>(mcontext.pc);
+   sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);
+   sample->fp = reinterpret_cast<Address>(mcontext.gregs[30]);
++#elif V8_HOST_ARCH_PPC
++  sample->pc = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->nip);
++  sample->sp =
++    reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
++  sample->fp =
++    reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+ #endif  // V8_HOST_ARCH_*
+   sampler->SampleStack(sample);
+   sampler->Tick(sample);
+diff --git a/src/profile-generator.cc b/src/profile-generator.cc
+index b853f33..7e93e34 100644
+--- a/src/profile-generator.cc
++++ b/src/profile-generator.cc
+@@ -1819,7 +1819,10 @@ class IndexedReferencesExtractor : public ObjectVisitor {
+     Address field = obj->address() + offset;
+     ASSERT(!Memory::Object_at(field)->IsFailure());
+     ASSERT(Memory::Object_at(field)->IsHeapObject());
+-    *field |= kFailureTag;
++    // Address field is a byte pointer, we need to cast it
++    // to avoid setting the wrong bit on big endian platforms
++    intptr_t *tagged = reinterpret_cast<intptr_t *>(field);
++    *tagged |= kFailureTag;
+   }
+ 
+  private:
+diff --git a/src/regexp-macro-assembler.h b/src/regexp-macro-assembler.h
+index bcf3673..86c5626 100644
+--- a/src/regexp-macro-assembler.h
++++ b/src/regexp-macro-assembler.h
+@@ -54,6 +54,7 @@ class RegExpMacroAssembler {
+     kIA32Implementation,
+     kARMImplementation,
+     kMIPSImplementation,
++    kPPCImplementation,
+     kX64Implementation,
+     kBytecodeImplementation
+   };
+diff --git a/src/runtime.cc b/src/runtime.cc
+index 19d9a3f..5120b2c 100644
+--- a/src/runtime.cc
++++ b/src/runtime.cc
+@@ -8553,8 +8553,15 @@ static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
+ #else
+ typedef uint64_t ObjectPair;
+ static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
++#if __BYTE_ORDER == __LITTLE_ENDIAN
+   return reinterpret_cast<uint32_t>(x) |
+       (reinterpret_cast<ObjectPair>(y) << 32);
++#else  // BIG ENDIAN
++  return reinterpret_cast<uint32_t>(y) |
++      (reinterpret_cast<ObjectPair>(x) << 32);
++#endif
++/*
++*/
+ }
+ #endif
+ 
+diff --git a/src/serialize.cc b/src/serialize.cc
+index 2ea09f8..8b4eabe 100644
+--- a/src/serialize.cc
++++ b/src/serialize.cc
+@@ -697,6 +697,22 @@ void Deserializer::ReadObject(int space_number,
+   bool is_codespace = (space_number == CODE_SPACE);
+   ASSERT(HeapObject::FromAddress(address)->IsCode() == is_codespace);
+ #endif
++#if defined(V8_TARGET_ARCH_PPC64)
++  // If we're on a platform that uses function_descriptors
++  // these jump tables make use of RelocInfo::INTERNAL_REFERENCE.
++  // As the V8 serialization code doesn't handle that relocation type
++  // we use this hack to fix up code that has function_descriptors
++  if (space_number == CODE_SPACE) {
++    Code * code = reinterpret_cast<Code*>(HeapObject::FromAddress(address));
++    for (RelocIterator it(code); !it.done(); it.next()) {
++      RelocInfo::Mode rmode = it.rinfo()->rmode();
++      if (rmode == RelocInfo::INTERNAL_REFERENCE) {
++        uintptr_t* p = reinterpret_cast<uintptr_t*>(code->instruction_start());
++        *p = reinterpret_cast<uintptr_t>(p + 3);
++      }
++    }
++  }
++#endif
+ }
+ 
+ void Deserializer::ReadChunk(Object** current,
+@@ -941,15 +957,16 @@ void Deserializer::ReadChunk(Object** current,
+       // allocation point and write a pointer to it to the current object.
+       ALL_SPACES(kBackref, kPlain, kStartOfObject)
+       ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
+-#if V8_TARGET_ARCH_MIPS
++#if defined(V8_TARGET_ARCH_MIPS) || \
++    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+       // Deserialize a new object from pointer found in code and write
+-      // a pointer to it to the current object. Required only for MIPS, and
++      // a pointer to it to the current object. Required only for MIPS/PPC, and
+       // omitted on the other architectures because it is fully unrolled and
+       // would cause bloat.
+       ALL_SPACES(kNewObject, kFromCode, kStartOfObject)
+       // Find a recently deserialized code object using its offset from the
+       // current allocation point and write a pointer to it to the current
+-      // object. Required only for MIPS.
++      // object. Required only for MIPS/PPC.
+       ALL_SPACES(kBackref, kFromCode, kStartOfObject)
+       ALL_SPACES(kBackrefWithSkip, kFromCode, kStartOfObject)
+ #endif
+@@ -1164,12 +1181,14 @@ int Serializer::RootIndex(HeapObject* heap_object, HowToCode from) {
+   for (int i = 0; i < root_index_wave_front_; i++) {
+     Object* root = heap->roots_array_start()[i];
+     if (!root->IsSmi() && root == heap_object) {
+-#if V8_TARGET_ARCH_MIPS
++#if defined(V8_TARGET_ARCH_MIPS) || \
++    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+       if (from == kFromCode) {
+-        // In order to avoid code bloat in the deserializer we don't have
+-        // support for the encoding that specifies a particular root should
+-        // be written into the lui/ori instructions on MIPS.  Therefore we
+-        // should not generate such serialization data for MIPS.
++        // In order to avoid code bloat in the deserializer we don't
++        // have support for the encoding that specifies a particular
++        // root should be written into the lui/ori instructions on
++        // MIPS or lis/addic on PPC.  Therefore we should not generate
++        // such serialization data for MIPS/PPC.
+         return kInvalidRootIndex;
+       }
+ #endif
+diff --git a/src/simulator.h b/src/simulator.h
+index 485e930..edfa42d 100644
+--- a/src/simulator.h
++++ b/src/simulator.h
+@@ -34,6 +34,8 @@
+ #include "x64/simulator-x64.h"
+ #elif V8_TARGET_ARCH_ARM
+ #include "arm/simulator-arm.h"
++#elif V8_TARGET_ARCH_PPC
++#include "ppc/simulator-ppc.h"
+ #elif V8_TARGET_ARCH_MIPS
+ #include "mips/simulator-mips.h"
+ #else
+diff --git a/test/cctest/cctest.gyp b/test/cctest/cctest.gyp
+index 66d848c..84f7d22 100644
+--- a/test/cctest/cctest.gyp
++++ b/test/cctest/cctest.gyp
+@@ -118,6 +118,12 @@
+             'test-disasm-arm.cc'
+           ],
+         }],
++        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
++          'sources': [
++            'test-assembler-ppc.cc',
++            'test-disasm-ppc.cc'
++          ],
++        }],
+         ['v8_target_arch=="mipsel"', {
+           'sources': [
+             'test-assembler-mips.cc',
+diff --git a/test/cctest/test-hashing.cc b/test/cctest/test-hashing.cc
+index a626510..716d334 100644
+--- a/test/cctest/test-hashing.cc
++++ b/test/cctest/test-hashing.cc
+@@ -113,6 +113,24 @@ void generate(MacroAssembler* masm, i::Vector<const char> string) {
+   __ pop(kRootRegister);
+   __ jr(ra);
+   __ nop();
++#elif V8_TARGET_ARCH_PPC
++#if ABI_USES_FUNCTION_DESCRIPTORS
++  __ function_descriptor();
++#endif
++
++  __ push(kRootRegister);
++  __ InitializeRootRegister();
++
++  __ li(r3, Operand::Zero());
++  __ li(ip, Operand(string.at(0)));
++  StringHelper::GenerateHashInit(masm, r3, ip, r0);
++  for (int i = 1; i < string.length(); i++) {
++    __ li(ip, Operand(string.at(i)));
++    StringHelper::GenerateHashAddCharacter(masm, r3, ip, r0);
++  }
++  StringHelper::GenerateHashGetHash(masm, r3, r0);
++  __ pop(kRootRegister);
++  __ blr();
+ #endif
+ }
+ 
+@@ -148,6 +166,16 @@ void generate(MacroAssembler* masm, uint32_t key) {
+   __ pop(kRootRegister);
+   __ jr(ra);
+   __ nop();
++#elif V8_TARGET_ARCH_PPC
++#if ABI_USES_FUNCTION_DESCRIPTORS
++  __ function_descriptor();
++#endif
++  __ push(kRootRegister);
++  __ InitializeRootRegister();
++  __ li(r3, Operand(key));
++  __ GetNumberHash(r3, ip);
++  __ pop(kRootRegister);
++  __ blr();
+ #endif
+ }
+ 
+@@ -172,7 +200,7 @@ void check(i::Vector<const char> string) {
+   v8_string->set_hash_field(String::kEmptyHashField);
+ #ifdef USE_SIMULATOR
+   uint32_t codegen_hash =
+-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
++      reinterpret_cast<uintptr_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
+ #else
+   uint32_t codegen_hash = hash();
+ #endif
+@@ -199,7 +227,7 @@ void check(uint32_t key) {
+   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
+ #ifdef USE_SIMULATOR
+   uint32_t codegen_hash =
+-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
++      reinterpret_cast<uintptr_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
+ #else
+   uint32_t codegen_hash = hash();
+ #endif
+diff --git a/test/cctest/test-heap.cc b/test/cctest/test-heap.cc
+index 6927c43..e075e2a 100644
+--- a/test/cctest/test-heap.cc
++++ b/test/cctest/test-heap.cc
+@@ -133,7 +133,7 @@ TEST(HeapObjects) {
+   CHECK(value->IsNumber());
+   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
+ 
+-#ifndef V8_TARGET_ARCH_X64
++#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_PPC64)
+   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
+   value = HEAP->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
+   CHECK(value->IsHeapNumber());
+diff --git a/test/cctest/test-lockers.cc b/test/cctest/test-lockers.cc
+index 5035f87..0bc2e70 100644
+--- a/test/cctest/test-lockers.cc
++++ b/test/cctest/test-lockers.cc
+@@ -204,7 +204,7 @@ static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
+ 
+ // Run many threads all locking on the same isolate
+ TEST(IsolateLockingStress) {
+-#ifdef V8_TARGET_ARCH_MIPS
++#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -241,7 +241,8 @@ class IsolateNonlockingThread : public JoinableThread {
+ 
+ // Run many threads each accessing its own isolate without locking
+ TEST(MultithreadedParallelIsolates) {
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) \
++  || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 10;
+ #else
+   const int kNThreads = 50;
+@@ -279,7 +280,7 @@ class IsolateNestedLockingThread : public JoinableThread {
+ 
+ // Run  many threads with nested locks
+ TEST(IsolateNestedLocking) {
+-#ifdef V8_TARGET_ARCH_MIPS
++#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -319,7 +320,8 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
+ 
+ // Run parallel threads that lock and access different isolates in parallel
+ TEST(SeparateIsolatesLocksNonexclusive) {
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) \
++  || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -393,7 +395,8 @@ class LockerUnlockerThread : public JoinableThread {
+ 
+ // Use unlocker inside of a Locker, multiple threads.
+ TEST(LockerUnlocker) {
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) \
++  || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -446,7 +449,8 @@ class LockTwiceAndUnlockThread : public JoinableThread {
+ 
+ // Use Unlocker inside two Lockers.
+ TEST(LockTwiceAndUnlock) {
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) \
++  || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -567,7 +571,7 @@ class LockUnlockLockThread : public JoinableThread {
+ 
+ // Locker inside an Unlocker inside a Locker.
+ TEST(LockUnlockLockMultithreaded) {
+-#ifdef V8_TARGET_ARCH_MIPS
++#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -618,7 +622,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
+ 
+ // Locker inside an Unlocker inside a Locker for default isolate.
+ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
+-#ifdef V8_TARGET_ARCH_MIPS
++#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 50;
+ #else
+   const int kNThreads = 100;
+@@ -690,7 +694,8 @@ class IsolateGenesisThread : public JoinableThread {
+ // Test installing extensions in separate isolates concurrently.
+ // http://code.google.com/p/v8/issues/detail?id=1821
+ TEST(ExtensionsRegistration) {
+-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
++#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) \
++  || defined(V8_TARGET_ARCH_PPC)
+   const int kNThreads = 10;
+ #else
+   const int kNThreads = 40;
+diff --git a/test/cctest/test-mark-compact.cc b/test/cctest/test-mark-compact.cc
+index c0ab763..0e8a3a4 100644
+--- a/test/cctest/test-mark-compact.cc
++++ b/test/cctest/test-mark-compact.cc
+@@ -525,6 +525,18 @@ static intptr_t MemoryInUse() {
+   return memory_use;
+ }
+ 
++#if defined(V8_TARGET_ARCH_PPC)
++const intptr_t maxSnap64 = 3600;  // ???
++const intptr_t max64     = 4000;  // ???
++const intptr_t maxSnap32 = 2800;  // 2624
++const intptr_t max32     = 3300;  // 3136
++#else
++const intptr_t maxSnap64 = 3600;  // 3396
++const intptr_t max64     = 4000;  // 3948
++const intptr_t maxSnap32 = 2500;  // 2400
++const intptr_t max32     = 2860;  // 2760
++#endif
++
+ 
+ TEST(BootUpMemoryUse) {
+   intptr_t initial_memory = MemoryInUse();
+@@ -539,15 +551,15 @@ TEST(BootUpMemoryUse) {
+     intptr_t delta = MemoryInUse() - initial_memory;
+     if (sizeof(initial_memory) == 8) {
+       if (v8::internal::Snapshot::IsEnabled()) {
+-        CHECK_LE(delta, 3600 * 1024);  // 3396.
++        CHECK_LE(delta, maxSnap64 * 1024);
+       } else {
+-        CHECK_LE(delta, 4000 * 1024);  // 3948.
++        CHECK_LE(delta, max64 * 1024);
+       }
+     } else {
+       if (v8::internal::Snapshot::IsEnabled()) {
+-        CHECK_LE(delta, 2500 * 1024);  // 2400.
++        CHECK_LE(delta, maxSnap32 * 1024);
+       } else {
+-        CHECK_LE(delta, 2860 * 1024);  // 2760.
++        CHECK_LE(delta, max32 * 1024);
+       }
+     }
+   }
+diff --git a/test/cctest/test-regexp.cc b/test/cctest/test-regexp.cc
+index e433b92..71b82b3 100644
+--- a/test/cctest/test-regexp.cc
++++ b/test/cctest/test-regexp.cc
+@@ -49,6 +49,11 @@
+ #include "arm/macro-assembler-arm.h"
+ #include "arm/regexp-macro-assembler-arm.h"
+ #endif
++#ifdef V8_TARGET_ARCH_PPC
++#include "ppc/assembler-ppc.h"
++#include "ppc/macro-assembler-ppc.h"
++#include "ppc/regexp-macro-assembler-ppc.h"
++#endif
+ #ifdef V8_TARGET_ARCH_MIPS
+ #include "mips/assembler-mips.h"
+ #include "mips/macro-assembler-mips.h"
+@@ -702,6 +707,8 @@ typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
+ typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
+ #elif V8_TARGET_ARCH_ARM
+ typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
++#elif V8_TARGET_ARCH_PPC
++typedef RegExpMacroAssemblerPPC ArchRegExpMacroAssembler;
+ #elif V8_TARGET_ARCH_MIPS
+ typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+ #endif
+diff --git a/test/cctest/test-threads.cc b/test/cctest/test-threads.cc
+index 713d1e8..c4a6861 100644
+--- a/test/cctest/test-threads.cc
++++ b/test/cctest/test-threads.cc
+@@ -170,7 +170,11 @@ class ThreadIdValidationThread : public v8::internal::Thread {
+ };
+ 
+ TEST(ThreadIdValidation) {
++#ifdef V8_TARGET_ARCH_PPC
++  const int kNThreads = 50;
++#else
+   const int kNThreads = 100;
++#endif
+   i::List<ThreadIdValidationThread*> threads(kNThreads);
+   i::List<i::ThreadId> refs(kNThreads);
+   i::Semaphore* semaphore = i::OS::CreateSemaphore(0);
+diff --git a/test/mjsunit/big-array-literal.js b/test/mjsunit/big-array-literal.js
+index 8e0ff87..0fcc52c 100644
+--- a/test/mjsunit/big-array-literal.js
++++ b/test/mjsunit/big-array-literal.js
+@@ -26,7 +26,8 @@
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ // On MacOS, this test needs a stack size of at least 538 kBytes.
+-// Flags: --stack-size=600
++// On PPC64, this test needs a stack size of at least 698 kBytes.
++// Flags: --stack-size=700
+ 
+ // Test that we can make large object literals that work.
+ // Also test that we can attempt to make even larger object literals without
+diff --git a/test/mjsunit/mjsunit.status b/test/mjsunit/mjsunit.status
+index 037093b..40ec11f 100644
+--- a/test/mjsunit/mjsunit.status
++++ b/test/mjsunit/mjsunit.status
+@@ -126,6 +126,10 @@ debug-liveedit-double-call: SKIP
+ # Currently always deopt on minus zero
+ math-floor-of-div-minus-zero: SKIP
+ 
++# Tests that are ARM simulated on PPC failures
++# PPC math precise, Intel not http://code.google.com/p/v8/issues/detail?id=1975
++regress/regress-transcendental: SKIP
++
+ ##############################################################################
+ [ $arch == mipsel ]
+ 
+@@ -179,3 +183,11 @@ debug-liveedit-stack-padding: SKIP
+ debug-liveedit-restart-frame: SKIP
+ debug-liveedit-double-call: SKIP
+ 
++##############################################################################
++[ $arch == ppc || $arch == ppc64 ]
++
++# Stack manipulations in LiveEdit is not implemented for this arch.
++debug-liveedit-check-stack: SKIP
++debug-liveedit-stack-padding: SKIP
++debug-liveedit-restart-frame: SKIP
++debug-liveedit-double-call: SKIP
+diff --git a/tools/gyp/v8.gyp b/tools/gyp/v8.gyp
+index 7a54ef4..5026095 100644
+--- a/tools/gyp/v8.gyp
++++ b/tools/gyp/v8.gyp
+@@ -533,6 +533,40 @@
+                 '../../src/arm/stub-cache-arm.cc',
+               ],
+             }],
++            ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
++              'sources': [
++                '../../src/ppc/assembler-ppc-inl.h',
++                '../../src/ppc/assembler-ppc.cc',
++                '../../src/ppc/assembler-ppc.h',
++                '../../src/ppc/builtins-ppc.cc',
++                '../../src/ppc/code-stubs-ppc.cc',
++                '../../src/ppc/code-stubs-ppc.h',
++                '../../src/ppc/codegen-ppc.cc',
++                '../../src/ppc/codegen-ppc.h',
++                '../../src/ppc/constants-ppc.h',
++                '../../src/ppc/constants-ppc.cc',
++                '../../src/ppc/cpu-ppc.cc',
++                '../../src/ppc/debug-ppc.cc',
++                '../../src/ppc/deoptimizer-ppc.cc',
++                '../../src/ppc/disasm-ppc.cc',
++                '../../src/ppc/frames-ppc.cc',
++                '../../src/ppc/frames-ppc.h',
++                '../../src/ppc/full-codegen-ppc.cc',
++                '../../src/ppc/ic-ppc.cc',
++                '../../src/ppc/lithium-ppc.cc',
++                '../../src/ppc/lithium-ppc.h',
++                '../../src/ppc/lithium-codegen-ppc.cc',
++                '../../src/ppc/lithium-codegen-ppc.h',
++                '../../src/ppc/lithium-gap-resolver-ppc.cc',
++                '../../src/ppc/lithium-gap-resolver-ppc.h',
++                '../../src/ppc/macro-assembler-ppc.cc',
++                '../../src/ppc/macro-assembler-ppc.h',
++                '../../src/ppc/regexp-macro-assembler-ppc.cc',
++                '../../src/ppc/regexp-macro-assembler-ppc.h',
++                '../../src/ppc/simulator-ppc.cc',
++                '../../src/ppc/stub-cache-ppc.cc',
++              ],
++            }],
+             ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
+               'sources': [
+                 '../../src/ia32/assembler-ia32-inl.h',
+diff --git a/tools/run-tests.py b/tools/run-tests.py
+index a1de3dc..b37f938 100755
+--- a/tools/run-tests.py
++++ b/tools/run-tests.py
+@@ -64,6 +64,8 @@ SUPPORTED_ARCHS = ["android_arm",
+                    "android_ia32",
+                    "arm",
+                    "ia32",
++                   "ppc",
++                   "ppc64",
+                    "mipsel",
+                    "x64"]
+ 
+diff --git a/tools/test-wrapper-gypbuild.py b/tools/test-wrapper-gypbuild.py
+index 4dd6338..e83878e 100755
+--- a/tools/test-wrapper-gypbuild.py
++++ b/tools/test-wrapper-gypbuild.py
+@@ -66,7 +66,7 @@ def BuildOptions():
+                     default='release,debug')
+   result.add_option("--arch",
+                     help='The architectures to run tests for (comma-separated)',
+-                    default='ia32,x64,arm')
++                    default='ia32,x64,arm,ppc')
+ 
+   # Flags that are passed on to the wrapped test.py script:
+   result.add_option("-v", "--verbose", help="Verbose output",
+@@ -151,7 +151,7 @@ def ProcessOptions(options):
+       print "Unknown mode %s" % mode
+       return False
+   for arch in options.arch:
+-    if not arch in ['ia32', 'x64', 'arm', 'mipsel', 'android_arm',
++    if not arch in ['ia32', 'x64', 'arm', 'ppc', 'mipsel', 'android_arm',
+                     'android_ia32']:
+       print "Unknown architecture %s" % arch
+       return False
+diff --git a/tools/testrunner/local/statusfile.py b/tools/testrunner/local/statusfile.py
+index bf1de45..6afa5dc 100644
+--- a/tools/testrunner/local/statusfile.py
++++ b/tools/testrunner/local/statusfile.py
+@@ -59,7 +59,7 @@ DEFS = {FAIL_OK: [FAIL, OKAY],
+ # Support arches, modes to be written as keywords instead of strings.
+ VARIABLES = {ALWAYS: True}
+ for var in ["debug", "release", "android_arm", "android_ia32", "arm", "ia32",
+-            "mipsel", "x64"]:
++            "mipsel", "x64", "ppc", "ppc64"]:
+   VARIABLES[var] = var
+ 
+ 
+diff --git a/tools/utils.py b/tools/utils.py
+index 232314c..f28ae87 100644
+--- a/tools/utils.py
++++ b/tools/utils.py
+@@ -83,6 +83,8 @@ def GuessArchitecture():
+     return 'ia32'
+   elif id == 'amd64':
+     return 'ia32'
++  elif id == 'ppc64':
++    return 'ppc'
+   else:
+     return None
+ 
