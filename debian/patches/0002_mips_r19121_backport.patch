@@ -1,8 +1,9 @@
-diff --git a/src/mips/code-stubs-mips.cc b/src/mips/code-stubs-mips.cc
-index ca31826..c17cfce 100644
+Description: upstream fix needed by mips arch
+Origin: https://code.google.com/p/v8/source/detail?r=19121
+
 --- a/src/mips/code-stubs-mips.cc
 +++ b/src/mips/code-stubs-mips.cc
-@@ -7792,9 +7808,16 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+@@ -7808,9 +7808,16 @@
    const int32_t kReturnAddressDistanceFromFunctionStart =
        Assembler::kCallTargetAddressOffset + (2 * Assembler::kInstrSize);
  
@@ -22,7 +23,7 @@ index ca31826..c17cfce 100644
  
    // Compute the function's address for the first argument.
    __ Subu(a0, ra, Operand(kReturnAddressDistanceFromFunctionStart));
-@@ -7806,32 +7829,36 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+@@ -7822,32 +7829,36 @@
    // Align the stack if necessary.
    int frame_alignment = masm->ActivationFrameAlignment();
    if (frame_alignment > kPointerSize) {
@@ -68,19 +69,3 @@ index ca31826..c17cfce 100644
    __ Ret();
  }
  
-diff --git a/test/cctest/test-mark-compact.cc b/test/cctest/test-mark-compact.cc
-index c0ab763..f672f34 100644
---- a/test/cctest/test-mark-compact.cc
-+++ b/test/cctest/test-mark-compact.cc
-@@ -545,9 +545,9 @@ TEST(BootUpMemoryUse) {
-       }
-     } else {
-       if (v8::internal::Snapshot::IsEnabled()) {
--        CHECK_LE(delta, 2500 * 1024);  // 2400.
-+        CHECK_LE(delta, 2942 * 1024);  // 2400.
-       } else {
--        CHECK_LE(delta, 2860 * 1024);  // 2760.
-+        CHECK_LE(delta, 3400 * 1024);  // 2760.
-       }
-     }
-   }

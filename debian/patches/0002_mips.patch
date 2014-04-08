@@ -1,3 +1,8 @@
+Description: mips arch support backported to v8 3.14 branch
+Origin: https://github.com/paul99/v8m-rb/tree/dm-mipsbe-3.14
+Last-Update: 2014-04-09
+Acked-by: Jérémy Lal <kapouer@melix.org>
+
 diff --git a/Makefile b/Makefile
 index b65ea4c..e750357 100644
 --- a/Makefile
