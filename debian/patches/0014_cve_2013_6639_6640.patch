@@ -137,7 +137,7 @@ This is a backport of upstream commit r17801. Original commit log:
    bool IsDehoisted() { return is_dehoisted_; }
 --- a/src/hydrogen.cc
 +++ b/src/hydrogen.cc
-@@ -3737,7 +3737,7 @@
+@@ -3739,7 +3739,7 @@
    int32_t value = constant->Integer32Value() * sign;
    // We limit offset values to 30 bits because we want to avoid the risk of
    // overflows when the offset is added to the object header size.
@@ -148,7 +148,7 @@ This is a backport of upstream commit r17801. Original commit log:
      index->DeleteAndReplaceWith(NULL);
 --- a/src/lithium.cc
 +++ b/src/lithium.cc
-@@ -227,36 +227,6 @@
+@@ -230,36 +230,6 @@
  }
  
  

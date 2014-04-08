@@ -8,7 +8,7 @@ Bug-Debian: http://bugs.debian.org/670836
 Last-Update: 2013-05-02
 --- a/tools/gyp/v8.gyp
 +++ b/tools/gyp/v8.gyp
-@@ -676,7 +676,7 @@
+@@ -710,7 +710,7 @@
              ['OS=="freebsd"', {
                  'link_settings': {
                    'libraries': [
