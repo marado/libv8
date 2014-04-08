@@ -1,3 +1,11 @@
+libv8-3.14 (3.14.5.8-6) UNRELEASED; urgency=medium
+
+  * Apply the v8 powerpc branch backported to version 3.14 by
+    upstream, which is committed to support that branch (as well
+    as latest v8 versions).
+
+ -- Jérémy Lal <kapouer@melix.org>  Tue, 08 Apr 2014 23:15:43 +0200
+
 libv8-3.14 (3.14.5.8-5) unstable; urgency=medium
 
   * Import backport of upstream fix for CVE-2013-6639 and
