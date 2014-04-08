@@ -64,7 +64,7 @@ timeOut = 180
 # build for loongson, which uses mips3, a sub-instruction-set of mips32r2
 ifeq (mipsel, $(DEB_HOST_ARCH))
 GYPFLAGS += -Dmips_arch_variant=loongson
-timeOut = 400
+timeOut = 600
 endif
 
 # armel and armhf arches need flags to work around those issues :
