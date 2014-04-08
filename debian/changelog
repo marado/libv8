@@ -1,3 +1,12 @@
+libv8-3.14 (3.14.5.8-6) unstable; urgency=medium
+
+  * Add support for mips architecture (Closes: #736332):
+    + upstream v8m-rb backported mips support to v8-3.14 branch
+    + apply v8 upstream upstream fixes to mips arch
+    + target loongson variant
+
+ -- Jérémy Lal <kapouer@melix.org>  Wed, 09 Apr 2014 01:00:41 +0200
+
 libv8-3.14 (3.14.5.8-5) unstable; urgency=medium
 
   * Import backport of upstream fix for CVE-2013-6639 and
