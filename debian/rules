@@ -67,6 +67,12 @@ GYPFLAGS += -Dmips_arch_variant=loongson
 timeOut = 600
 endif
 
+# build for loongson, which uses mips3, a sub-instruction-set of mips32r2
+ifeq (mips, $(DEB_HOST_ARCH))
+GYPFLAGS += -Dmips_arch_variant=loongson
+timeOut = 600
+endif
+
 # armel and armhf arches need flags to work around those issues :
 # -fno-tree-sink: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39604
 # -Wno-psabi: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42748
