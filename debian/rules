@@ -106,7 +106,7 @@ export LDFLAGS
 export CXXFLAGS
 export GYPFLAGS
 
-DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(ABI) OS=$(v8os) V=1 
+DEB_MAKE_EXTRA_ARGS += library=shared snapshot=off soname_version=$(ABI) OS=$(v8os) V=1
 DEB_MAKE_CLEAN_TARGET = clean
 DEB_MAKE_BUILD_TARGET = $(v8arch).release
 
