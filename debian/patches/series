@@ -1,3 +1,4 @@
+0001_ppc.patch
 0004_kfreebsd.patch
 0008_mksnapshot_stdout.patch
 0011_use_system_gyp.patch
