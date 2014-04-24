@@ -84,6 +84,11 @@ GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0 -Dv8_use_arm_eabi_hardfloat=t
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
+# hints can be found there:
+# https://groups.google.com/forum/#!topic/v8-users/PIP1OgH0sOQ
+# https://code.google.com/p/v8/issues/detail?id=914
+# arm processors features are detected at runtime - and that can lead to
+# a situation where compilation works but runtime crashes
 CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
 ifeq ($(shell dpkg-vendor --is ubuntu && echo true),true)
