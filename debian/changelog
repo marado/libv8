@@ -1,10 +1,11 @@
-libv8-3.14 (3.14.5.8-7) UNRELEASED; urgency=medium
+libv8-3.14 (3.14.5.8-7) unstable; urgency=medium
 
   * Refresh 0002_mips patch
-  * Disable runtime detection of armel vfpv3 capabilities,
-    it is incompatible with compilation options for armel support.
+  * 0003_armv4t_disable_vfp.patch: disable runtime detection of
+    armel vfpv3 capabilities, it is incompatible with compilation
+    options for armel support.
 
- -- Jérémy Lal <kapouer@melix.org>  Sat, 12 Apr 2014 12:07:53 +0200
+ -- Jérémy Lal <kapouer@melix.org>  Fri, 25 Apr 2014 00:51:07 +0200
 
 libv8-3.14 (3.14.5.8-6) unstable; urgency=medium
 
