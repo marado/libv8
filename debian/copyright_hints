@@ -20,6 +20,8 @@ Files: LICENSE
  build/common.gypi
  build/gyp_v8
  build/standalone.gypi
+ debian/patches/0004_hurd.patch
+ debian/patches/0014_cve_2013_6639_6640.patch
  debian/samples.gyp
  include/v8-debug.h
  include/v8-preparser.h
@@ -322,6 +324,7 @@ Files: LICENSE
  src/parser.h
  src/platform-cygwin.cc
  src/platform-freebsd.cc
+ src/platform-gnu.cc
  src/platform-linux.cc
  src/platform-macos.cc
  src/platform-nullos.cc
@@ -1533,6 +1536,8 @@ Files: LICENSE
  test/mjsunit/regress/regress-crbug-158185.js
  test/mjsunit/regress/regress-crbug-18639.js
  test/mjsunit/regress/regress-crbug-3184.js
+ test/mjsunit/regress/regress-crbug-319835.js
+ test/mjsunit/regress/regress-crbug-319860.js
  test/mjsunit/regress/regress-crbug-37853.js
  test/mjsunit/regress/regress-crbug-3867.js
  test/mjsunit/regress/regress-crbug-39160.js
@@ -1702,7 +1707,9 @@ Files: LICENSE
  tools/fuzz-harness.sh
  tools/gc-nvp-trace-processor.py
  tools/gcmole/Makefile
+ tools/gcmole/gccause.lua
  tools/gcmole/gcmole.cc
+ tools/gcmole/gcmole.lua
  tools/gdb-v8-support.py
  tools/gen-postmortem-metadata.py
  tools/grokdump.py
@@ -1724,7 +1731,6 @@ Files: LICENSE
  tools/status-file-converter.py
  tools/test-server.py
  tools/test-wrapper-gypbuild.py
- tools/test.py
  tools/testrunner/__init__.py
  tools/testrunner/local/__init__.py
  tools/testrunner/local/commands.py
@@ -1773,7 +1779,6 @@ Copyright: 2006-2008, the V8 project authors.
   2011, the V8 project authors.
   2012, the V8 project authors.
   2013, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
 License: BSD-3-clause
  FIXME
 
@@ -1793,11 +1798,17 @@ Files: AUTHORS
  debian/control.in
  debian/control.in.in
  debian/gbp.conf
- debian/libv8-__API__-dev.install.in
+ debian/libv8-dev.examples
+ debian/libv8-dev.install
  debian/patches/0001_kfreebsd.patch
+ debian/patches/0002_mips.patch
+ debian/patches/0002_mips_r15102_backport.patch
+ debian/patches/0002_mips_r19121_backport.patch
+ debian/patches/0003_armv4t_disable_vfp.patch
  debian/patches/0008_mksnapshot_stdout.patch
  debian/patches/0011_use_system_gyp.patch
  debian/patches/0012_loongson_force_cache_flush.patch
+ debian/patches/0013_gcc_48_compat.patch
  debian/patches/series
  debian/rules
  debian/source/format
@@ -1859,9 +1870,13 @@ Copyright: 2006-2008, the V8 project authors.
 License: UNKNOWN
  FIXME
 
-Files: src/assembler.cc
+Files: src/arm/assembler-arm-inl.h
+ src/arm/assembler-arm.cc
+ src/arm/assembler-arm.h
+ src/assembler.cc
  src/assembler.h
  src/ia32/assembler-ia32-inl.h
+ src/ia32/assembler-ia32.cc
  src/ia32/assembler-ia32.h
  src/mips/assembler-mips-inl.h
  src/mips/assembler-mips.cc
@@ -1870,8 +1885,6 @@ Files: src/assembler.cc
 Copyright: 1994-2006, Sun Microsystems Inc
   2011, the V8 project authors.
   2012, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS "AS
-  OWNER OR
 License: BSD-2-clause
  FIXME
 
@@ -1881,21 +1894,7 @@ Files: test/mjsunit/third_party/array-isarray.js
  test/mjsunit/third_party/string-trim.js
 Copyright: 2006, Apple Computer, Inc.
   2009, Apple Computer, Inc.
-  HOLDERS AND CONTRIBUTORS
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
-  holder(s) nor the names of any
-License: BSD-2-clause
- FIXME
-
-Files: src/arm/assembler-arm-inl.h
- src/arm/assembler-arm.cc
- src/arm/assembler-arm.h
- src/ia32/assembler-ia32.cc
-Copyright: 1994-2006, Sun Microsystems Inc
-  2012, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT
-License: BSD-2-clause
+License: BSD-3-clause
  FIXME
 
 Files: LICENSE.valgrind
@@ -1905,17 +1904,8 @@ Copyright: 2000-2007, Julian Seward.
 License: BSD-3-clause
  FIXME
 
-Files: tools/gcmole/gccause.lua
- tools/gcmole/gcmole.lua
-Copyright: 2011, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
-License: UNKNOWN
- FIXME
-
 Files: LICENSE.strongtalk
 Copyright: 1994-2006, Sun Microsystems Inc
-  HOLDERS AND CONTRIBUTORS "AS
-  OWNER OR
 License: BSD-2-clause
  FIXME
 
@@ -1928,7 +1918,6 @@ Files: src/scanner.cc
 Copyright: && IsCarriageReturn(c0_)) Advance();
   && IsLineFeed(c0_)) Advance();
   2011, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
 License: BSD-3-clause
  FIXME
 
@@ -1936,7 +1925,6 @@ Files: src/runtime.cc
 Copyright: * kJsonQuotesCharactersPerEntry;
   2012, the V8 project authors.
   >= kQuoteTableLength) {
-  HOLDERS AND CONTRIBUTORS
   || c == 0x200b || c == 0xfeff;
 License: BSD-3-clause
  FIXME
@@ -1945,50 +1933,53 @@ Files: src/scanner.h
 Copyright: 2011, the V8 project authors.
   <= 5) return c + 10;
   <= 9) return c;
-  HOLDERS AND CONTRIBUTORS
 License: BSD-3-clause
  FIXME
 
 Files: test/mjsunit/instanceof-2.js
 Copyright: 2010, the V8 project authors.
   Foo.prototype = 12;
-  HOLDERS AND CONTRIBUTORS
 License: BSD-3-clause
  FIXME
 
 Files: test/mjsunit/third_party/regexp-pcre.js
 Copyright: 1997-2007, University of Cambridge
   2007, Google Inc
-  HOLDERS AND CONTRIBUTORS "AS IS"
-  OWNER OR CONTRIBUTORS BE
 License: BSD-3-clause
  FIXME
 
 Files: tools/js2c.py
 Copyright: 2011, Google Inc.
   2012, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
 License: BSD-3-clause
  FIXME
 
 Files: src/hydrogen.cc
 Copyright: 2012, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
   Reachable only normally
 License: BSD-3-clause
  FIXME
 
 Files: PRESUBMIT.py
 Copyright: 2012, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
   header and trailing whitespaces check failed"))
+License: BSD-3-clause
+ FIXME
+
+Files: tools/generate-ten-powers.scm
+Copyright: 2010, the V8 project authors.
+  2010, the V8 project authors.")
 License: BSD-3-clause
  FIXME
 
 Files: src/char-predicates-inl.h
 Copyright: 2011, the V8 project authors.
-  HOLDERS AND CONTRIBUTORS
   || IsInRange(AsciiAlphaToLower, 'a', 'f');
+License: BSD-3-clause
+ FIXME
+
+Files: tools/test.py
+Copyright: 2012, the V8 project authors. /
 License: BSD-3-clause
  FIXME
 
@@ -2016,13 +2007,6 @@ Copyright: != -1 || // ID-char
   { return sc_SYMBOL_PREFIX + c.val; }
   || c === SC_EOF_OBJECT;
   || needing == "")
-License: UNKNOWN
- FIXME
-
-Files: tools/generate-ten-powers.scm
-Copyright: 2010, the V8 project authors.
-  2010, the V8 project authors.")
-  HOLDERS AND CONTRIBUTORS
 License: UNKNOWN
  FIXME
 
