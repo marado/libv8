@@ -1,3 +1,10 @@
+libv8-3.14 (3.14.5.8-8) unstable; urgency=medium
+
+  * Add 0004_hurd.patch, add Architecture: hurd-i386.
+    Thanks to Svante Signell (Closes: #747246).
+
+ -- Jérémy Lal <kapouer@melix.org>  Tue, 06 May 2014 21:35:20 +0200
+
 libv8-3.14 (3.14.5.8-7) unstable; urgency=medium
 
   * Refresh 0002_mips patch
