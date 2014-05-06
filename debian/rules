@@ -31,7 +31,7 @@ DEB_UPSTREAM_TARBALL_BASENAME =  6b10fef46e
 DEB_UPSTREAM_TARBALL_MD5 = be049128a44adf26f4dfb7d1ab55acfd
 
 # Supported archs
-ARCHS = i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf mipsel mips
+ARCHS = i386 kfreebsd-i386 hurd-i386 amd64 kfreebsd-amd64 armel armhf mipsel mips
 
 # allow parallel builds
 DEB_BUILD_PARALLEL=1
@@ -45,6 +45,7 @@ DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^(benchmarks/v8-logo\.png|test/mjsunit/unicod
 # map HOST ARCH AND OS to v8 options
 v8arch := $(or $(v8arch),$(if $(filter i386,$(DEB_HOST_ARCH)),ia32))
 v8arch := $(or $(v8arch),$(if $(filter kfreebsd-i386,$(DEB_HOST_ARCH)),ia32))
+v8arch := $(or $(v8arch),$(if $(filter hurd-i386,$(DEB_HOST_ARCH)),ia32))
 v8arch := $(or $(v8arch),$(if $(filter amd64,$(DEB_HOST_ARCH)),x64))
 v8arch := $(or $(v8arch),$(if $(filter kfreebsd-amd64,$(DEB_HOST_ARCH)),x64))
 v8arch := $(or $(v8arch),$(if $(filter armel,$(DEB_HOST_ARCH)),arm))
