@@ -1,5 +1,6 @@
 Description: hurd-i386 support
  https://bugs.debian.org/747246
+Forwarded: https://code.google.com/p/v8/issues/detail?id=3319
 Author: Svante Signell <svante.signell@gmail.com>
 Acked-By: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2014-05-06
