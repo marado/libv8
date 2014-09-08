@@ -1,3 +1,9 @@
+libv8-3.14 (3.14.5.8-9) UNRELEASED; urgency=medium
+
+  * Add Raspbian support to configuration logic.
+
+ -- Peter Michael Green <plugwash@raspbian.org>  Sat, 24 May 2014 03:08:09 +0000
+
 libv8-3.14 (3.14.5.8-8) unstable; urgency=medium
 
   * Add 0004_hurd.patch, add Architecture: hurd-i386.
