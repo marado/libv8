@@ -80,8 +80,14 @@ endif
 ifeq (armhf, $(DEB_HOST_ARCH))
 CXXFLAGS += -fno-tree-sink
 CXXFLAGS += -Wno-psabi
+ifeq ($(shell dpkg-vendor --derives-from raspbian && echo true),true)
+# enable vfpv2, disable armv7
+GYPFLAGS += -Darmv7=0 -Darm_fpu=vfpv2 -Darm_neon=0 -Dv8_use_arm_eabi_hardfloat=true
+DEB_MAKE_EXTRA_ARGS += vfp3=off
+else
 # enable armv7 vfpv3
 GYPFLAGS += -Darmv7=1 -Darm_fpu=vfpv3 -Darm_neon=0 -Dv8_use_arm_eabi_hardfloat=true
+endif
 endif
 
 ifeq (armel, $(DEB_HOST_ARCH))
