@@ -1,3 +1,9 @@
+libv8-3.14 (3.14.5.8-9) UNRELEASED; urgency=medium
+
+  * Add NEWS about lack of security support
+
+ -- Jérémy Lal <kapouer@melix.org>  Mon, 24 Nov 2014 20:28:53 +0100
+
 libv8-3.14 (3.14.5.8-8) unstable; urgency=medium
 
   * Add 0004_hurd.patch, add Architecture: hurd-i386.
