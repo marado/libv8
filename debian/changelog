@@ -1,3 +1,9 @@
+libv8 (3.28.73-1) unstable; urgency=low
+
+  * Upstream update.
+
+ -- Marcos Marado <mindboosternoori@gmail.com>  Fri, 30 Jan 2015 21:53:20 +0000
+
 libv8 (3.10.8.3-1) unstable; urgency=low
 
   * Upstream update.

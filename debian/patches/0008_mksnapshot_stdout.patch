@@ -2,15 +2,15 @@ Description: Redirect mksnapshot log to stdout
  armel builds typically fail at mksnapshot, for which it is useful to be able to get the actual log.
 Forwarded: not-needed
 Author: Jérémy Lal <kapouer@melix.org>
-Last-Update: 2011-10-25
+Last-Update: 2015-01-30
 --- a/tools/gyp/v8.gyp
 +++ b/tools/gyp/v8.gyp
-@@ -156,7 +156,7 @@
-               'variables': {
-                 'mksnapshot_flags': [
-                   '--log-snapshot-positions',
--                  '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
-+                  '--logfile', '-',
-                 ],
-               },
-               'conditions': [
+@@ -166,7 +166,7 @@
+           'variables': {
+             'mksnapshot_flags': [
+               '--log-snapshot-positions',
+-              '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
++              '--logfile', '-',
+             ],
+             'conditions': [
+               ['v8_random_seed!=0', {
