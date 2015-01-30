@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "cctest.h"
+#include "src/ast.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -39,9 +39,10 @@ TEST(List) {
   List<AstNode*>* list = new List<AstNode*>(0);
   CHECK_EQ(0, list->length());
 
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  AstNodeFactory<AstNullVisitor> factory(Isolate::Current());
-  AstNode* node = factory.NewEmptyStatement();
+  Isolate* isolate = CcTest::i_isolate();
+  Zone zone(isolate);
+  AstNodeFactory<AstNullVisitor> factory(&zone, NULL);
+  AstNode* node = factory.NewEmptyStatement(RelocInfo::kNoPosition);
   list->Add(node);
   CHECK_EQ(1, list->length());
   CHECK_EQ(node, list->at(0));
