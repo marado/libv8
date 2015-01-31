@@ -1,2 +1,3 @@
 0008_mksnapshot_stdout.patch
 0011_use_system_gyp.patch
+0012_use_system_gtest.patch

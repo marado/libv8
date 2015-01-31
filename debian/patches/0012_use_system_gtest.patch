@@ -1,0 +1,98 @@
+Description: Use libgtest-dev package, not testing/gtest.
+Forwarded: not-needed
+Author: Marcos Marado <mindboosternoori@gmail.com>
+Last-Update: 2015-01-31
+--- a/testing/gtest.gyp
++++ b/testing/gtest.gyp
+@@ -9,42 +9,42 @@
+       'toolsets': ['host', 'target'],
+       'type': 'static_library',
+       'sources': [
+-        'gtest/include/gtest/gtest-death-test.h',
+-        'gtest/include/gtest/gtest-message.h',
+-        'gtest/include/gtest/gtest-param-test.h',
+-        'gtest/include/gtest/gtest-printers.h',
+-        'gtest/include/gtest/gtest-spi.h',
+-        'gtest/include/gtest/gtest-test-part.h',
+-        'gtest/include/gtest/gtest-typed-test.h',
+-        'gtest/include/gtest/gtest.h',
+-        'gtest/include/gtest/gtest_pred_impl.h',
+-        'gtest/include/gtest/internal/gtest-death-test-internal.h',
+-        'gtest/include/gtest/internal/gtest-filepath.h',
+-        'gtest/include/gtest/internal/gtest-internal.h',
+-        'gtest/include/gtest/internal/gtest-linked_ptr.h',
+-        'gtest/include/gtest/internal/gtest-param-util-generated.h',
+-        'gtest/include/gtest/internal/gtest-param-util.h',
+-        'gtest/include/gtest/internal/gtest-port.h',
+-        'gtest/include/gtest/internal/gtest-string.h',
+-        'gtest/include/gtest/internal/gtest-tuple.h',
+-        'gtest/include/gtest/internal/gtest-type-util.h',
+-        'gtest/src/gtest-all.cc',
+-        'gtest/src/gtest-death-test.cc',
+-        'gtest/src/gtest-filepath.cc',
+-        'gtest/src/gtest-internal-inl.h',
+-        'gtest/src/gtest-port.cc',
+-        'gtest/src/gtest-printers.cc',
+-        'gtest/src/gtest-test-part.cc',
+-        'gtest/src/gtest-typed-test.cc',
+-        'gtest/src/gtest.cc',
++        '/usr/include/gtest/gtest-death-test.h',
++        '/usr/include/gtest/gtest-message.h',
++        '/usr/include/gtest/gtest-param-test.h',
++        '/usr/include/gtest/gtest-printers.h',
++        '/usr/include/gtest/gtest-spi.h',
++        '/usr/include/gtest/gtest-test-part.h',
++        '/usr/include/gtest/gtest-typed-test.h',
++        '/usr/include/gtest/gtest.h',
++        '/usr/include/gtest/gtest_pred_impl.h',
++        '/usr/include/gtest/internal/gtest-death-test-internal.h',
++        '/usr/include/gtest/internal/gtest-filepath.h',
++        '/usr/include/gtest/internal/gtest-internal.h',
++        '/usr/include/gtest/internal/gtest-linked_ptr.h',
++        '/usr/include/gtest/internal/gtest-param-util-generated.h',
++        '/usr/include/gtest/internal/gtest-param-util.h',
++        '/usr/include/gtest/internal/gtest-port.h',
++        '/usr/include/gtest/internal/gtest-string.h',
++        '/usr/include/gtest/internal/gtest-tuple.h',
++        '/usr/include/gtest/internal/gtest-type-util.h',
++        '/usr/src/gtest/src/gtest-all.cc',
++        '/usr/src/gtest/src/gtest-death-test.cc',
++        '/usr/src/gtest/src/gtest-filepath.cc',
++        '/usr/src/gtest/src/gtest-internal-inl.h',
++        '/usr/src/gtest/src/gtest-port.cc',
++        '/usr/src/gtest/src/gtest-printers.cc',
++        '/usr/src/gtest/src/gtest-test-part.cc',
++        '/usr/src/gtest/src/gtest-typed-test.cc',
++        '/usr/src/gtest/src/gtest.cc',
+         'gtest-type-names.h',
+       ],
+       'sources!': [
+-        'gtest/src/gtest-all.cc',  # Not needed by our build.
++        '/usr/src/gtest/src/gtest-all.cc',  # Not needed by our build.
+       ],
+       'include_dirs': [
+-        'gtest',
+-        'gtest/include',
++	  	'/usr/include/gtest',
++        '/usr/src/gtest',
+       ],
+       'dependencies': [
+         'gtest_prod',
+@@ -144,7 +144,7 @@
+         'gtest',
+       ],
+       'sources': [
+-        'gtest/src/gtest_main.cc',
++        '/usr/src/gtest/src/gtest_main.cc',
+       ],
+     },
+     {
+@@ -152,7 +152,7 @@
+       'toolsets': ['host', 'target'],
+       'type': 'none',
+       'sources': [
+-        'gtest/include/gtest/gtest_prod.h',
++        '/usr/include/gtest/gtest_prod.h',
+       ],
+     },
+   ],
