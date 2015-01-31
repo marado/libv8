@@ -4,6 +4,15 @@ Author: Jérémy Lal <kapouer@melix.org>
 Last-Update: 2015-01-30
 --- a/Makefile
 +++ b/Makefile
+@@ -128,7 +128,7 @@
+ ifeq ($(regexp), interpreted)
+   GYPFLAGS += -Dv8_interpreted_regexp=1
+ endif
+-# i18nsupport=off
++i18nsupport=off
+ ifeq ($(i18nsupport), off)
+   GYPFLAGS += -Dv8_enable_i18n_support=0
+   TESTFLAGS += --noi18n
 @@ -405,7 +405,7 @@
  	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
  	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
